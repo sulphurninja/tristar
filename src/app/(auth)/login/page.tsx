@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
@@ -21,7 +21,11 @@ const Schema = z.object({
 
 type FormValues = z.infer<typeof Schema>;
 
-export default function LoginPage() {
+/**
+ * Inner form is wrapped in <Suspense> by the default export below — required
+ * by Next.js 15 because we read query params with `useSearchParams()`.
+ */
+function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
@@ -60,62 +64,70 @@ export default function LoginPage() {
   };
 
   return (
+    <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Work email</Label>
+        <Input
+          id="email"
+          type="email"
+          autoComplete="email"
+          placeholder="you@yourcompany.com"
+          leadingIcon={<Mail className="size-4" />}
+          {...register("email")}
+          aria-invalid={!!errors.email}
+        />
+        {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="password">Password</Label>
+          <Link href="/forgot-password" className="text-xs font-medium text-primary hover:underline">
+            Forgot password?
+          </Link>
+        </div>
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          autoComplete="current-password"
+          placeholder="Enter your password"
+          leadingIcon={<Lock className="size-4" />}
+          trailingIcon={
+            <button
+              type="button"
+              onClick={() => setShowPassword((s) => !s)}
+              className="pointer-events-auto text-muted-foreground hover:text-foreground"
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            </button>
+          }
+          {...register("password")}
+          aria-invalid={!!errors.password}
+        />
+        {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
+      </div>
+
+      <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>
+        Sign in
+        <ArrowRight className="size-4" />
+      </Button>
+    </form>
+  );
+}
+
+export default function LoginPage() {
+  return (
     <div>
       <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
       <p className="mt-1.5 text-sm text-muted-foreground">
         Sign in to the Tristar Realtors CRM to manage leads, projects and channel partners.
       </p>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Work email</Label>
-          <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@yourcompany.com"
-            leadingIcon={<Mail className="size-4" />}
-            {...register("email")}
-            aria-invalid={!!errors.email}
-          />
-          {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
-        </div>
-
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="password">Password</Label>
-            <Link href="/forgot-password" className="text-xs font-medium text-primary hover:underline">
-              Forgot password?
-            </Link>
-          </div>
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            placeholder="Enter your password"
-            leadingIcon={<Lock className="size-4" />}
-            trailingIcon={
-              <button
-                type="button"
-                onClick={() => setShowPassword((s) => !s)}
-                className="pointer-events-auto text-muted-foreground hover:text-foreground"
-                tabIndex={-1}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-              </button>
-            }
-            {...register("password")}
-            aria-invalid={!!errors.password}
-          />
-          {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
-        </div>
-
-        <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>
-          Sign in
-          <ArrowRight className="size-4" />
-        </Button>
-      </form>
+      <Suspense fallback={<div className="mt-8 h-[280px]" />}>
+        <LoginForm />
+      </Suspense>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
         First-time setup?{" "}
