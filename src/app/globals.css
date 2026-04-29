@@ -1,0 +1,464 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Tristar Realtors design tokens
+ * — White-bg, modern but approachable
+ * — Emerald (primary, growth) + Blue (secondary, trust)
+ * — Slightly larger comfortable typography for non-tech real-estate users
+ * — All values are HSL so old browsers render fine; OKLCH is used only as a comment
+ */
+
+:root {
+  /* Surfaces */
+  --background: 0 0% 100%;            /* pure white */
+  --foreground: 222 47% 11%;          /* near-black */
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+
+  /* Primary — Emerald (growth) */
+  --primary: 158 64% 35%;             /* #0F8F60 ish */
+  --primary-foreground: 0 0% 100%;
+  --primary-50: 152 81% 96%;
+  --primary-100: 149 80% 90%;
+  --primary-500: 158 64% 42%;
+  --primary-600: 158 64% 35%;
+  --primary-700: 158 64% 28%;
+
+  /* Secondary — Blue (trust) */
+  --secondary: 217 91% 60%;           /* #2563EB family */
+  --secondary-foreground: 0 0% 100%;
+  --secondary-50: 214 100% 97%;
+  --secondary-100: 214 95% 93%;
+  --secondary-500: 217 91% 60%;
+  --secondary-600: 221 83% 53%;
+  --secondary-700: 224 76% 45%;
+
+  /* Neutrals */
+  --muted: 220 14% 96%;
+  --muted-foreground: 220 9% 46%;
+  --accent: 158 64% 95%;              /* very light emerald wash */
+  --accent-foreground: 158 64% 25%;
+
+  /* Status */
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --warning: 38 92% 50%;
+  --warning-foreground: 0 0% 100%;
+  --success: 158 64% 42%;
+  --success-foreground: 0 0% 100%;
+  --info: 217 91% 60%;
+  --info-foreground: 0 0% 100%;
+
+  /* Borders / inputs / rings */
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 158 64% 42%;
+
+  /* Charts (emerald → blue spectrum) */
+  --chart-1: 158 64% 42%;
+  --chart-2: 217 91% 60%;
+  --chart-3: 188 78% 41%;
+  --chart-4: 262 80% 60%;
+  --chart-5: 38 92% 55%;
+
+  /* Sidebar (subtle off-white but still clean) */
+  --sidebar: 220 20% 98%;
+  --sidebar-foreground: 222 47% 11%;
+  --sidebar-primary: 158 64% 35%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 158 64% 96%;
+  --sidebar-accent-foreground: 158 64% 25%;
+  --sidebar-border: 220 13% 91%;
+  --sidebar-ring: 158 64% 42%;
+
+  /* Typography */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
+
+  /* Radius — slightly rounder for friendly feel */
+  --radius: 0.625rem;
+
+  /* Shadows — soft and clean (no heavy drop shadows) */
+  --shadow-xs: 0 1px 2px 0 hsl(220 43% 11% / 0.04);
+  --shadow-sm: 0 1px 2px 0 hsl(220 43% 11% / 0.05), 0 1px 3px 0 hsl(220 43% 11% / 0.04);
+  --shadow: 0 1px 3px 0 hsl(220 43% 11% / 0.08), 0 1px 2px -1px hsl(220 43% 11% / 0.05);
+  --shadow-md: 0 4px 6px -1px hsl(220 43% 11% / 0.08), 0 2px 4px -2px hsl(220 43% 11% / 0.05);
+  --shadow-lg: 0 10px 15px -3px hsl(220 43% 11% / 0.08), 0 4px 6px -4px hsl(220 43% 11% / 0.05);
+  --shadow-xl: 0 20px 25px -5px hsl(220 43% 11% / 0.08), 0 8px 10px -6px hsl(220 43% 11% / 0.04);
+}
+
+.dark {
+  --background: 222 47% 6%;
+  --foreground: 210 20% 98%;
+  --card: 222 47% 8%;
+  --card-foreground: 210 20% 98%;
+  --popover: 222 47% 8%;
+  --popover-foreground: 210 20% 98%;
+  --primary: 158 64% 50%;
+  --primary-foreground: 222 47% 6%;
+  --secondary: 217 91% 65%;
+  --secondary-foreground: 222 47% 6%;
+  --muted: 222 30% 14%;
+  --muted-foreground: 215 16% 65%;
+  --accent: 222 30% 16%;
+  --accent-foreground: 158 64% 80%;
+  --destructive: 0 72% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 222 30% 18%;
+  --input: 222 30% 18%;
+  --ring: 158 64% 50%;
+  --sidebar: 222 47% 7%;
+  --sidebar-foreground: 210 20% 98%;
+  --sidebar-primary: 158 64% 50%;
+  --sidebar-primary-foreground: 222 47% 6%;
+  --sidebar-accent: 222 30% 14%;
+  --sidebar-accent-foreground: 158 64% 80%;
+  --sidebar-border: 222 30% 18%;
+  --sidebar-ring: 158 64% 50%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary-50: hsl(var(--primary-50));
+  --color-primary-100: hsl(var(--primary-100));
+  --color-primary-500: hsl(var(--primary-500));
+  --color-primary-600: hsl(var(--primary-600));
+  --color-primary-700: hsl(var(--primary-700));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary-50: hsl(var(--secondary-50));
+  --color-secondary-100: hsl(var(--secondary-100));
+  --color-secondary-500: hsl(var(--secondary-500));
+  --color-secondary-600: hsl(var(--secondary-600));
+  --color-secondary-700: hsl(var(--secondary-700));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-warning: hsl(var(--warning));
+  --color-warning-foreground: hsl(var(--warning-foreground));
+  --color-success: hsl(var(--success));
+  --color-success-foreground: hsl(var(--success-foreground));
+  --color-info: hsl(var(--info));
+  --color-info-foreground: hsl(var(--info-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+
+  --radius-xs: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html,
+body {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss02";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Slightly larger comfortable base — non-tech users skim better at 15px */
+html {
+  font-size: 15.5px;
+}
+
+body {
+  line-height: 1.55;
+}
+
+/* Subtle gradient backgrounds for hero sections */
+.bg-mesh-emerald {
+  background-image:
+    radial-gradient(at 0% 0%, hsl(158 64% 95%) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, hsl(217 91% 95%) 0px, transparent 50%),
+    radial-gradient(at 50% 100%, hsl(158 64% 97%) 0px, transparent 50%);
+}
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, hsl(220 13% 95%) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(220 13% 95%) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+/* Utility: brand gradient text */
+.text-brand-gradient {
+  background: linear-gradient(135deg, hsl(158 64% 35%) 0%, hsl(217 91% 55%) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth focus rings */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Disable focus ring for mouse users; keep for keyboard */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ──────────────────────────────────────────────────────────
+ * Dark stage utilities (used on the landing page)
+ * ────────────────────────────────────────────────────────── */
+.stage-emerald {
+  background: radial-gradient(at 20% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 50%),
+              radial-gradient(at 80% 0%, rgba(37, 99, 235, 0.10) 0px, transparent 50%),
+              linear-gradient(180deg, #051815 0%, #07211c 60%, #051815 100%);
+}
+
+.stage-emerald-dim {
+  background: linear-gradient(180deg, #07221d 0%, #051815 100%);
+}
+
+.stage-grid {
+  background-image:
+    linear-gradient(to right, rgba(110, 231, 183, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(110, 231, 183, 0.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+.stage-dots {
+  background-image: radial-gradient(rgba(110, 231, 183, 0.10) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.glow-emerald {
+  box-shadow:
+    0 0 0 1px rgba(52, 211, 153, 0.18),
+    0 18px 60px -12px rgba(16, 185, 129, 0.25);
+}
+
+.glow-blue {
+  box-shadow:
+    0 0 0 1px rgba(96, 165, 250, 0.18),
+    0 18px 60px -12px rgba(37, 99, 235, 0.25);
+}
+
+.gradient-border {
+  background:
+    linear-gradient(#07211c, #07211c) padding-box,
+    linear-gradient(135deg, rgba(52, 211, 153, 0.45), rgba(96, 165, 250, 0.45)) border-box;
+  border: 1px solid transparent;
+}
+
+.text-gradient-emerald-blue {
+  background: linear-gradient(135deg, #34d399 0%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.btn-shine {
+  position: relative;
+  overflow: hidden;
+}
+.btn-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.18) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.7s ease;
+}
+.btn-shine:hover::after {
+  transform: translateX(100%);
+}
+
+/* Soft pulse used on AI voice waveform */
+@keyframes voice-pulse {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.7; }
+  50%       { transform: scaleY(1);   opacity: 1; }
+}
+.voice-bar {
+  animation: voice-pulse 1s ease-in-out infinite;
+  transform-origin: center;
+}
+.voice-bar:nth-child(2) { animation-delay: 0.08s; }
+.voice-bar:nth-child(3) { animation-delay: 0.16s; }
+.voice-bar:nth-child(4) { animation-delay: 0.24s; }
+.voice-bar:nth-child(5) { animation-delay: 0.32s; }
+.voice-bar:nth-child(6) { animation-delay: 0.40s; }
+.voice-bar:nth-child(7) { animation-delay: 0.48s; }
+.voice-bar:nth-child(8) { animation-delay: 0.56s; }
+.voice-bar:nth-child(9) { animation-delay: 0.64s; }
+.voice-bar:nth-child(10) { animation-delay: 0.72s; }
+
+/* Marquee for integration logos */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+/* Floating chips */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.animate-float-y { animation: float-y 4s ease-in-out infinite; }
+
+/* ──────────────────────────────────────────────────────────
+ * Hand-crafted ornaments (used on the new landing)
+ * ────────────────────────────────────────────────────────── */
+
+/* Hairline section divider — replaces generic borders */
+.divider-hair {
+  background-image: linear-gradient(to right, transparent 0%, rgba(110, 231, 183, 0.4) 50%, transparent 100%);
+  height: 1px;
+}
+
+/* Eyebrow label decoration — small caps with side rules */
+.eyebrow-rule::before,
+.eyebrow-rule::after {
+  content: "";
+  display: inline-block;
+  width: 28px;
+  height: 1px;
+  background: currentColor;
+  vertical-align: middle;
+  opacity: 0.4;
+  margin: 0 12px;
+}
+
+/* Soft noise overlay for "warm" surfaces (subtle film grain) */
+.noise-overlay {
+  position: relative;
+}
+.noise-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: overlay;
+}
+
+/* Phone-mockup chrome — pure dark, zero white edges */
+.phone-chrome {
+  border-radius: 38px;
+  background:
+    linear-gradient(180deg, #0d1715 0%, #0a1311 45%, #060c0a 100%);
+  box-shadow:
+    inset 0 0 0 4px rgba(110, 231, 183, 0.05),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 60px 120px -30px rgba(0, 0, 0, 0.7);
+}
+
+/* Browser-frame chrome (used in hero) — flat dark, zero edges of any kind */
+.browser-chrome {
+  background: #0a1311;
+  box-shadow: 0 60px 120px -30px rgba(0, 0, 0, 0.7);
+}
+
+/* Tilt-on-hover for cards */
+.tilt-card {
+  transition: transform 600ms cubic-bezier(0.2, 0.6, 0.2, 1), box-shadow 600ms ease;
+  transform-style: preserve-3d;
+}
+.tilt-card:hover {
+  transform: translateY(-4px) rotateX(2deg);
+}
+
+/* Slim "live" badge dot */
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18);
+  animation: live-blink 1.6s ease-in-out infinite;
+}
+@keyframes live-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Slow drift for background ornaments */
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(20px, -14px); }
+}
+.animate-drift { animation: drift 14s ease-in-out infinite; }
+
+/* Glass card — pure dark elevation, ZERO white edges.
+ * Cards read through bg tint + dark drop shadow only.
+ * NEVER add an inset white highlight here — that's what registers as a sharp outline. */
+.glass-card {
+  box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.65);
+}
+.glass-card-strong {
+  box-shadow: 0 30px 60px -25px rgba(0, 0, 0, 0.75);
+}
+
+/* Marker / hand-drawn underline used in headlines */
+.marker-underline {
+  position: relative;
+  white-space: nowrap;
+}
+.marker-underline::after {
+  content: "";
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  bottom: 4px;
+  height: 8px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 12' preserveAspectRatio='none'><path d='M2,8 C60,2 120,11 180,4 C240,1 280,9 298,5' fill='none' stroke='%2334d399' stroke-width='3' stroke-linecap='round'/></svg>");
+  background-size: 100% 100%;
+  opacity: 0.85;
+  z-index: -1;
+}
