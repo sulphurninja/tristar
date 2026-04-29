@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import {
   Plus,
   CalendarCheck,
-  Filter,
   CheckCircle2,
   XCircle,
   Clock,
@@ -25,7 +24,7 @@ import {
 import { StatusPill } from "@/components/shared/StatusPill";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NewVisitSheet } from "@/components/visits/NewVisitSheet";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPhone } from "@/lib/utils";
 
 interface Visit {
