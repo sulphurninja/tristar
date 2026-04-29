@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 interface LogoProps {
   className?: string;
   variant?: "default" | "white" | "black";
-  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | "2xl";
   /** Kept for API compatibility — the PNG already includes the wordmark. */
   showWordmark?: boolean;
 }
@@ -12,23 +12,24 @@ interface LogoProps {
  * Tristar Realtors brand logo. Uses the official `tristar-logo.png` asset
  * which contains the building mark + the "TRISTAR REALTORS" wordmark.
  *
- * Pass `variant="white"` on dark surfaces (e.g. the sidebar) to flatten the
- * blue/grey tones to pure white via a CSS filter.
- *
- * Uses a plain <img> (rather than next/image) because the asset is small
- * and we don't need on-the-fly optimisation — keeps the build simple.
+ * The image is rendered at a fixed *height* (via inline style) and
+ * `width: auto` so the wordmark stays legible at every size. Pass
+ * `variant="white"` on dark surfaces to flatten the blue/grey tones to
+ * pure white via a CSS filter.
  */
 export function Logo({ className, variant = "default", size = "md" }: LogoProps) {
-  const dim =
+  const heightPx =
     size === "xs"
       ? 28
       : size === "sm"
         ? 36
         : size === "md"
-          ? 44
+          ? 48
           : size === "lg"
-            ? 56
-            : 72;
+            ? 64
+            : size === "xl"
+              ? 88
+              : 120; // 2xl
 
   const filter =
     variant === "white"
@@ -38,15 +39,17 @@ export function Logo({ className, variant = "default", size = "md" }: LogoProps)
         : undefined;
 
   return (
-    <span className={cn("inline-flex justify-center flex w-full items-center", className)}>
+    <span className={cn("inline-flex items-center", className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/tristar-logo.png"
         alt="Tristar Realtors"
-        width={dim}
-        height={dim}
-        style={filter ? { filter } : undefined}
-        className="h-32 w-auto select-none object-contain"
+        style={{
+          height: heightPx,
+          width: "auto",
+          ...(filter ? { filter } : {}),
+        }}
+        className="block select-none object-contain"
       />
     </span>
   );

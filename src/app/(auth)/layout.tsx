@@ -17,7 +17,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="flex flex-col px-6 py-8 lg:px-16">
           <div className="flex items-center justify-between">
             <Link href="/" className="inline-flex">
-              <Logo size="md" />
+              <Logo size="lg" />
             </Link>
             <Link
               href="mailto:support@tristarrealtors.in"

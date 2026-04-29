@@ -16,8 +16,8 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-white text-slate-900 antialiased">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-10">
-          <Logo size="sm" />
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-10">
+          <Logo size="md" />
           <nav className="hidden items-center gap-6 md:flex">
             <Link
               href="#features"
