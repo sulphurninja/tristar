@@ -2,6 +2,12 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
+import { hasRole, ROLE_HIERARCHY, ROLE_LABELS, type Role } from "@/lib/roles";
+
+/* Re-export pure helpers so existing server-side imports keep working. */
+export { hasRole, ROLE_HIERARCHY, ROLE_LABELS };
+export type { Role };
+
 const JWT_SECRET = process.env.JWT_SECRET || "";
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "";
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
@@ -12,45 +18,6 @@ if (!JWT_SECRET) {
 
 const ACCESS_COOKIE = "ts_access";
 const REFRESH_COOKIE = "ts_refresh";
-
-export type Role =
-  | "owner"
-  | "admin"
-  | "manager"
-  | "supervisor"
-  | "sales_executive"
-  | "telecaller"
-  | "field_executive"
-  | "channel_partner"
-  | "viewer";
-
-export const ROLE_HIERARCHY: Record<Role, number> = {
-  owner: 100,
-  admin: 90,
-  manager: 80,
-  supervisor: 70,
-  sales_executive: 60,
-  telecaller: 50,
-  field_executive: 50,
-  channel_partner: 40,
-  viewer: 10,
-};
-
-export const ROLE_LABELS: Record<Role, string> = {
-  owner: "Super Administrator",
-  admin: "Administrator",
-  manager: "Manager",
-  supervisor: "Supervisor",
-  sales_executive: "Executive",
-  telecaller: "Telecaller",
-  field_executive: "Field Executive",
-  channel_partner: "Channel Partner",
-  viewer: "Viewer",
-};
-
-export function hasRole(userRole: Role, minimum: Role) {
-  return (ROLE_HIERARCHY[userRole] ?? 0) >= (ROLE_HIERARCHY[minimum] ?? 0);
-}
 
 export interface JwtPayload {
   userId: string;

@@ -28,7 +28,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { StatusPill } from "@/components/shared/StatusPill";
-import { ROLE_LABELS } from "@/lib/auth";
+import { ROLE_LABELS } from "@/lib/roles";
 import { initials } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 

@@ -32,7 +32,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusPill } from "@/components/shared/StatusPill";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useAuth } from "@/contexts/AuthContext";
-import { hasRole, type Role } from "@/lib/auth";
+import { hasRole, type Role } from "@/lib/roles";
 
 interface RequestRow {
   _id: string;
