@@ -40,9 +40,14 @@ export const metadata: Metadata = {
     title: "Tristar Realtors CRM",
   },
   icons: {
-    icon: "/tristar-logo.png",
-    shortcut: "/tristar-logo.png",
-    apple: "/tristar-logo.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.png", type: "image/png", sizes: "48x48" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 

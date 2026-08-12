@@ -1,32 +1,67 @@
 "use client";
 
 import Link from "next/link";
-import { ReactNode } from "react";
-import { Download, ArrowLeft } from "lucide-react";
+import { ReactNode, useMemo } from "react";
+import { format } from "date-fns";
+import { type DateRange } from "react-day-picker";
+import { Download, ArrowLeft, CalendarRange } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
+import { TableRoot, Th, Td } from "@/components/shared/DataTableShell";
+import { cn } from "@/lib/utils";
 
-export type ReportRange = "today" | "7d" | "30d" | "this_month" | "last_month" | "ytd";
+export type ReportRange =
+  | "today"
+  | "7d"
+  | "30d"
+  | "this_month"
+  | "last_month"
+  | "ytd"
+  | "custom";
 
-const RANGE_LABEL: Record<ReportRange, string> = {
-  today: "Today",
-  "7d": "Last 7 Days",
-  "30d": "Last 30 Days",
-  this_month: "This Month",
-  last_month: "Last Month",
-  ytd: "Till Date",
-};
+const RANGE_PRESETS: Array<{ key: ReportRange; label: string }> = [
+  { key: "today", label: "Today" },
+  { key: "7d", label: "Last 7 Days" },
+  { key: "30d", label: "Last 30 Days" },
+  { key: "this_month", label: "This Month" },
+  { key: "last_month", label: "Last Month" },
+  { key: "ytd", label: "Till Date" },
+  { key: "custom", label: "Custom" },
+];
+
+export interface ReportDateState {
+  range: ReportRange;
+  from?: Date;
+  to?: Date;
+}
 
 interface ReportShellProps {
   title: string;
   description?: string;
   range: ReportRange;
   onRangeChange: (r: ReportRange) => void;
+  /** Custom / explicit date bounds — used when range is custom or for as-of filtering */
+  from?: Date;
+  to?: Date;
+  onDatesChange?: (dates: { from?: Date; to?: Date }) => void;
   onExport?: () => void;
   rightExtra?: ReactNode;
   children: ReactNode;
-  /** Disable the export and ranges (used by disabled-marketing reports) */
   disabled?: boolean;
+  /** Show a single "As of" date picker beside the range (enterprise reports) */
+  showAsOf?: boolean;
+  asOf?: Date;
+  onAsOfChange?: (d: Date | undefined) => void;
+}
+
+export function reportQuery(state: ReportDateState) {
+  const params = new URLSearchParams();
+  params.set("range", state.range);
+  if (state.range === "custom" && state.from && state.to) {
+    params.set("from", format(state.from, "yyyy-MM-dd"));
+    params.set("to", format(state.to, "yyyy-MM-dd"));
+  }
+  return params.toString();
 }
 
 export function ReportShell({
@@ -34,11 +69,22 @@ export function ReportShell({
   description,
   range,
   onRangeChange,
+  from,
+  to,
+  onDatesChange,
   onExport,
   rightExtra,
   children,
   disabled,
+  showAsOf,
+  asOf,
+  onAsOfChange,
 }: ReportShellProps) {
+  const customRange: DateRange | undefined = useMemo(
+    () => (from || to ? { from, to } : undefined),
+    [from, to],
+  );
+
   return (
     <div className="flex flex-1 flex-col bg-white">
       <div className="border-b border-slate-200/70 px-7 py-6 lg:px-10">
@@ -62,25 +108,80 @@ export function ReportShell({
         </div>
       </div>
 
-      <div className="sticky top-[72px] z-20 flex flex-wrap items-center gap-2 border-b border-slate-200/70 bg-white px-7 py-3 lg:px-10">
-        {onExport ? (
-          <Button variant="outline" className="gap-1.5" onClick={onExport} disabled={disabled}>
-            <Download className="size-4" strokeWidth={1.75} />
-            Export
-          </Button>
-        ) : null}
-        <Tabs
-          value={range}
-          onValueChange={(v) => !disabled && onRangeChange(v as ReportRange)}
-        >
-          <TabsList>
-            {(Object.keys(RANGE_LABEL) as ReportRange[]).map((k) => (
-              <TabsTrigger key={k} value={k} disabled={disabled}>
-                {RANGE_LABEL[k]}
-              </TabsTrigger>
+      <div className="sticky top-0 z-20 space-y-3 border-b border-slate-200/70 bg-white/95 px-7 py-3 backdrop-blur lg:px-10">
+        <div className="flex flex-wrap items-center gap-2">
+          {onExport ? (
+            <Button variant="outline" className="h-9 gap-1.5" onClick={onExport} disabled={disabled}>
+              <Download className="size-4" strokeWidth={1.75} />
+              Export
+            </Button>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-1.5">
+            {RANGE_PRESETS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                disabled={disabled}
+                onClick={() => {
+                  onRangeChange(p.key);
+                  if (p.key !== "custom") onDatesChange?.({ from: undefined, to: undefined });
+                }}
+                className={cn(
+                  "h-8 rounded-lg px-2.5 text-[12px] font-medium transition-colors",
+                  range === p.key
+                    ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/20"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200/80",
+                  disabled && "pointer-events-none opacity-50",
+                )}
+              >
+                {p.label}
+              </button>
             ))}
-          </TabsList>
-        </Tabs>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-wider text-slate-400">
+            <CalendarRange className="size-3.5" />
+            Date range
+          </span>
+          <DateRangePicker
+            disabled={disabled}
+            value={
+              range === "custom"
+                ? customRange
+                : undefined
+            }
+            onChange={(r) => {
+              onRangeChange("custom");
+              onDatesChange?.({ from: r?.from, to: r?.to });
+            }}
+            className={cn(range !== "custom" && "border-dashed")}
+            placeholder={
+              range === "custom" ? "Select custom range" : "Pick custom range…"
+            }
+          />
+          {showAsOf ? (
+            <>
+              <span className="ml-1 text-[11.5px] font-semibold uppercase tracking-wider text-slate-400">
+                As of
+              </span>
+              <DatePicker
+                disabled={disabled}
+                value={asOf}
+                onChange={onAsOfChange ?? (() => undefined)}
+                placeholder="As of date"
+                className="h-9 w-[160px]"
+              />
+            </>
+          ) : null}
+          {range === "custom" && from && to ? (
+            <span className="text-[12px] text-slate-500">
+              Showing {format(from, "dd MMM yyyy")} – {format(to, "dd MMM yyyy")}
+            </span>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex-1 px-7 py-6 lg:px-10">{children}</div>
@@ -107,41 +208,34 @@ export function ReportTable({
     );
   }
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-      <table className="w-full text-[13px]">
-        <thead className="bg-sky-50/80">
-          <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+    <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200/80">
+      <TableRoot className="min-w-0">
+        <thead>
+          <tr>
             {columns.map((c) => (
-              <th key={c} className="px-4 py-3">
-                {c}
-              </th>
+              <Th key={c}>{c}</Th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((row, idx) => (
-            <tr
-              key={idx}
-              className="border-t border-slate-100 transition-colors hover:bg-slate-50/60"
-            >
+            <tr key={idx} className="transition-colors hover:bg-slate-50/80">
               {row.map((cell, ci) => (
-                <td key={ci} className="px-4 py-2.5 text-slate-700">
-                  {cell}
-                </td>
+                <Td key={ci}>{cell}</Td>
               ))}
             </tr>
           ))}
           {totalRow ? (
-            <tr className="border-t-2 border-slate-200 bg-slate-50/60">
+            <tr className="bg-slate-50/70">
               {totalRow.map((cell, ci) => (
-                <td key={ci} className="px-4 py-2.5 font-bold text-slate-900">
+                <Td key={ci} className="font-bold text-slate-900">
                   {cell}
-                </td>
+                </Td>
               ))}
             </tr>
           ) : null}
         </tbody>
-      </table>
+      </TableRoot>
     </div>
   );
 }

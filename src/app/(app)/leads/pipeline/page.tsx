@@ -288,7 +288,7 @@ export default function PipelinePage() {
   return (
     <div className="flex flex-1 flex-col bg-slate-50/40">
       {/* Toolbar */}
-      <div className="sticky top-[72px] z-20 flex flex-col gap-3 border-b border-slate-200/70 bg-white px-7 py-4 lg:px-10">
+      <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-slate-200/70 bg-white px-7 py-4 lg:px-10">
         <div className="flex flex-wrap items-center gap-3">
           {/* Pipeline picker */}
           <div className="flex items-center gap-2">
@@ -508,6 +508,8 @@ export default function PipelinePage() {
       />
       <LeadDetailSheet
         leadId={activeId}
+        leadIds={leads.map((l) => l._id)}
+        onLeadChange={setActiveId}
         onOpenChange={(v) => !v && setActiveId(null)}
         onChanged={load}
       />

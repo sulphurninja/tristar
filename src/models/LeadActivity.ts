@@ -41,6 +41,8 @@ const LeadActivitySchema = new Schema(
         "site_visit_completed",
         "site_visit_cancelled",
         "document_uploaded",
+        "meeting_logged",
+        "followup_set",
         "payment_received",
         "automation_triggered",
         "campaign_targeted",

@@ -6,15 +6,41 @@ import { withAuth, ok, bad } from "@/lib/api";
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
+  const q = url.searchParams.get("q")?.trim() ?? "";
   const status = url.searchParams.get("status") ?? "";
   const range = url.searchParams.get("range") ?? "upcoming"; // upcoming|today|past|all
   const projectId = url.searchParams.get("projectId") ?? "";
+  const assignedTo = url.searchParams.get("assignedTo") ?? "";
+  const mode = url.searchParams.get("mode") ?? "";
+  const leadId = url.searchParams.get("leadId") ?? "";
+  const brokerId = url.searchParams.get("brokerId") ?? "";
+
+  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
+  const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
 
   const filter: Record<string, unknown> = {
     workspaceId: new mongoose.Types.ObjectId(session.workspaceId),
   };
   if (status && status !== "all") filter.status = status;
-  if (projectId) filter.projectId = new mongoose.Types.ObjectId(projectId);
+  if (mode && mode !== "all") filter.mode = mode;
+  if (projectId && mongoose.isValidObjectId(projectId)) {
+    filter.projectId = new mongoose.Types.ObjectId(projectId);
+  }
+  if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
+    filter.assignedTo = new mongoose.Types.ObjectId(assignedTo);
+  }
+  if (leadId && mongoose.isValidObjectId(leadId)) {
+    filter.leadId = new mongoose.Types.ObjectId(leadId);
+  }
+  if (brokerId && mongoose.isValidObjectId(brokerId)) {
+    const leadIds = await Lead.find({
+      workspaceId: filter.workspaceId,
+      brokerId: new mongoose.Types.ObjectId(brokerId),
+    })
+      .select("_id")
+      .lean();
+    filter.leadId = { $in: leadIds.map((l) => l._id) };
+  }
 
   const now = new Date();
   if (range === "today") {
@@ -29,15 +55,39 @@ export const GET = withAuth(async ({ req, session }) => {
     filter.scheduledAt = { $lt: now };
   }
 
-  const visits = await SiteVisit.find(filter)
-    .sort({ scheduledAt: range === "past" ? -1 : 1 })
-    .limit(200)
-    .populate({ path: "leadId", select: "contact stage leadNumber" })
-    .populate({ path: "projectId", select: "name code location" })
-    .populate({ path: "assignedTo", select: "name email" })
-    .lean();
+  if (q) {
+    const leadMatches = await Lead.find({
+      workspaceId: filter.workspaceId,
+      $or: [
+        { "contact.name": { $regex: q, $options: "i" } },
+        { "contact.primaryPhone": { $regex: q, $options: "i" } },
+        { leadNumber: { $regex: q, $options: "i" } },
+      ],
+    })
+      .select("_id")
+      .lean();
+    const leadIds = leadMatches.map((l) => l._id);
+    if (filter.leadId && typeof filter.leadId === "object" && "$in" in (filter.leadId as object)) {
+      const existing = (filter.leadId as { $in: mongoose.Types.ObjectId[] }).$in;
+      filter.leadId = { $in: existing.filter((id) => leadIds.some((x) => String(x) === String(id))) };
+    } else {
+      filter.leadId = { $in: leadIds };
+    }
+  }
 
-  return ok({ visits });
+  const [visits, total] = await Promise.all([
+    SiteVisit.find(filter)
+      .sort({ scheduledAt: range === "past" ? -1 : 1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({ path: "leadId", select: "contact stage leadNumber" })
+      .populate({ path: "projectId", select: "name code location" })
+      .populate({ path: "assignedTo", select: "name email" })
+      .lean(),
+    SiteVisit.countDocuments(filter),
+  ]);
+
+  return ok({ visits, total });
 });
 
 export const POST = withAuth(async ({ req, session }) => {

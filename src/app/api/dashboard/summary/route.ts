@@ -23,8 +23,23 @@ export const GET = withAuth(async ({ session }) => {
   const endOfWeek = new Date(startOfWeek);
   endOfWeek.setDate(endOfWeek.getDate() + 7);
 
+  let Task: typeof mongoose.Model | null = null;
+  try {
+    Task = (await import("@/models/Task")).default;
+  } catch {
+    Task = null;
+  }
+
   const [
     totalLeads,
+    freshLeads,
+    returningLeads,
+    untouchedLeads,
+    unassignedLeads,
+    todayLeads,
+    todayFresh,
+    todayTasks,
+    todayVisits,
     newLeadsLast7d,
     hotLeads,
     todayFollowUps,
@@ -40,8 +55,43 @@ export const GET = withAuth(async ({ session }) => {
     pipelineByStage,
     recentActivity,
     topProjects,
+    callActivitiesToday,
+    visitActivitiesToday,
+    stageChangedToday,
+    meetingActivitiesToday,
+    whatsappActivitiesToday,
   ] = await Promise.all([
     Lead.countDocuments({ workspaceId }),
+    Promise.resolve(0), // freshLeads filled below from total - returning
+    Lead.countDocuments({
+      workspaceId,
+      $or: [{ tags: "returning" }, { "customFields.returning": true }],
+    }),
+    Lead.countDocuments({
+      workspaceId,
+      lastContactedAt: null,
+      stage: { $in: ["new", "attempted_1", "attempted_2"] },
+    }),
+    Lead.countDocuments({ workspaceId, assignedTo: null }),
+    Lead.countDocuments({ workspaceId, createdAt: { $gte: startOfDay, $lte: endOfDay } }),
+    Lead.countDocuments({
+      workspaceId,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      tags: { $ne: "returning" },
+    }),
+    Task
+      ? Task.countDocuments({
+          workspaceId,
+          scheduleAt: { $gte: startOfDay, $lte: endOfDay },
+        })
+      : Lead.countDocuments({
+          workspaceId,
+          nextActionAt: { $gte: startOfDay, $lte: endOfDay },
+        }),
+    SiteVisit.countDocuments({
+      workspaceId,
+      scheduledAt: { $gte: startOfDay, $lte: endOfDay },
+    }),
     Lead.countDocuments({ workspaceId, createdAt: { $gte: sevenDaysAgo } }),
     Lead.countDocuments({
       workspaceId,
@@ -89,7 +139,7 @@ export const GET = withAuth(async ({ session }) => {
       .limit(8)
       .populate({ path: "leadId", select: "contact leadNumber stage" })
       .lean(),
-    Lead.aggregate<{ _id: mongoose.Types.ObjectId; count: number; name?: string }>([
+    Lead.aggregate<{ _id: mongoose.Types.ObjectId; count: number; name?: string; city?: string }>([
       { $match: { workspaceId, primaryProjectId: { $ne: null } } },
       { $group: { _id: "$primaryProjectId", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
@@ -111,7 +161,36 @@ export const GET = withAuth(async ({ session }) => {
         },
       },
     ]),
+    LeadActivity.countDocuments({
+      workspaceId,
+      occurredAt: { $gte: startOfDay, $lte: endOfDay },
+      type: { $in: ["call_made", "call_missed", "ai_voice_call"] },
+    }),
+    LeadActivity.countDocuments({
+      workspaceId,
+      occurredAt: { $gte: startOfDay, $lte: endOfDay },
+      type: { $in: ["site_visit_scheduled", "site_visit_completed"] },
+    }),
+    LeadActivity.countDocuments({
+      workspaceId,
+      occurredAt: { $gte: startOfDay, $lte: endOfDay },
+      type: "stage_changed",
+    }),
+    LeadActivity.countDocuments({
+      workspaceId,
+      occurredAt: { $gte: startOfDay, $lte: endOfDay },
+      type: "meeting_logged",
+    }),
+    LeadActivity.countDocuments({
+      workspaceId,
+      occurredAt: { $gte: startOfDay, $lte: endOfDay },
+      type: { $in: ["whatsapp_sent", "whatsapp_received"] },
+    }),
   ]);
+
+  const returningCount = returningLeads;
+  const freshCount = Math.max(totalLeads - returningCount, 0);
+  void freshLeads;
 
   const pipelineMap: Record<string, number> = {};
   for (const stage of LEAD_STAGES) pipelineMap[stage] = 0;
@@ -120,6 +199,15 @@ export const GET = withAuth(async ({ session }) => {
   return ok({
     kpis: {
       totalLeads,
+      freshLeads: freshCount,
+      returningLeads: returningCount,
+      untouchedLeads,
+      unassignedLeads,
+      todayLeads,
+      todayFresh,
+      todayReturning: Math.max(todayLeads - todayFresh, 0),
+      todayTasks,
+      todayVisits,
       newLeadsLast7d,
       hotLeads,
       todayFollowUps,
@@ -132,6 +220,17 @@ export const GET = withAuth(async ({ session }) => {
       bookedLeads,
       inactiveLeads,
       backlogLeads,
+    },
+    todayActivity: {
+      tasks: todayTasks,
+      meetings: meetingActivitiesToday,
+      siteVisitScheduled: todayVisits,
+      offlineCalls: callActivitiesToday,
+      callsToLead: callActivitiesToday,
+      whatsapp: whatsappActivitiesToday,
+      stageChanges: stageChangedToday,
+      visitActivities: visitActivitiesToday,
+      overdueFollowUps,
     },
     pipeline: pipelineMap,
     recentActivity,

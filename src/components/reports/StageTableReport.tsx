@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { ReportShell, type ReportRange } from "@/components/reports/ReportShell";
+import { useReportFilters } from "@/hooks/useReportFilters";
+import { TableRoot, Th, Td } from "@/components/shared/DataTableShell";
 import { formatNumber } from "@/lib/utils";
 
 interface StageRow {
@@ -39,17 +41,18 @@ export function StageTableReport({
   labelKey,
   firstColumnHeader,
 }: Props) {
-  const [range, setRange] = useState<ReportRange>("30d");
+  const { range, setRange, from, to, onDatesChange, query, ready } = useReportFilters("30d");
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
     setLoading(true);
-    fetch(`${endpoint}?range=${range}`, { cache: "no-store" })
+    fetch(`${endpoint}?${query}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setData(d))
       .finally(() => setLoading(false));
-  }, [endpoint, range]);
+  }, [endpoint, query, ready]);
 
   const exportCsv = () => {
     if (!data) return;
@@ -83,6 +86,9 @@ export function StageTableReport({
       description={description}
       range={range}
       onRangeChange={setRange}
+      from={from}
+      to={to}
+      onDatesChange={onDatesChange}
       onExport={exportCsv}
     >
       {loading ? (
@@ -91,67 +97,57 @@ export function StageTableReport({
             <div key={i} className="h-9 animate-pulse rounded-md bg-slate-100" />
           ))}
         </div>
+      ) : !ready ? (
+        <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
+          Select a start and end date to load this report.
+        </div>
       ) : !data || data.rows.length === 0 ? (
         <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
           No data for this window.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-          <table className="w-full text-[13px]">
-            <thead className="bg-sky-50/80">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                <th className="px-4 py-3">{firstColumnHeader}</th>
-                <th className="px-4 py-3 text-right">Total</th>
+        <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200/80">
+          <TableRoot className="min-w-0">
+            <thead>
+              <tr>
+                <Th>{firstColumnHeader}</Th>
+                <Th className="text-right">Total</Th>
                 {data.columns.map((c) => (
-                  <th key={c.key} className="px-4 py-3 text-right">
+                  <Th key={c.key} className="text-right">
                     {c.label}
-                  </th>
+                  </Th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((row, idx) => (
-                <tr
-                  key={idx}
-                  className="border-t border-slate-100 transition-colors hover:bg-slate-50/60"
-                >
-                  <td className="px-4 py-2.5 font-medium text-slate-900">
-                    {String(row[labelKey] ?? "")}
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-700">
-                    {formatNumber(row.total)}
-                  </td>
-                  {data.columns.map((c) => {
-                    const v = row.stages[c.key] ?? 0;
-                    return (
-                      <td
-                        key={c.key}
-                        className="px-4 py-2.5 text-right tabular-nums text-slate-700"
-                      >
-                        {v === 0 ? <span className="text-slate-300">0</span> : formatNumber(v)}
-                      </td>
-                    );
-                  })}
+              {data.rows.map((r, i) => (
+                <tr key={i} className="transition-colors hover:bg-slate-50/80">
+                  <Td className="font-medium text-slate-900">{String(r[labelKey] ?? "—")}</Td>
+                  <Td className="text-right tabular-nums font-semibold">
+                    {formatNumber(r.total)}
+                  </Td>
+                  {data.columns.map((c) => (
+                    <Td key={c.key} className="text-right tabular-nums text-slate-600">
+                      {formatNumber(r.stages[c.key] ?? 0)}
+                    </Td>
+                  ))}
                 </tr>
               ))}
               {data.totalsRow ? (
-                <tr className="border-t-2 border-slate-200 bg-slate-50/70">
-                  <td className="px-4 py-2.5 font-bold text-slate-900">Total</td>
-                  <td className="px-4 py-2.5 text-right font-bold tabular-nums text-emerald-700">
+                <tr className="bg-slate-50/70">
+                  <Td className="font-bold text-slate-900">Total</Td>
+                  <Td className="text-right tabular-nums font-bold">
                     {formatNumber(data.totalsRow.total)}
-                  </td>
+                  </Td>
                   {data.columns.map((c) => (
-                    <td
-                      key={c.key}
-                      className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900"
-                    >
+                    <Td key={c.key} className="text-right tabular-nums font-bold">
                       {formatNumber(data.totalsRow!.stages[c.key] ?? 0)}
-                    </td>
+                    </Td>
                   ))}
                 </tr>
               ) : null}
             </tbody>
-          </table>
+          </TableRoot>
         </div>
       )}
     </ReportShell>

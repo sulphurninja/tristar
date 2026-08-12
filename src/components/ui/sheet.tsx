@@ -27,7 +27,8 @@ SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   side?: "right" | "left" | "top" | "bottom";
-  width?: "sm" | "md" | "lg" | "xl" | "2xl";
+  width?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl" | "full";
+  hideClose?: boolean;
 }
 
 const widthMap: Record<NonNullable<SheetContentProps["width"]>, string> = {
@@ -36,12 +37,14 @@ const widthMap: Record<NonNullable<SheetContentProps["width"]>, string> = {
   lg: "max-w-lg",
   xl: "max-w-xl",
   "2xl": "max-w-2xl",
+  "3xl": "max-w-5xl",
+  full: "max-w-[min(1400px,96vw)]",
 };
 
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   SheetContentProps
->(({ className, children, side = "right", width = "lg", ...props }, ref) => {
+>(({ className, children, side = "right", width = "lg", hideClose = false, ...props }, ref) => {
   const sideClasses = {
     right:
       "inset-y-0 right-0 h-full w-full border-l border-slate-200 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
@@ -64,10 +67,12 @@ const SheetContent = React.forwardRef<
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 inline-flex size-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
-          <X className="size-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
+        {!hideClose ? (
+          <DialogPrimitive.Close className="absolute right-4 top-4 z-20 inline-flex size-8 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/30">
+            <X className="size-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        ) : null}
       </DialogPrimitive.Content>
     </SheetPortal>
   );
@@ -109,7 +114,7 @@ const SheetDescription = React.forwardRef<
 SheetDescription.displayName = DialogPrimitive.Description.displayName;
 
 const SheetBody = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex-1 overflow-y-auto px-6 py-5", className)} {...props} />
+  <div className={cn("scrollbar-hide flex-1 overflow-y-auto px-6 py-5", className)} {...props} />
 );
 
 const SheetFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (

@@ -11,7 +11,8 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { ReportShell, type ReportRange } from "@/components/reports/ReportShell";
+import { ReportShell } from "@/components/reports/ReportShell";
+import { useReportFilters } from "@/hooks/useReportFilters";
 import { formatNumber } from "@/lib/utils";
 
 interface DayPoint {
@@ -22,21 +23,22 @@ interface DayPoint {
 }
 
 export default function LeadVolumeReportPage() {
-  const [range, setRange] = useState<ReportRange>("30d");
+  const { range, setRange, from, to, onDatesChange, query, ready } = useReportFilters("30d");
   const [days, setDays] = useState<DayPoint[]>([]);
   const [totals, setTotals] = useState({ leads: 0, visits: 0, conversions: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
     setLoading(true);
-    fetch(`/api/reports/lead-volume?range=${range}`, { cache: "no-store" })
+    fetch(`/api/reports/lead-volume?${query}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setDays(d.days ?? []);
         setTotals(d.totals ?? { leads: 0, visits: 0, conversions: 0 });
       })
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [query, ready]);
 
   const exportCsv = () => {
     const csv = [
@@ -57,6 +59,9 @@ export default function LeadVolumeReportPage() {
       description="Leads generated, visits done and conversions over the selected window."
       range={range}
       onRangeChange={setRange}
+      from={from}
+      to={to}
+      onDatesChange={onDatesChange}
       onExport={exportCsv}
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

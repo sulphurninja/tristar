@@ -163,6 +163,16 @@ const LeadSchema = new Schema(
 
     description: String,
     tags: [{ type: String, index: true }],
+    documents: [
+      {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        mimeType: String,
+        size: Number,
+        uploadedAt: { type: Date, default: Date.now },
+        uploadedBy: { type: Schema.Types.ObjectId, ref: "User" },
+      },
+    ],
     customFields: { type: Schema.Types.Mixed },
 
     isHot: { type: Boolean, default: false, index: true },

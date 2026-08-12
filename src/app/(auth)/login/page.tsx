@@ -21,10 +21,6 @@ const Schema = z.object({
 
 type FormValues = z.infer<typeof Schema>;
 
-/**
- * Inner form is wrapped in <Suspense> by the default export below — required
- * by Next.js 15 because we read query params with `useSearchParams()`.
- */
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -71,7 +67,7 @@ function LoginForm() {
           id="email"
           type="email"
           autoComplete="email"
-          placeholder="you@yourcompany.com"
+          placeholder="you@tristarrealtors.in"
           leadingIcon={<Mail className="size-4" />}
           {...register("email")}
           aria-invalid={!!errors.email}
@@ -80,12 +76,7 @@ function LoginForm() {
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
-          <Link href="/forgot-password" className="text-xs font-medium text-primary hover:underline">
-            Forgot password?
-          </Link>
-        </div>
+        <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           type={showPassword ? "text" : "password"}
@@ -106,11 +97,13 @@ function LoginForm() {
           {...register("password")}
           aria-invalid={!!errors.password}
         />
-        {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
+        {errors.password ? (
+          <p className="text-xs text-destructive">{errors.password.message}</p>
+        ) : null}
       </div>
 
-      <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>
-        Sign in
+      <Button type="submit" size="lg" className="mt-2 w-full" loading={isSubmitting}>
+        Sign in to CRM
         <ArrowRight className="size-4" />
       </Button>
     </form>
@@ -120,18 +113,23 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Welcome back</h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        Sign in to the Tristar Realtors CRM to manage leads, projects and channel partners.
+      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+        Tristar CRM
+      </p>
+      <h1 className="font-display mt-2 text-[1.85rem] font-semibold tracking-tight text-slate-900">
+        Welcome back
+      </h1>
+      <p className="mt-2 text-[14.5px] leading-relaxed text-slate-600">
+        Sign in to manage leads, site visits, channel partners and bookings.
       </p>
 
-      <Suspense fallback={<div className="mt-8 h-[280px]" />}>
+      <Suspense fallback={<div className="mt-8 h-[280px] animate-pulse rounded-xl bg-slate-100" />}>
         <LoginForm />
       </Suspense>
 
-      <p className="mt-6 text-center text-sm text-muted-foreground">
+      <p className="mt-8 text-center text-[13.5px] text-slate-500">
         First-time setup?{" "}
-        <Link href="/signup" className="font-semibold text-primary hover:underline">
+        <Link href="/signup" className="font-semibold text-emerald-700 hover:underline">
           Create the Tristar workspace
         </Link>
       </p>

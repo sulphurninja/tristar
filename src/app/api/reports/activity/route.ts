@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import LeadActivity from "@/models/LeadActivity";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
-import { parseRange, rangeBounds } from "@/lib/report-utils";
+import { boundsFromSearchParams } from "@/lib/report-utils";
 
 /**
  * Activity Report — for every user, count:
@@ -13,8 +13,7 @@ import { parseRange, rangeBounds } from "@/lib/report-utils";
  */
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const range = parseRange(url.searchParams.get("range"));
-  const { start, end } = rangeBounds(range);
+  const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const [users, agg] = await Promise.all([

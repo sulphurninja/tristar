@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import { withAuth, ok } from "@/lib/api";
+import { boundsFromSearchParams } from "@/lib/report-utils";
 
 const SOURCE_LABEL: Record<string, string> = {
   walkin: "Walkin",
@@ -22,17 +23,29 @@ const SOURCE_LABEL: Record<string, string> = {
   other: "Other",
 };
 
-export const GET = withAuth(async ({ session }) => {
-  const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
-  const cutoff = new Date();
+export const GET = withAuth(async ({ req, session }) => {
+  const url = new URL(req.url);
+  const { end } = boundsFromSearchParams(url);
+  const asOfParam = url.searchParams.get("asOf");
+  const asOf = asOfParam ? new Date(asOfParam) : end;
+  asOf.setHours(23, 59, 59, 999);
+
+  const cutoff = new Date(asOf);
   cutoff.setDate(cutoff.getDate() - 30);
+
+  const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const agg = await Lead.aggregate<{ _id: string; count: number }>([
     {
       $match: {
         workspaceId,
         isBooked: { $ne: true },
-        $or: [{ isInactive: true }, { lastContactedAt: { $lt: cutoff } }],
+        createdAt: { $lte: asOf },
+        $or: [
+          { isInactive: true },
+          { lastContactedAt: { $lt: cutoff } },
+          { lastContactedAt: { $exists: false }, createdAt: { $lt: cutoff } },
+        ],
       },
     },
     { $group: { _id: "$source.primary", count: { $sum: 1 } } },
@@ -46,5 +59,5 @@ export const GET = withAuth(async ({ session }) => {
     }))
     .sort((a, b) => b.count - a.count);
 
-  return ok({ rows, total: rows.reduce((a, b) => a + b.count, 0) });
+  return ok({ rows, total: rows.reduce((a, b) => a + b.count, 0), asOf: asOf.toISOString() });
 });

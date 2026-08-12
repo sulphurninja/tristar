@@ -10,7 +10,8 @@ import {
   ArchiveX,
   TrendingUp,
 } from "lucide-react";
-import { ReportShell, type ReportRange } from "@/components/reports/ReportShell";
+import { ReportShell } from "@/components/reports/ReportShell";
+import { useReportFilters } from "@/hooks/useReportFilters";
 import { formatNumber } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -24,18 +25,19 @@ interface Summary {
 }
 
 export default function PersonalisedReportPage() {
-  const [range, setRange] = useState<ReportRange>("30d");
+  const { range, setRange, from, to, onDatesChange, query, ready } = useReportFilters("30d");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
   useEffect(() => {
+    if (!ready) return;
     setLoading(true);
-    fetch(`/api/reports/personalised?range=${range}`, { cache: "no-store" })
+    fetch(`/api/reports/personalised?${query}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setSummary(d.summary ?? null))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [query, ready]);
 
   return (
     <ReportShell
@@ -43,6 +45,9 @@ export default function PersonalisedReportPage() {
       description={`Reports filtered to leads assigned to ${user?.name ?? "you"}.`}
       range={range}
       onRangeChange={setRange}
+      from={from}
+      to={to}
+      onDatesChange={onDatesChange}
     >
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Tile

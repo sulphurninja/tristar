@@ -35,15 +35,57 @@ export function rangeBounds(range: RangeKey): { start: Date; end: Date } {
       const s = new Date(now.getFullYear(), 0, 1);
       return { start: s, end };
     }
+    case "custom":
+      return { start, end };
     default:
       return { start, end };
   }
 }
 
 export function parseRange(input: string | null | undefined): RangeKey {
-  const allowed: RangeKey[] = ["today", "7d", "30d", "this_month", "last_month", "ytd"];
+  const allowed: RangeKey[] = [
+    "today",
+    "7d",
+    "30d",
+    "this_month",
+    "last_month",
+    "ytd",
+    "custom",
+  ];
   if (!input) return "30d";
   return (allowed as string[]).includes(input) ? (input as RangeKey) : "30d";
+}
+
+function startOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
+function endOfDay(d: Date) {
+  const x = new Date(d);
+  x.setHours(23, 59, 59, 999);
+  return x;
+}
+
+/** Resolve report window from query — supports presets + custom from/to ISO dates. */
+export function boundsFromSearchParams(url: URL): {
+  start: Date;
+  end: Date;
+  range: RangeKey;
+} {
+  const from = url.searchParams.get("from");
+  const to = url.searchParams.get("to");
+  if (from && to) {
+    const start = startOfDay(new Date(from));
+    const end = endOfDay(new Date(to));
+    if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && start <= end) {
+      return { start, end, range: "custom" };
+    }
+  }
+  const range = parseRange(url.searchParams.get("range"));
+  const { start, end } = rangeBounds(range === "custom" ? "30d" : range);
+  return { start, end, range: range === "custom" ? "30d" : range };
 }
 
 /* All pipeline stages in the order they appear in reports */

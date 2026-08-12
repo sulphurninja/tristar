@@ -12,6 +12,11 @@ export const GET = withAuth(async ({ req, session }) => {
   const projectId = url.searchParams.get("projectId") ?? "";
   const assignedTo = url.searchParams.get("assignedTo") ?? "";
   const pipelineId = url.searchParams.get("pipelineId") ?? "";
+  const brokerId = url.searchParams.get("brokerId") ?? "";
+  const source = url.searchParams.get("source") ?? "";
+  const isHot = url.searchParams.get("isHot") ?? "";
+  const createdFrom = url.searchParams.get("createdFrom") ?? "";
+  const createdTo = url.searchParams.get("createdTo") ?? "";
   const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "100", 10), 500);
   const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
 
@@ -21,10 +26,34 @@ export const GET = withAuth(async ({ req, session }) => {
 
   if (stage && stage !== "all") filter.stage = stage;
   if (priority && priority !== "all") filter.priority = priority;
-  if (projectId) filter.primaryProjectId = new mongoose.Types.ObjectId(projectId);
-  if (assignedTo) filter.assignedTo = new mongoose.Types.ObjectId(assignedTo);
+  if (projectId && mongoose.isValidObjectId(projectId)) {
+    filter.primaryProjectId = new mongoose.Types.ObjectId(projectId);
+  }
+  if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
+    filter.assignedTo = new mongoose.Types.ObjectId(assignedTo);
+  }
+  if (brokerId && mongoose.isValidObjectId(brokerId)) {
+    filter.brokerId = new mongoose.Types.ObjectId(brokerId);
+  }
   if (pipelineId && mongoose.isValidObjectId(pipelineId)) {
     filter.pipelineId = new mongoose.Types.ObjectId(pipelineId);
+  }
+  if (source && source !== "all") filter["source.primary"] = source;
+  if (isHot === "1" || isHot === "true") filter.isHot = true;
+
+  if (createdFrom || createdTo) {
+    const createdAt: Record<string, Date> = {};
+    if (createdFrom) {
+      const d = new Date(createdFrom);
+      d.setHours(0, 0, 0, 0);
+      createdAt.$gte = d;
+    }
+    if (createdTo) {
+      const d = new Date(createdTo);
+      d.setHours(23, 59, 59, 999);
+      createdAt.$lte = d;
+    }
+    filter.createdAt = createdAt;
   }
 
   if (q) {

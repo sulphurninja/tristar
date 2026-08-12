@@ -103,7 +103,7 @@ export default function RequestsPage() {
 
   return (
     <div className="flex flex-1 flex-col bg-white">
-      <div className="sticky top-[72px] z-20 flex flex-wrap items-center gap-3 border-b border-slate-200/70 bg-white px-7 py-3 lg:px-10">
+      <div className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-slate-200/70 bg-white px-7 py-3 lg:px-10">
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>
             <TabsTrigger value="pending">Pending</TabsTrigger>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
 import { toast } from "sonner";
 import {
   Plus,
@@ -51,7 +52,19 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const { user: me } = useAuth();
+
+  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
+  const pagedUsers = useMemo(
+    () => users.slice((page - 1) * pageSize, page * pageSize),
+    [users, page, pageSize],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const load = () => {
     setLoading(true);
@@ -106,22 +119,30 @@ export default function UsersPage() {
           No users yet — let&apos;s invite your first one.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-          <table className="w-full text-[13px]">
-            <thead className="bg-sky-50/80">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Role</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Action</th>
+        <DataTableShell
+          title="Users"
+          count={users.length}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        >
+          <TableRoot>
+            <thead>
+              <tr>
+                <Th>User</Th>
+                <Th>Email</Th>
+                <Th>Phone</Th>
+                <Th>Role</Th>
+                <Th>Status</Th>
+                <Th className="text-right">Action</Th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u) => (
-                <tr key={u._id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-4 py-2.5">
+              {pagedUsers.map((u) => (
+                <tr key={u._id} className="transition-colors hover:bg-slate-50/80">
+                  <Td>
                     <div className="flex items-center gap-3">
                       <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-[11px] font-bold text-white">
                         {initials(u.name)}
@@ -133,13 +154,13 @@ export default function UsersPage() {
                         ) : null}
                       </div>
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-700">
+                  </Td>
+                  <Td>
                     <span className="inline-flex items-center gap-1">
                       <Mail className="size-3.5 text-slate-400" /> {u.email}
                     </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-700">
+                  </Td>
+                  <Td>
                     {u.phone ? (
                       <span className="inline-flex items-center gap-1">
                         <Phone className="size-3.5 text-slate-400" /> {u.phone}
@@ -147,14 +168,14 @@ export default function UsersPage() {
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className="inline-flex items-center gap-1.5 text-slate-700">
+                  </Td>
+                  <Td>
+                    <span className="inline-flex items-center gap-1.5">
                       <Shield className="size-3.5 text-emerald-600" />
                       {ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ?? u.role}
                     </span>
-                  </td>
-                  <td className="px-4 py-2.5">
+                  </Td>
+                  <Td>
                     <StatusPill
                       tone={
                         u.status === "active"
@@ -167,8 +188,8 @@ export default function UsersPage() {
                     >
                       {u.status}
                     </StatusPill>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
+                  </Td>
+                  <Td className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
@@ -187,12 +208,12 @@ export default function UsersPage() {
                         <Trash2 className="size-3.5" strokeWidth={1.75} />
                       </Button>
                     </div>
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </TableRoot>
+        </DataTableShell>
       )}
 
       <NewUserDialog open={newOpen} onOpenChange={setNewOpen} onCreated={load} />

@@ -6,20 +6,19 @@
  * — White-bg, modern but approachable
  * — Emerald (primary, growth) + Blue (secondary, trust)
  * — Slightly larger comfortable typography for non-tech real-estate users
- * — All values are HSL so old browsers render fine; OKLCH is used only as a comment
  */
 
 :root {
   /* Surfaces */
-  --background: 0 0% 100%;            /* pure white */
-  --foreground: 222 47% 11%;          /* near-black */
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
   --card: 0 0% 100%;
   --card-foreground: 222 47% 11%;
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
 
   /* Primary — Emerald (growth) */
-  --primary: 158 64% 35%;             /* #0F8F60 ish */
+  --primary: 158 64% 35%;
   --primary-foreground: 0 0% 100%;
   --primary-50: 152 81% 96%;
   --primary-100: 149 80% 90%;
@@ -28,7 +27,7 @@
   --primary-700: 158 64% 28%;
 
   /* Secondary — Blue (trust) */
-  --secondary: 217 91% 60%;           /* #2563EB family */
+  --secondary: 217 91% 60%;
   --secondary-foreground: 0 0% 100%;
   --secondary-50: 214 100% 97%;
   --secondary-100: 214 95% 93%;
@@ -39,7 +38,7 @@
   /* Neutrals */
   --muted: 220 14% 96%;
   --muted-foreground: 220 9% 46%;
-  --accent: 158 64% 95%;              /* very light emerald wash */
+  --accent: 158 64% 95%;
   --accent-foreground: 158 64% 25%;
 
   /* Status */
@@ -64,7 +63,7 @@
   --chart-4: 262 80% 60%;
   --chart-5: 38 92% 55%;
 
-  /* Sidebar (subtle off-white but still clean) */
+  /* Sidebar */
   --sidebar: 220 20% 98%;
   --sidebar-foreground: 222 47% 11%;
   --sidebar-primary: 158 64% 35%;
@@ -79,10 +78,8 @@
   --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
 
-  /* Radius — slightly rounder for friendly feel */
   --radius: 0.625rem;
 
-  /* Shadows — soft and clean (no heavy drop shadows) */
   --shadow-xs: 0 1px 2px 0 hsl(220 43% 11% / 0.04);
   --shadow-sm: 0 1px 2px 0 hsl(220 43% 11% / 0.05), 0 1px 3px 0 hsl(220 43% 11% / 0.04);
   --shadow: 0 1px 3px 0 hsl(220 43% 11% / 0.08), 0 1px 2px -1px hsl(220 43% 11% / 0.05);
@@ -202,6 +199,15 @@ html {
   font-size: 15.5px;
 }
 
+/* Marketing pages only — does not affect the CRM app shell */
+.marketing-type {
+  font-family: var(--font-outfit), "Outfit", ui-sans-serif, system-ui, sans-serif;
+}
+
+.marketing-type .font-display {
+  font-family: var(--font-fraunces), "Fraunces", ui-serif, Georgia, serif;
+}
+
 body {
   line-height: 1.55;
 }
@@ -235,6 +241,19 @@ body {
   scrollbar-width: none;
 }
 .scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Detail sheets: keep scroll, hide noisy scrollbars */
+[role="dialog"] .overflow-y-auto,
+[role="dialog"] .overflow-x-auto,
+[role="dialog"] .overflow-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+[role="dialog"] .overflow-y-auto::-webkit-scrollbar,
+[role="dialog"] .overflow-x-auto::-webkit-scrollbar,
+[role="dialog"] .overflow-auto::-webkit-scrollbar {
   display: none;
 }
 

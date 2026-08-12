@@ -2,12 +2,11 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import Project from "@/models/Project";
 import { withAuth, ok } from "@/lib/api";
-import { parseRange, rangeBounds, PIPELINE_COLUMNS } from "@/lib/report-utils";
+import { boundsFromSearchParams, PIPELINE_COLUMNS } from "@/lib/report-utils";
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const range = parseRange(url.searchParams.get("range"));
-  const { start, end } = rangeBounds(range);
+  const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const [projects, agg] = await Promise.all([

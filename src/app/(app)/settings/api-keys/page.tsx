@@ -30,6 +30,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { StatusPill } from "@/components/shared/StatusPill";
+import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
 
 interface ApiKeyRow {
   _id: string;
@@ -75,6 +76,18 @@ export default function ApiKeysPage() {
     label: string;
   } | null>(null);
   const [reveal, setReveal] = useState<Record<string, boolean>>({});
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const totalPages = Math.max(1, Math.ceil(keys.length / pageSize));
+  const pagedKeys = useMemo(
+    () => keys.slice((page - 1) * pageSize, page * pageSize),
+    [keys, page, pageSize],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const load = () => {
     setLoading(true);
@@ -145,31 +158,35 @@ export default function ApiKeysPage() {
           No API keys yet — create one to expose lead capture to a project.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-          <table className="w-full text-[13px]">
-            <thead className="bg-sky-50/80">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">User</th>
-                <th className="px-4 py-3">Project</th>
-                <th className="px-4 py-3">API Key</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Action</th>
+        <DataTableShell
+          title="API Keys"
+          count={keys.length}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        >
+          <TableRoot>
+            <thead>
+              <tr>
+                <Th>Source</Th>
+                <Th>User</Th>
+                <Th>Project</Th>
+                <Th>API Key</Th>
+                <Th>Status</Th>
+                <Th className="text-right">Action</Th>
               </tr>
             </thead>
             <tbody>
-              {keys.map((k) => {
+              {pagedKeys.map((k) => {
                 const masked = `${k.key.slice(0, 6)}••••••••${k.key.slice(-4)}`;
                 return (
-                  <tr key={k._id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                    <td className="px-4 py-2.5 font-medium text-slate-900">{k.sourceLabel}</td>
-                    <td className="px-4 py-2.5 text-slate-700">
-                      {k.userId?.name ?? k.userName ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-700">
-                      {k.projectId?.name ?? k.projectName ?? "—"}
-                    </td>
-                    <td className="px-4 py-2.5">
+                  <tr key={k._id} className="transition-colors hover:bg-slate-50/80">
+                    <Td className="font-medium text-slate-900">{k.sourceLabel}</Td>
+                    <Td>{k.userId?.name ?? k.userName ?? "—"}</Td>
+                    <Td>{k.projectId?.name ?? k.projectName ?? "—"}</Td>
+                    <Td>
                       <div className="flex items-center gap-2">
                         <code className="rounded bg-slate-100 px-2 py-1 font-mono text-[11.5px] text-slate-700">
                           {reveal[k._id] ? k.key : masked}
@@ -193,13 +210,13 @@ export default function ApiKeysPage() {
                           <Copy className="size-3.5" />
                         </button>
                       </div>
-                    </td>
-                    <td className="px-4 py-2.5">
+                    </Td>
+                    <Td>
                       <StatusPill tone={k.isActive ? "success" : "neutral"} dot>
                         {k.isActive ? "Active" : "Revoked"}
                       </StatusPill>
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
+                    </Td>
+                    <Td className="text-right">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -208,13 +225,13 @@ export default function ApiKeysPage() {
                       >
                         <Trash2 className="size-3.5" strokeWidth={1.75} />
                       </Button>
-                    </td>
+                    </Td>
                   </tr>
                 );
               })}
             </tbody>
-          </table>
-        </div>
+          </TableRoot>
+        </DataTableShell>
       )}
 
       <CreateApiKeyDialog

@@ -57,10 +57,15 @@ export default function SignupPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Set up the Tristar Realtors CRM</h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        First account becomes the workspace owner. You can invite the rest of your team
-        from <span className="font-medium">Settings → Manage Users</span> after signing in.
+      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+        First-time setup
+      </p>
+      <h1 className="font-display mt-2 text-[1.85rem] font-semibold tracking-tight text-slate-900">
+        Create the Tristar workspace
+      </h1>
+      <p className="mt-2 text-[14.5px] leading-relaxed text-slate-600">
+        First account becomes the owner. Invite the rest of your team from Settings after signing
+        in.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ReportShell, type ReportRange } from "@/components/reports/ReportShell";
+import { ReportShell, ReportTable } from "@/components/reports/ReportShell";
+import { useReportFilters } from "@/hooks/useReportFilters";
 import { formatNumber } from "@/lib/utils";
 
 interface Row {
@@ -12,21 +13,22 @@ interface Row {
 }
 
 export default function ChannelPartnerReportPage() {
-  const [range, setRange] = useState<ReportRange>("30d");
+  const { range, setRange, from, to, onDatesChange, query, ready } = useReportFilters("30d");
   const [rows, setRows] = useState<Row[]>([]);
   const [totals, setTotals] = useState<{ total: number; interested: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
     setLoading(true);
-    fetch(`/api/reports/channel-partner?range=${range}`, { cache: "no-store" })
+    fetch(`/api/reports/channel-partner?${query}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setRows(d.rows ?? []);
         setTotals(d.totalsRow ?? null);
       })
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [query, ready]);
 
   const exportCsv = () => {
     const csv = [
@@ -48,6 +50,9 @@ export default function ChannelPartnerReportPage() {
       description="Lead and conversion split per broker / firm."
       range={range}
       onRangeChange={setRange}
+      from={from}
+      to={to}
+      onDatesChange={onDatesChange}
       onExport={exportCsv}
     >
       {loading ? (
@@ -56,49 +61,41 @@ export default function ChannelPartnerReportPage() {
             <div key={i} className="h-9 animate-pulse rounded-md bg-slate-100" />
           ))}
         </div>
-      ) : rows.length === 0 ? (
-        <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
-          No channel-partner-sourced leads in this window.
-        </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-          <table className="w-full text-[13px]">
-            <thead className="bg-sky-50/80">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                <th className="px-4 py-3">Channel Partner</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3 text-right">Interested</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr
-                  key={r.brokerId ?? r.label}
-                  className="border-t border-slate-100 hover:bg-slate-50/60"
-                >
-                  <td className="px-4 py-2.5 font-medium text-slate-900">{r.label}</td>
-                  <td className="px-4 py-2.5 text-right font-semibold tabular-nums text-emerald-700">
-                    {formatNumber(r.total)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-slate-700">
-                    {formatNumber(r.interested)}
-                  </td>
-                </tr>
-              ))}
-              {totals ? (
-                <tr className="border-t-2 border-slate-200 bg-slate-50/70">
-                  <td className="px-4 py-2.5 font-bold text-slate-900">Total</td>
-                  <td className="px-4 py-2.5 text-right font-bold tabular-nums text-emerald-700">
+        <ReportTable
+          columns={["Channel Partner", "Total", "Interested"]}
+          emptyLabel="No channel-partner-sourced leads in this window."
+          rows={rows.map((r) => [
+            <span key="label" className="font-medium text-slate-900">
+              {r.label}
+            </span>,
+            <span key="total" className="block text-right font-semibold tabular-nums text-emerald-700">
+              {formatNumber(r.total)}
+            </span>,
+            <span key="interested" className="block text-right tabular-nums text-slate-700">
+              {formatNumber(r.interested)}
+            </span>,
+          ])}
+          totalRow={
+            totals
+              ? [
+                  "Total",
+                  <span
+                    key="total"
+                    className="block text-right font-bold tabular-nums text-emerald-700"
+                  >
                     {formatNumber(totals.total)}
-                  </td>
-                  <td className="px-4 py-2.5 text-right font-bold tabular-nums text-slate-900">
+                  </span>,
+                  <span
+                    key="interested"
+                    className="block text-right font-bold tabular-nums text-slate-900"
+                  >
                     {formatNumber(totals.interested)}
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
-        </div>
+                  </span>,
+                ]
+              : undefined
+          }
+        />
       )}
     </ReportShell>
   );

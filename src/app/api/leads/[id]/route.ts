@@ -85,11 +85,13 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
     "tags",
     "description",
     "primaryProjectId",
+    "interestedProjects",
     "preferences",
     "nextActionAt",
     "nextActionType",
     "nextActionNote",
     "assignedTo",
+    "documents",
   ];
 
   for (const k of updatable) {

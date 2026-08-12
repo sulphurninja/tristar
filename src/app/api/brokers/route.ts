@@ -6,6 +6,8 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const q = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
   const status = url.searchParams.get("status") ?? "";
+  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
+  const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
 
   const filter: Record<string, unknown> = {
     workspaceId: new mongoose.Types.ObjectId(session.workspaceId),
@@ -21,12 +23,16 @@ export const GET = withAuth(async ({ req, session }) => {
     ];
   }
 
-  const brokers = await Broker.find(filter)
-    .sort({ totalDealsBooked: -1, createdAt: -1 })
-    .limit(200)
-    .lean();
+  const [brokers, total] = await Promise.all([
+    Broker.find(filter)
+      .sort({ totalDealsBooked: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Broker.countDocuments(filter),
+  ]);
 
-  return ok({ brokers });
+  return ok({ brokers, total });
 });
 
 export const POST = withAuth(async ({ req, session }) => {

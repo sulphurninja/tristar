@@ -2,15 +2,23 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
+import { boundsFromSearchParams } from "@/lib/report-utils";
 
 /**
- * Inactive Lead Report — leads with no contact for 30+ days, grouped by
- * the user they're assigned to.
+ * Inactive Lead Report — leads with no contact for 30+ days (as of date),
+ * grouped by assignee.
  */
-export const GET = withAuth(async ({ session }) => {
-  const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
-  const cutoff = new Date();
+export const GET = withAuth(async ({ req, session }) => {
+  const url = new URL(req.url);
+  const { end } = boundsFromSearchParams(url);
+  const asOfParam = url.searchParams.get("asOf");
+  const asOf = asOfParam ? new Date(asOfParam) : end;
+  asOf.setHours(23, 59, 59, 999);
+
+  const cutoff = new Date(asOf);
   cutoff.setDate(cutoff.getDate() - 30);
+
+  const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const [users, agg] = await Promise.all([
     User.find({ workspaceId }).select("name").lean(),
@@ -19,6 +27,7 @@ export const GET = withAuth(async ({ session }) => {
         $match: {
           workspaceId,
           isBooked: { $ne: true },
+          createdAt: { $lte: asOf },
           $or: [
             { isInactive: true },
             { lastContactedAt: { $lt: cutoff } },
@@ -48,5 +57,5 @@ export const GET = withAuth(async ({ session }) => {
     });
   }
 
-  return ok({ rows, total: rows.reduce((a, b) => a + b.count, 0) });
+  return ok({ rows, total: rows.reduce((a, b) => a + b.count, 0), asOf: asOf.toISOString() });
 });

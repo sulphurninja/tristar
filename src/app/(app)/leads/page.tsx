@@ -7,21 +7,14 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Plus,
-  Search,
-  Users,
-  Filter,
-  Mail,
-  Flame,
-  Clock,
-  CalendarCheck,
-  AlertCircle,
-  TrendingUp,
-  Building2,
   Upload,
   Pencil,
   ArrowUpRight,
   MessageSquare,
   PhoneCall,
+  Mail,
+  Flame,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +29,17 @@ import { StatusPill } from "@/components/shared/StatusPill";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { NewLeadSheet } from "@/components/leads/NewLeadSheet";
 import { LeadDetailSheet } from "@/components/leads/LeadDetailSheet";
+import {
+  LeadStageAnalysis,
+  type LeadAnalysisData,
+} from "@/components/leads/LeadStageAnalysis";
+import { PageShell, PageBody } from "@/components/shared/PageShell";
+import { FilterBar } from "@/components/shared/FilterBar";
+import { FilterField } from "@/components/shared/FilterField";
+import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
+import { DatePicker } from "@/components/ui/date-picker";
 import { cn, formatNumber, formatPhone } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface Lead {
   _id: string;
@@ -56,15 +59,16 @@ interface Lead {
   tags?: string[];
 }
 
-interface Stats {
-  totalLeads: number;
-  hotLeads: number;
-  bookedLeads: number;
-  inactiveLeads: number;
-  backlogLeads: number;
-  todayFollowUps: number;
-  visitExpirations: number;
-}
+const BUCKET_STAGE: Record<string, string> = {
+  open: "new",
+  warm: "warm",
+  hot: "hot",
+  followup: "site_visit_scheduled",
+  interested: "interested",
+  booked: "booked",
+  cold: "not_interested",
+  cnr: "cnr",
+};
 
 const STAGE_TONE: Record<
   string,
@@ -101,119 +105,239 @@ export default function LeadsPage() {
   const searchParams = useSearchParams();
   const initialStage = searchParams.get("stage") ?? "all";
   const initialOpenNew = searchParams.get("new") === "1";
+  const initialQ = searchParams.get("q") ?? "";
 
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [analysis, setAnalysis] = useState<LeadAnalysisData | null>(null);
+  const [agents, setAgents] = useState<Array<{ _id: string; name: string }>>([]);
+  const [agentFilter, setAgentFilter] = useState("all");
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [analysisLoading, setAnalysisLoading] = useState(true);
   const [openNew, setOpenNew] = useState(initialOpenNew);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQ);
   const [stage, setStage] = useState(initialStage);
   const [priority, setPriority] = useState("all");
+  const [assignee, setAssignee] = useState("all");
+  const [projectId, setProjectId] = useState("all");
+  const [source, setSource] = useState("all");
+  const [hotOnly, setHotOnly] = useState(false);
+  const [createdFrom, setCreatedFrom] = useState<Date | undefined>();
+  const [createdTo, setCreatedTo] = useState<Date | undefined>();
+  const [projects, setProjects] = useState<Array<{ _id: string; name: string }>>([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const params = useMemo(() => {
     const u = new URLSearchParams();
     if (q) u.set("q", q);
     if (stage && stage !== "all") u.set("stage", stage);
     if (priority && priority !== "all") u.set("priority", priority);
-    u.set("limit", "200");
+    if (assignee && assignee !== "all") u.set("assignedTo", assignee);
+    if (projectId && projectId !== "all") u.set("projectId", projectId);
+    if (source && source !== "all") u.set("source", source);
+    if (hotOnly) u.set("isHot", "1");
+    if (createdFrom) u.set("createdFrom", format(createdFrom, "yyyy-MM-dd"));
+    if (createdTo) u.set("createdTo", format(createdTo, "yyyy-MM-dd"));
+    u.set("limit", String(pageSize));
+    u.set("skip", String((page - 1) * pageSize));
     return u.toString();
-  }, [q, stage, priority]);
+  }, [
+    q,
+    stage,
+    priority,
+    assignee,
+    projectId,
+    source,
+    hotOnly,
+    createdFrom,
+    createdTo,
+    page,
+    pageSize,
+  ]);
 
   const load = useCallback(() => {
     setLoading(true);
-    Promise.all([
-      fetch(`/api/leads?${params}`, { cache: "no-store" }).then((r) => r.json()),
-      fetch("/api/dashboard/summary", { cache: "no-store" }).then((r) => r.json()),
-    ])
-      .then(([leadsData, summaryData]) => {
+    fetch(`/api/leads?${params}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((leadsData) => {
         setLeads(leadsData.leads ?? []);
         setTotal(leadsData.total ?? 0);
-        setStats(summaryData.kpis ?? null);
       })
       .finally(() => setLoading(false));
   }, [params]);
+
+  const loadAnalysis = useCallback(() => {
+    setAnalysisLoading(true);
+    const u = new URLSearchParams();
+    if (agentFilter !== "all") u.set("assignedTo", agentFilter);
+    fetch(`/api/leads/analysis?${u}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) =>
+        setAnalysis({
+          total: d.total ?? 0,
+          buckets: d.buckets ?? [],
+          kpis: d.kpis ?? {
+            untouchedLeads: 0,
+            noFollowupsLeads: 0,
+            returningLeads: 0,
+            returningNoFollowupLeads: 0,
+            overdueTaskLeads: 0,
+          },
+        }),
+      )
+      .finally(() => setAnalysisLoading(false));
+  }, [agentFilter]);
 
   useEffect(() => {
     const t = setTimeout(load, 200);
     return () => clearTimeout(t);
   }, [load]);
 
+  useEffect(() => {
+    loadAnalysis();
+  }, [loadAnalysis]);
+
+  useEffect(() => {
+    fetch("/api/users", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setAgents(d.users ?? []));
+    fetch("/api/projects?limit=100", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setProjects(d.projects ?? []));
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    q,
+    stage,
+    priority,
+    assignee,
+    projectId,
+    source,
+    hotOnly,
+    createdFrom,
+    createdTo,
+    pageSize,
+  ]);
+
+  const resetFilters = () => {
+    setQ("");
+    setStage("all");
+    setPriority("all");
+    setAssignee("all");
+    setProjectId("all");
+    setSource("all");
+    setHotOnly(false);
+    setCreatedFrom(undefined);
+    setCreatedTo(undefined);
+  };
+
   return (
-    <div className="flex flex-1 flex-col bg-white">
-      {/* Stats strip — mirrors the screenshot */}
-      <div className="grid grid-cols-2 gap-px border-b border-slate-200/70 bg-slate-200/70 sm:grid-cols-3 lg:grid-cols-7">
-        <StatTile
-          icon={Clock}
-          label="Today's follow-ups"
-          value={stats?.todayFollowUps ?? 0}
-          tone="default"
-          loading={!stats}
+    <PageShell>
+      <PageBody>
+        <LeadStageAnalysis
+          data={analysis}
+          loading={analysisLoading}
+          agentFilter={agentFilter}
+          onAgentFilterChange={setAgentFilter}
+          agents={agents}
+          onBucketClick={(key) => {
+            const mapped = BUCKET_STAGE[key];
+            if (mapped) setStage(mapped);
+          }}
         />
-        <StatTile
-          icon={AlertCircle}
-          label="Backlogs"
-          value={stats?.backlogLeads ?? 0}
-          tone="default"
-          loading={!stats}
-        />
-        <StatTile
-          icon={CalendarCheck}
-          label="Visit Expirations"
-          value={stats?.visitExpirations ?? 0}
-          tone="default"
-          loading={!stats}
-        />
-        <StatTile
-          icon={Flame}
-          label="Hot Leads"
-          value={stats?.hotLeads ?? 0}
-          tone="hot"
-          loading={!stats}
-        />
-        <StatTile
-          icon={Users}
-          label="New Leads"
-          value={stats?.totalLeads ?? 0}
-          tone="info"
-          loading={!stats}
-        />
-        <StatTile
-          icon={TrendingUp}
-          label="Booked Leads"
-          value={stats?.bookedLeads ?? 0}
-          tone="success"
-          loading={!stats}
-        />
-        <StatTile
-          icon={Building2}
-          label="Inactive Leads"
-          value={stats?.inactiveLeads ?? 0}
-          tone="default"
-          loading={!stats}
-        />
-      </div>
 
-      {/* Toolbar */}
-      <div className="sticky top-[72px] z-20 flex flex-col gap-3 border-b border-slate-200/70 bg-white px-7 py-4 lg:flex-row lg:items-center lg:px-10">
-        <div className="flex flex-1 items-center gap-2">
-          <div className="relative w-full max-w-md">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-              strokeWidth={1.75}
-            />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by name, enquiry no., email or phone…"
-              className="h-10 rounded-lg pl-10"
-            />
-          </div>
-
+        <FilterBar
+          advancedTitle="Advanced lead filters"
+          advancedDescription="Filter by project, source, date range and more."
+          advanced={
+            <>
+              <FilterField label="Project">
+                <Select value={projectId} onValueChange={setProjectId}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All projects</SelectItem>
+                    {projects.map((p) => (
+                      <SelectItem key={p._id} value={p._id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FilterField>
+              <FilterField label="Source">
+                <Select value={source} onValueChange={setSource}>
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All sources" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All sources</SelectItem>
+                    {Object.entries(SOURCE_TAG).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>
+                        {v.label}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="google_ads">Google Ads</SelectItem>
+                    <SelectItem value="referral">Referral</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FilterField>
+              <div className="grid grid-cols-2 gap-3">
+                <FilterField label="Created from">
+                  <DatePicker value={createdFrom} onChange={setCreatedFrom} placeholder="From" />
+                </FilterField>
+                <FilterField label="Created to">
+                  <DatePicker value={createdTo} onChange={setCreatedTo} placeholder="To" />
+                </FilterField>
+              </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-[13px]">
+                <input
+                  type="checkbox"
+                  checked={hotOnly}
+                  onChange={(e) => setHotOnly(e.target.checked)}
+                  className="size-4 accent-emerald-600"
+                />
+                <Flame className="size-3.5 text-amber-500" />
+                Hot leads only
+              </label>
+            </>
+          }
+          actions={
+            <>
+              <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
+                <Link href="/leads/bulk-update">
+                  <Upload className="size-3.5" />
+                  Bulk update
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" className="h-9" onClick={resetFilters}>
+                Reset
+              </Button>
+              <Button size="sm" className="h-9 gap-1.5" onClick={() => setOpenNew(true)}>
+                <Plus className="size-3.5" />
+                New lead
+              </Button>
+            </>
+          }
+        >
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search name, phone, email, lead #…"
+            className="h-9 w-72"
+          />
           <Select value={stage} onValueChange={setStage}>
-            <SelectTrigger className="h-10 w-44">
+            <SelectTrigger className="h-9 w-44">
               <SelectValue placeholder="Stage" />
             </SelectTrigger>
             <SelectContent>
@@ -225,9 +349,8 @@ export default function LeadsPage() {
               ))}
             </SelectContent>
           </Select>
-
           <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="h-10 w-36">
+            <SelectTrigger className="h-9 w-36">
               <SelectValue placeholder="Priority" />
             </SelectTrigger>
             <SelectContent>
@@ -238,120 +361,97 @@ export default function LeadsPage() {
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={assignee} onValueChange={setAssignee}>
+            <SelectTrigger className="h-9 w-40">
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All agents</SelectItem>
+              {agents.map((a) => (
+                <SelectItem key={a._id} value={a._id}>
+                  {a.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilterBar>
 
-          <span className="hidden text-[12.5px] text-slate-500 lg:inline">
-            Showing <span className="font-semibold text-slate-700">{leads.length}</span>
-            {total > leads.length ? ` of ${formatNumber(total)}` : ""}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" className="h-10 gap-1.5 rounded-lg">
-            <Link href="/leads/bulk-update">
-              <Upload className="size-4" strokeWidth={1.75} />
-              Bulk update
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            size="default"
-            className="h-10 gap-1.5 rounded-lg"
-            onClick={() => {
-              setQ("");
-              setStage("all");
-              setPriority("all");
-            }}
-          >
-            <Filter className="size-4" strokeWidth={1.75} />
-            Reset
-          </Button>
-          <Button onClick={() => setOpenNew(true)} className="h-10 gap-1.5 rounded-lg">
-            <Plus className="size-4" strokeWidth={2} />
-            New lead
-          </Button>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1">
-        {loading ? (
-          <div className="space-y-2 p-8">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-14 animate-pulse rounded-lg bg-slate-100" />
-            ))}
-          </div>
-        ) : leads.length === 0 ? (
-          <div className="px-7 py-12 lg:px-10">
-            <EmptyState
-              icon={<Users className="size-5 text-emerald-600" strokeWidth={1.75} />}
-              title={
-                q || stage !== "all" || priority !== "all"
-                  ? "No leads match your filters"
-                  : "No leads yet"
-              }
-              description={
-                q || stage !== "all" || priority !== "all"
-                  ? "Try clearing filters or searching with a different term."
-                  : "Capture your first prospect — we'll auto-assign and start scoring instantly."
-              }
-              action={
-                <Button onClick={() => setOpenNew(true)} className="gap-1.5">
-                  <Plus className="size-4" strokeWidth={2} />
-                  Add your first lead
-                </Button>
-              }
-              secondary={
-                q || stage !== "all" || priority !== "all" ? (
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setQ("");
-                      setStage("all");
-                      setPriority("all");
-                    }}
-                  >
-                    Clear filters
+        <DataTableShell
+          title="Leads"
+          count={total}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        >
+          {loading ? (
+            <div className="space-y-2 p-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-12 animate-pulse rounded-md bg-slate-100" />
+              ))}
+            </div>
+          ) : leads.length === 0 ? (
+            <div className="p-8">
+              <EmptyState
+                icon={<Users className="size-5 text-emerald-600" strokeWidth={1.75} />}
+                title={
+                  q || stage !== "all" || priority !== "all"
+                    ? "No leads match your filters"
+                    : "No leads yet"
+                }
+                description={
+                  q || stage !== "all" || priority !== "all"
+                    ? "Try clearing filters or searching with a different term."
+                    : "Capture your first prospect to get started."
+                }
+                action={
+                  <Button onClick={() => setOpenNew(true)} className="gap-1.5">
+                    <Plus className="size-4" />
+                    Add lead
                   </Button>
-                ) : null
-              }
-            />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13.5px]">
-              <thead className="sticky top-[136px] z-10 bg-sky-50/80 backdrop-blur">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-600">
-                  <th className="px-7 py-3 lg:px-10">Name</th>
-                  <th className="px-3 py-3">Call/Mobile</th>
-                  <th className="px-3 py-3">Assigned To</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3">Project</th>
-                  <th className="px-3 py-3">Description</th>
-                  <th className="px-3 py-3">Next Call Date</th>
-                  <th className="px-3 py-3 text-right">Action</th>
+                }
+              />
+            </div>
+          ) : (
+            <TableRoot>
+              <thead>
+                <tr>
+                  <Th className="w-10">#</Th>
+                  <Th>Name</Th>
+                  <Th>Mobile</Th>
+                  <Th>Assigned to</Th>
+                  <Th>Status</Th>
+                  <Th>Project</Th>
+                  <Th>Description</Th>
+                  <Th>Next call</Th>
+                  <Th className="text-right">Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {leads.map((lead) => {
+                {leads.map((lead, idx) => {
                   const tone = STAGE_TONE[lead.stage] ?? STAGE_TONE.new;
                   const sourceTag = SOURCE_TAG[lead.source?.primary ?? "other"];
                   return (
                     <tr
                       key={lead._id}
-                      className="cursor-pointer border-t border-slate-100 transition-colors hover:bg-slate-50/70"
+                      className="cursor-pointer transition-colors hover:bg-slate-50/80"
                       onClick={() => setActiveId(lead._id)}
                     >
-                      <td className="px-7 py-3 lg:px-10">
+                      <Td className="tabular-nums text-slate-400">
+                        {(page - 1) * pageSize + idx + 1}
+                      </Td>
+                      <Td>
                         <div>
-                          <p className="font-semibold text-emerald-700 hover:underline">
+                          <p className="font-semibold text-emerald-700">
                             {lead.contact.name}
                             {lead.isHot ? (
-                              <Flame
-                                className="ml-1 inline size-3.5 text-amber-500"
-                                strokeWidth={1.75}
-                              />
+                              <Flame className="ml-1 inline size-3.5 text-amber-500" />
                             ) : null}
                           </p>
+                          {lead.leadNumber ? (
+                            <p className="text-[11px] text-slate-400">{lead.leadNumber}</p>
+                          ) : null}
                           {sourceTag ? (
                             <span
                               className={cn(
@@ -363,166 +463,114 @@ export default function LeadsPage() {
                             </span>
                           ) : null}
                         </div>
-                      </td>
-                      <td className="px-3 py-3 text-[12.5px] text-slate-700">
-                        {formatPhone(lead.contact.primaryPhone)}
-                      </td>
-                      <td className="px-3 py-3 text-[12.5px] text-slate-700">
-                        {lead.assignedTo?.name ?? (
-                          <span className="text-slate-400">Unassigned</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
+                      </Td>
+                      <Td className="tabular-nums">{formatPhone(lead.contact.primaryPhone)}</Td>
+                      <Td>{lead.assignedTo?.name ?? <span className="text-slate-400">Unassigned</span>}</Td>
+                      <Td>
                         <StatusPill tone={tone.tone} dot>
                           {tone.label}
                         </StatusPill>
-                      </td>
-                      <td className="px-3 py-3 text-[12.5px] text-slate-700">
-                        {lead.primaryProjectId?.name ?? (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 max-w-xs">
-                        <p className="line-clamp-2 text-[12px] text-slate-600">
-                          {lead.description ?? <span className="text-slate-400">—</span>}
+                      </Td>
+                      <Td>{lead.primaryProjectId?.name ?? <span className="text-slate-400">—</span>}</Td>
+                      <Td className="max-w-[220px]">
+                        <p className="line-clamp-2 text-[12.5px] text-slate-600">
+                          {lead.description ?? "—"}
                         </p>
-                      </td>
-                      <td className="px-3 py-3 text-[12px] text-slate-500">
-                        {lead.nextActionAt ? (
-                          new Date(lead.nextActionAt).toLocaleString("en-IN", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
+                      </Td>
+                      <Td className="whitespace-nowrap text-[12px] text-slate-500">
+                        {lead.nextActionAt
+                          ? new Date(lead.nextActionAt).toLocaleString("en-IN", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </Td>
+                      <Td>
                         <div
                           className="flex items-center justify-end gap-1"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <ActionButton
+                          <ActionIcon
                             href={`tel:${lead.contact.primaryPhone}`}
-                            color="bg-sky-500 hover:bg-sky-600"
+                            className="bg-sky-500 hover:bg-sky-600"
                             icon={PhoneCall}
                             label="Call"
                           />
-                          <ActionButton
+                          <ActionIcon
                             href={`mailto:${lead.contact.email ?? ""}`}
-                            color="bg-emerald-500 hover:bg-emerald-600"
+                            className="bg-emerald-500 hover:bg-emerald-600"
                             icon={Mail}
                             label="Email"
                             disabled={!lead.contact.email}
                           />
-                          <ActionButton
+                          <ActionIcon
                             href={`https://wa.me/${lead.contact.primaryPhone.replace(/\D/g, "")}`}
-                            color="bg-emerald-600 hover:bg-emerald-700"
+                            className="bg-emerald-600 hover:bg-emerald-700"
                             icon={MessageSquare}
                             label="WhatsApp"
                             external
                           />
                           <button
-                            className="inline-flex size-7 items-center justify-center rounded-md bg-sky-100 text-sky-700 hover:bg-sky-200"
+                            type="button"
+                            className="inline-flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200"
                             onClick={() => setActiveId(lead._id)}
-                            aria-label="View"
+                            aria-label="Open"
                           >
-                            <ArrowUpRight className="size-4" strokeWidth={2} />
+                            <ArrowUpRight className="size-3.5" />
                           </button>
                           <button
+                            type="button"
                             className="inline-flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200"
                             onClick={() => setActiveId(lead._id)}
                             aria-label="Edit"
                           >
-                            <Pencil className="size-3.5" strokeWidth={2} />
+                            <Pencil className="size-3.5" />
                           </button>
                         </div>
-                      </td>
+                      </Td>
                     </tr>
                   );
                 })}
               </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+            </TableRoot>
+          )}
+        </DataTableShell>
+
+        <p className="text-[12px] text-slate-500">
+          Showing{" "}
+          <span className="font-medium text-slate-700">
+            {leads.length ? (page - 1) * pageSize + 1 : 0}–
+            {(page - 1) * pageSize + leads.length}
+          </span>{" "}
+          of <span className="font-medium text-slate-700">{formatNumber(total)}</span>
+        </p>
+      </PageBody>
 
       <NewLeadSheet open={openNew} onOpenChange={setOpenNew} onCreated={load} />
       <LeadDetailSheet
         leadId={activeId}
+        leadIds={leads.map((l) => l._id)}
+        onLeadChange={setActiveId}
         onOpenChange={(v) => !v && setActiveId(null)}
-        onChanged={load}
+        onChanged={() => {
+          load();
+          loadAnalysis();
+        }}
       />
-    </div>
+    </PageShell>
   );
 }
 
-function StatTile({
-  icon: Icon,
-  label,
-  value,
-  tone,
-  loading,
-}: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  label: string;
-  value: number;
-  tone: "default" | "hot" | "info" | "success";
-  loading?: boolean;
-}) {
-  const bg = {
-    default: "bg-white",
-    hot: "bg-red-50",
-    info: "bg-emerald-50",
-    success: "bg-emerald-50",
-  }[tone];
-  const valueText = {
-    default: "text-slate-900",
-    hot: "text-red-600",
-    info: "text-emerald-700",
-    success: "text-emerald-700",
-  }[tone];
-  const iconText = {
-    default: "text-slate-400",
-    hot: "text-red-500",
-    info: "text-emerald-500",
-    success: "text-emerald-500",
-  }[tone];
-
-  return (
-    <div className={cn("p-5", bg)}>
-      <div className="flex items-center justify-between">
-        <p className="text-[11.5px] font-semibold uppercase tracking-wider text-slate-500">
-          {label}
-        </p>
-        <Icon className={cn("size-[15px]", iconText)} strokeWidth={1.75} />
-      </div>
-      <p
-        className={cn(
-          "mt-2 text-[26px] font-bold tracking-tight tabular-nums",
-          valueText,
-        )}
-      >
-        {loading ? (
-          <span className="inline-block h-7 w-12 animate-pulse rounded bg-slate-100" />
-        ) : (
-          formatNumber(value)
-        )}
-      </p>
-    </div>
-  );
-}
-
-function ActionButton({
+function ActionIcon({
   href,
-  color,
+  className,
   icon: Icon,
   label,
   external,
   disabled,
 }: {
   href: string;
-  color: string;
+  className: string;
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   label: string;
   external?: boolean;
@@ -532,10 +580,7 @@ function ActionButton({
     return (
       <span
         aria-label={label}
-        title={`${label} unavailable`}
-        className={cn(
-          "inline-flex size-7 cursor-not-allowed items-center justify-center rounded-md bg-slate-100 text-slate-300",
-        )}
+        className="inline-flex size-7 cursor-not-allowed items-center justify-center rounded-md bg-slate-100 text-slate-300"
       >
         <Icon className="size-3.5" strokeWidth={2} />
       </span>
@@ -546,12 +591,11 @@ function ActionButton({
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
-      onClick={(e) => e.stopPropagation()}
       aria-label={label}
       title={label}
       className={cn(
         "inline-flex size-7 items-center justify-center rounded-md text-white transition-colors",
-        color,
+        className,
       )}
     >
       <Icon className="size-3.5" strokeWidth={2} />

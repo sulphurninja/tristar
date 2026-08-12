@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
 import { toast } from "sonner";
 import { Plus, Pencil, Trash2, Tags } from "lucide-react";
 import {
@@ -32,6 +33,18 @@ export default function SourcesPage() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Src | null>(null);
   const [newOpen, setNewOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const totalPages = Math.max(1, Math.ceil(sources.length / pageSize));
+  const pagedSources = useMemo(
+    () => sources.slice((page - 1) * pageSize, page * pageSize),
+    [sources, page, pageSize],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [pageSize]);
 
   const load = () => {
     setLoading(true);
@@ -84,21 +97,29 @@ export default function SourcesPage() {
           No sources defined. Add Walk-in, Tele-calling, Channel Partner, Hoarding, etc.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200/70">
-          <table className="w-full text-[13px]">
-            <thead className="bg-sky-50/80">
-              <tr className="text-left text-[11px] font-semibold uppercase tracking-wider text-slate-700">
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Key</th>
-                <th className="px-4 py-3">Description</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Action</th>
+        <DataTableShell
+          title="Sources"
+          count={sources.length}
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          pageSize={pageSize}
+          onPageSizeChange={setPageSize}
+        >
+          <TableRoot>
+            <thead>
+              <tr>
+                <Th>Source</Th>
+                <Th>Key</Th>
+                <Th>Description</Th>
+                <Th>Status</Th>
+                <Th className="text-right">Action</Th>
               </tr>
             </thead>
             <tbody>
-              {sources.map((s) => (
-                <tr key={s._id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                  <td className="px-4 py-2.5">
+              {pagedSources.map((s) => (
+                <tr key={s._id} className="transition-colors hover:bg-slate-50/80">
+                  <Td>
                     <div className="flex items-center gap-2">
                       <span
                         className="size-2.5 rounded-full"
@@ -106,19 +127,15 @@ export default function SourcesPage() {
                       />
                       <span className="font-semibold text-slate-900">{s.label}</span>
                     </div>
-                  </td>
-                  <td className="px-4 py-2.5 font-mono text-[11.5px] text-slate-500">
-                    {s.key}
-                  </td>
-                  <td className="px-4 py-2.5 text-slate-700">
-                    {s.description ?? <span className="text-slate-400">—</span>}
-                  </td>
-                  <td className="px-4 py-2.5">
+                  </Td>
+                  <Td className="font-mono text-[11.5px] text-slate-500">{s.key}</Td>
+                  <Td>{s.description ?? <span className="text-slate-400">—</span>}</Td>
+                  <Td>
                     <StatusPill tone={s.isActive ? "success" : "neutral"} dot>
                       {s.isActive ? "Active" : "Inactive"}
                     </StatusPill>
-                  </td>
-                  <td className="px-4 py-2.5 text-right">
+                  </Td>
+                  <Td className="text-right">
                     <div className="flex items-center justify-end gap-1">
                       <Button
                         variant="ghost"
@@ -137,12 +154,12 @@ export default function SourcesPage() {
                         <Trash2 className="size-3.5" strokeWidth={1.75} />
                       </Button>
                     </div>
-                  </td>
+                  </Td>
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
+          </TableRoot>
+        </DataTableShell>
       )}
 
       <SourceDialog

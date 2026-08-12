@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import SiteVisit from "@/models/SiteVisit";
 import { withAuth, ok } from "@/lib/api";
-import { parseRange, rangeBounds } from "@/lib/report-utils";
+import { boundsFromSearchParams } from "@/lib/report-utils";
 
 /**
  * Lead volume time-series — buckets by day for the requested range.
@@ -10,8 +10,7 @@ import { parseRange, rangeBounds } from "@/lib/report-utils";
  */
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const range = parseRange(url.searchParams.get("range"));
-  const { start, end } = rangeBounds(range);
+  const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const dayBucket = {

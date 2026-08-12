@@ -67,7 +67,7 @@ const SelectContent = React.forwardRef<
       position={position}
       sideOffset={4}
       className={cn(
-        "relative z-50 max-h-96 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg bg-white p-1 text-slate-900 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+        "relative z-[70] max-h-96 min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg bg-white p-1 text-slate-900 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         className,
       )}
       {...props}
