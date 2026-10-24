@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams, PIPELINE_COLUMNS } from "@/lib/report-utils";
+import { boundsFromSearchParams, pipelineColumns, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 /**
  * SVC (Site Visit Conversion) User Report — for each user, leads they own
@@ -14,6 +14,8 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
+  const cols = await pipelineColumns(workspaceId);
 
   const [users, agg] = await Promise.all([
     User.find({ workspaceId }).select("name").lean(),
@@ -22,6 +24,7 @@ export const GET = withAuth(async ({ req, session }) => {
         {
           $match: {
             workspaceId,
+          ...scopeMatch(scope),
             createdAt: { $gte: start, $lte: end },
             stage: {
               $in: [
@@ -59,21 +62,31 @@ export const GET = withAuth(async ({ req, session }) => {
       const stages = indexed[String(u._id)] ?? {};
       const total = Object.values(stages).reduce((a, b) => a + b, 0);
       const cells: Record<string, number> = {};
-      for (const c of PIPELINE_COLUMNS) cells[c.key] = stages[c.key] ?? 0;
+      for (const c of cols) cells[c.key] = stages[c.key] ?? 0;
       return { userId: String(u._id), name: u.name, total, stages: cells };
     })
     .filter((r) => r.total > 0);
+
+
+  if (indexed._unassigned) {
+    const total = Object.values(indexed._unassigned).reduce((a, b) => a + b, 0);
+    if (total > 0) {
+      const cells: Record<string, number> = {};
+      for (const c of cols) cells[c.key] = indexed._unassigned[c.key] ?? 0;
+      rows.push({ userId: "_unassigned", name: "Unassigned", total, stages: cells });
+    }
+  }
 
   rows.sort((a, b) => b.total - a.total);
 
   const totalsRow = {
     name: "Total",
     total: rows.reduce((a, b) => a + b.total, 0),
-    stages: PIPELINE_COLUMNS.reduce<Record<string, number>>((acc, c) => {
+    stages: cols.reduce<Record<string, number>>((acc, c) => {
       acc[c.key] = rows.reduce((a, b) => a + (b.stages[c.key] ?? 0), 0);
       return acc;
     }, {}),
   };
 
-  return ok({ range, columns: PIPELINE_COLUMNS, rows, totalsRow });
+  return ok({ range, columns: cols, rows, totalsRow });
 });

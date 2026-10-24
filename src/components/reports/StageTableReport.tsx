@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ReportShell, type ReportRange } from "@/components/reports/ReportShell";
+import { ReportShell, ReportTable, type ReportRange } from "@/components/reports/ReportShell";
 import { useReportFilters } from "@/hooks/useReportFilters";
-import { TableRoot, Th, Td } from "@/components/shared/DataTableShell";
+import { downloadCsv } from "@/lib/csv";
 import { formatNumber } from "@/lib/utils";
 
 interface StageRow {
@@ -34,122 +34,75 @@ interface Props {
   firstColumnHeader: string;
 }
 
-export function StageTableReport({
-  title,
-  description,
-  endpoint,
-  labelKey,
-  firstColumnHeader,
-}: Props) {
-  const { range, setRange, from, to, onDatesChange, query, ready } = useReportFilters("30d");
+export function StageTableReport({ title, description, endpoint, labelKey, firstColumnHeader }: Props) {
+  const f = useReportFilters("30d");
   const [data, setData] = useState<ApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!f.ready) return;
     setLoading(true);
-    fetch(`${endpoint}?${query}`, { cache: "no-store" })
+    let live = true;
+    fetch(`${endpoint}?${f.query}`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setData(d))
-      .finally(() => setLoading(false));
-  }, [endpoint, query, ready]);
+      .then((d) => live && setData(d.error ? null : d))
+      .catch(() => live && setData(null))
+      .finally(() => live && setLoading(false));
+    return () => {
+      live = false;
+    };
+  }, [endpoint, f.query, f.ready]);
+
+  const columns = data?.columns ?? [];
+  const rows = data?.rows ?? [];
 
   const exportCsv = () => {
     if (!data) return;
-    const headers = [firstColumnHeader, "Total", ...data.columns.map((c) => c.label)];
-    const rows = data.rows.map((r) => [
-      String(r[labelKey] ?? ""),
-      String(r.total),
-      ...data.columns.map((c) => String(r.stages[c.key] ?? 0)),
-    ]);
+    const out: Array<Array<string | number>> = [
+      [firstColumnHeader, "Total", ...columns.map((c) => c.label)],
+      ...rows.map((r) => [String(r[labelKey] ?? ""), r.total, ...columns.map((c) => r.stages[c.key] ?? 0)]),
+    ];
     if (data.totalsRow) {
-      rows.push([
-        "Total",
-        String(data.totalsRow.total),
-        ...data.columns.map((c) => String(data.totalsRow!.stages[c.key] ?? 0)),
-      ]);
+      out.push(["Total", data.totalsRow.total, ...columns.map((c) => data.totalsRow!.stages[c.key] ?? 0)]);
     }
-    const csv = [headers, ...rows]
-      .map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${title.toLowerCase().replace(/\s+/g, "-")}-${range}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`${title.toLowerCase().replace(/\s+/g, "-")}-${f.range}`, out);
   };
 
   return (
     <ReportShell
       title={title}
       description={description}
-      range={range}
-      onRangeChange={setRange}
-      from={from}
-      to={to}
-      onDatesChange={onDatesChange}
+      range={f.range}
+      onRangeChange={f.setRange}
+      from={f.from}
+      to={f.to}
+      onDatesChange={f.onDatesChange}
+      scope={f.scope}
+      onScopeChange={f.setScope}
+      onReset={f.reset}
       onExport={exportCsv}
     >
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-9 animate-pulse rounded-md bg-slate-100" />
-          ))}
-        </div>
-      ) : !ready ? (
-        <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
-          Select a start and end date to load this report.
-        </div>
-      ) : !data || data.rows.length === 0 ? (
-        <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
-          No data for this window.
-        </div>
-      ) : (
-        <div className="max-h-[70vh] overflow-auto rounded-xl border border-slate-200/80">
-          <TableRoot className="min-w-0">
-            <thead>
-              <tr>
-                <Th>{firstColumnHeader}</Th>
-                <Th className="text-right">Total</Th>
-                {data.columns.map((c) => (
-                  <Th key={c.key} className="text-right">
-                    {c.label}
-                  </Th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.rows.map((r, i) => (
-                <tr key={i} className="transition-colors hover:bg-slate-50/80">
-                  <Td className="font-medium text-slate-900">{String(r[labelKey] ?? "—")}</Td>
-                  <Td className="text-right tabular-nums font-semibold">
-                    {formatNumber(r.total)}
-                  </Td>
-                  {data.columns.map((c) => (
-                    <Td key={c.key} className="text-right tabular-nums text-slate-600">
-                      {formatNumber(r.stages[c.key] ?? 0)}
-                    </Td>
-                  ))}
-                </tr>
-              ))}
-              {data.totalsRow ? (
-                <tr className="bg-slate-50/70">
-                  <Td className="font-bold text-slate-900">Total</Td>
-                  <Td className="text-right tabular-nums font-bold">
-                    {formatNumber(data.totalsRow.total)}
-                  </Td>
-                  {data.columns.map((c) => (
-                    <Td key={c.key} className="text-right tabular-nums font-bold">
-                      {formatNumber(data.totalsRow!.stages[c.key] ?? 0)}
-                    </Td>
-                  ))}
-                </tr>
-              ) : null}
-            </tbody>
-          </TableRoot>
-        </div>
-      )}
+      <ReportTable
+        loading={loading || !f.ready}
+        emptyLabel={f.ready ? undefined : "Select a start and end date"}
+        columns={[firstColumnHeader, "Total", ...columns.map((c) => c.label)]}
+        rows={rows.map((r) => [
+          <span key="l" className="font-medium">
+            {String(r[labelKey] ?? "-")}
+          </span>,
+          <b key="t">{formatNumber(r.total)}</b>,
+          ...columns.map((c) => formatNumber(r.stages[c.key] ?? 0)),
+        ])}
+        totalRow={
+          data?.totalsRow
+            ? [
+                "Total",
+                formatNumber(data.totalsRow.total),
+                ...columns.map((c) => formatNumber(data.totalsRow!.stages[c.key] ?? 0)),
+              ]
+            : undefined
+        }
+      />
     </ReportShell>
   );
 }

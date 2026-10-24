@@ -33,6 +33,8 @@ export type CampaignDoc = InferSchemaType<typeof CampaignSchema> & {
   _id: mongoose.Types.ObjectId;
 };
 
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Campaign;
+
 const Campaign =
   (mongoose.models.Campaign as Model<CampaignDoc>) ||
   mongoose.model<CampaignDoc>("Campaign", CampaignSchema);

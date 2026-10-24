@@ -1,37 +1,41 @@
 import mongoose from "mongoose";
 import Booking from "@/models/Booking";
+import Lead from "@/models/Lead";
+import Project from "@/models/Project";
+import Broker from "@/models/Broker";
 import { withAuth, ok, bad } from "@/lib/api";
+import { resolveAgentScope, scopeParams } from "@/lib/scope";
+import { escapeRegex, oid, str } from "@/lib/cp";
+import { paidByBooking } from "@/lib/bookings";
+
+type Oid = mongoose.Types.ObjectId;
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const q = url.searchParams.get("q")?.trim() ?? "";
-  const approvalStatus = url.searchParams.get("approvalStatus") ?? "";
-  const stage = url.searchParams.get("stage") ?? "";
-  const projectId = url.searchParams.get("projectId") ?? "";
-  const salesAgentId = url.searchParams.get("salesAgentId") ?? "";
-  const leadId = url.searchParams.get("leadId") ?? "";
-  const brokerId = url.searchParams.get("brokerId") ?? "";
-  const bookedFrom = url.searchParams.get("bookedFrom") ?? "";
-  const bookedTo = url.searchParams.get("bookedTo") ?? "";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
-  const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
+  const sp = url.searchParams;
+  const q = sp.get("q")?.trim() ?? "";
+  const exportAll = sp.get("export") === "1";
+  const limit = exportAll ? 10000 : Math.min(parseInt(sp.get("limit") ?? "50", 10) || 50, 200);
+  const skip = Math.max(parseInt(sp.get("skip") ?? "0", 10) || 0, 0);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const filter: Record<string, unknown> = { workspaceId };
+  const approvalStatus = sp.get("approvalStatus") ?? "";
   if (approvalStatus && approvalStatus !== "all") filter.approvalStatus = approvalStatus;
+  const stage = sp.get("stage") ?? "";
   if (stage && stage !== "all") filter.stage = stage;
-  if (projectId && mongoose.isValidObjectId(projectId)) {
-    filter.projectId = new mongoose.Types.ObjectId(projectId);
+  for (const k of ["projectId", "leadId", "brokerId"] as const) {
+    const v = oid(sp.get(k));
+    if (v) filter[k] = v;
   }
-  if (salesAgentId && mongoose.isValidObjectId(salesAgentId)) {
-    filter.salesAgentId = new mongoose.Types.ObjectId(salesAgentId);
-  }
-  if (leadId && mongoose.isValidObjectId(leadId)) {
-    filter.leadId = new mongoose.Types.ObjectId(leadId);
-  }
-  if (brokerId && mongoose.isValidObjectId(brokerId)) {
-    filter.brokerId = new mongoose.Types.ObjectId(brokerId);
-  }
+
+  const { team, agent } = scopeParams(url);
+  const legacyAgent = sp.get("salesAgentId");
+  const scope = await resolveAgentScope(workspaceId, team, agent || legacyAgent);
+  if (scope) filter.salesAgentId = { $in: scope };
+
+  const bookedFrom = sp.get("bookedFrom");
+  const bookedTo = sp.get("bookedTo");
   if (bookedFrom || bookedTo) {
     const bookedAt: Record<string, Date> = {};
     if (bookedFrom) {
@@ -47,10 +51,8 @@ export const GET = withAuth(async ({ req, session }) => {
     filter.bookedAt = bookedAt;
   }
   if (q) {
-    filter.$or = [
-      { customerName: { $regex: q, $options: "i" } },
-      { bookingNumber: { $regex: q, $options: "i" } },
-    ];
+    const rx = { $regex: escapeRegex(q), $options: "i" };
+    filter.$or = [{ customerName: rx }, { bookingNumber: rx }];
   }
 
   const [bookings, total] = await Promise.all([
@@ -66,22 +68,35 @@ export const GET = withAuth(async ({ req, session }) => {
     Booking.countDocuments(filter),
   ]);
 
+  const paid = await paidByBooking(workspaceId, bookings.map((b) => b._id));
+  const rows = bookings.map((b) => {
+    const p = paid.get(String(b._id)) ?? 0;
+    return { ...b, paidAmount: p, balanceAmount: (b.amount ?? 0) - p };
+  });
+
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const [monthCount, monthSales] = await Promise.all([
+  const [monthCount, monthSales, pendingCount, totals] = await Promise.all([
     Booking.countDocuments({ workspaceId, bookedAt: { $gte: monthStart } }),
     Booking.aggregate<{ total: number }>([
       { $match: { workspaceId, bookedAt: { $gte: monthStart } } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]),
+    Booking.countDocuments({ workspaceId, approvalStatus: "pending" }),
+    Booking.aggregate<{ amount: number }>([
+      { $match: filter },
+      { $group: { _id: null, amount: { $sum: "$amount" } } },
+    ]),
   ]);
 
   return ok({
-    bookings,
+    bookings: rows,
     total,
     overview: {
       monthBookings: monthCount,
       monthSales: monthSales[0]?.total ?? 0,
+      pending: pendingCount,
+      filteredAmount: totals[0]?.amount ?? 0,
     },
   });
 });
@@ -91,34 +106,47 @@ export const POST = withAuth(async ({ req, session }) => {
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const userId = new mongoose.Types.ObjectId(session.userId);
 
-  if (!body.customerName && !body.leadId) return bad("Customer name or lead is required.");
+  const leadId = oid(body.leadId);
+  const projectId = oid(body.projectId);
+  const brokerId = oid(body.brokerId);
+  let customerName = str(body.customerName);
 
-  const count = await Booking.countDocuments({ workspaceId });
-  const bookingNumber = `BK-${new Date().getFullYear()}-${String(count + 1).padStart(5, "0")}`;
+  if (leadId) {
+    const lead = await Lead.findOne({ _id: leadId, workspaceId }).select("contact.name").lean();
+    if (!lead) return bad("Selected lead not found.");
+    customerName = customerName || lead.contact?.name;
+  }
+  if (!customerName) return bad("Customer name or lead is required.");
+  const amount = Number(body.amount ?? 0);
+  if (!(amount >= 0) || Number.isNaN(amount)) return bad("Enter a valid amount.");
+  if (projectId && !(await Project.exists({ _id: projectId, workspaceId }))) return bad("Selected project not found.");
+  if (brokerId && !(await Broker.exists({ _id: brokerId, workspaceId }))) return bad("Selected channel partner not found.");
+  const bookedAt = body.bookedAt ? new Date(body.bookedAt as string) : new Date();
+  if (Number.isNaN(bookedAt.getTime())) return bad("Invalid booking date.");
+
+  // Sequential booking number: highest existing suffix + 1 (stable even after deletes).
+  const year = bookedAt.getFullYear();
+  const prefix = `BK-${year}-`;
+  const last = await Booking.findOne({ workspaceId, bookingNumber: new RegExp(`^${prefix}`) })
+    .sort({ bookingNumber: -1 })
+    .select("bookingNumber")
+    .lean();
+  const seq = last?.bookingNumber ? parseInt(last.bookingNumber.slice(prefix.length), 10) || 0 : 0;
 
   const booking = await Booking.create({
     workspaceId,
-    bookingNumber,
-    customerName: body.customerName,
-    amount: Number(body.amount ?? 0),
-    stage: body.stage ?? "booked",
-    approvalStatus: body.approvalStatus ?? "pending",
-    source: body.source,
-    notes: body.notes,
-    bookedAt: body.bookedAt ? new Date(body.bookedAt as string) : new Date(),
-    leadId:
-      body.leadId && mongoose.isValidObjectId(body.leadId as string)
-        ? new mongoose.Types.ObjectId(body.leadId as string)
-        : undefined,
-    projectId:
-      body.projectId && mongoose.isValidObjectId(body.projectId as string)
-        ? new mongoose.Types.ObjectId(body.projectId as string)
-        : undefined,
-    brokerId:
-      body.brokerId && mongoose.isValidObjectId(body.brokerId as string)
-        ? new mongoose.Types.ObjectId(body.brokerId as string)
-        : undefined,
-    salesAgentId: userId,
+    bookingNumber: `${prefix}${String(seq + 1).padStart(5, "0")}`,
+    customerName,
+    amount,
+    stage: str(body.stage) || "booked",
+    approvalStatus: ["pending", "approved", "rejected"].includes(String(body.approvalStatus)) ? body.approvalStatus : "pending",
+    source: str(body.source) || undefined,
+    notes: str(body.notes) || undefined,
+    bookedAt,
+    leadId,
+    projectId,
+    brokerId,
+    salesAgentId: oid(body.salesAgentId) ?? userId,
     createdBy: userId,
   });
 

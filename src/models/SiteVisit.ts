@@ -15,6 +15,13 @@ const SiteVisitSchema = new Schema(
 
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", index: true },
     assignedToName: String,
+    assignedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    remark: String,
+    visitType: { type: String, enum: ["site_visit", "revisit", "final_visit", "virtual"], default: "site_visit", index: true },
+    cpPresent: { type: Boolean, default: false },
+    brokerId: { type: Schema.Types.ObjectId, ref: "Broker", index: true },
+    rescheduleCount: { type: Number, default: 0 },
+    noShowAt: Date,
     accompaniedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
 
     status: {
@@ -59,6 +66,9 @@ const SiteVisitSchema = new Schema(
 
 SiteVisitSchema.index({ workspaceId: 1, scheduledAt: 1 });
 SiteVisitSchema.index({ workspaceId: 1, status: 1, scheduledAt: 1 });
+
+// Dev only: re-register on hot reload so schema edits are picked up.
+if (process.env.NODE_ENV !== "production") delete mongoose.models.SiteVisit;
 
 export type SiteVisitDoc = InferSchemaType<typeof SiteVisitSchema> & { _id: mongoose.Types.ObjectId };
 

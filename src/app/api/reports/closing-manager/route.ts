@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams } from "@/lib/report-utils";
+import { boundsFromSearchParams, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 /**
  * Closing Manager Report — for every user with role manager / supervisor /
@@ -13,6 +13,7 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
 
   const [users, agg] = await Promise.all([
     User.find({
@@ -26,6 +27,7 @@ export const GET = withAuth(async ({ req, session }) => {
         {
           $match: {
             workspaceId,
+          ...scopeMatch(scope),
             createdAt: { $gte: start, $lte: end },
             stage: { $in: ["interested", "negotiating", "booked", "lost", "site_visit_done"] },
           },

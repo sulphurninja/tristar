@@ -36,6 +36,8 @@ export type LedgerDoc = InferSchemaType<typeof LedgerSchema> & {
   _id: mongoose.Types.ObjectId;
 };
 
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Ledger;
+
 const Ledger =
   (mongoose.models.Ledger as Model<LedgerDoc>) ||
   mongoose.model<LedgerDoc>("Ledger", LedgerSchema);

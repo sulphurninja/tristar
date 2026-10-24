@@ -1,239 +1,116 @@
 import mongoose from "mongoose";
-import Lead, { LEAD_STAGES } from "@/models/Lead";
+import Lead from "@/models/Lead";
 import SiteVisit from "@/models/SiteVisit";
-import Project from "@/models/Project";
-import Broker from "@/models/Broker";
+import Task from "@/models/Task";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok } from "@/lib/api";
+import { resolveAgentScope, rangeBounds, scopeParams, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
 
-export const GET = withAuth(async ({ session }) => {
+/**
+ * Dashboard counters. Each dashboard card group asks for one `section`
+ * (leads | today | activity) with its own Team / Sales Agent filter.
+ */
+export const GET = withAuth(async ({ req, session }) => {
+  const url = new URL(req.url);
+  const section = url.searchParams.get("section") ?? "leads";
+  const { team, agent } = scopeParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
-  const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const startOfWeek = new Date(now);
-  startOfWeek.setDate(startOfWeek.getDate() - now.getDay());
-  startOfWeek.setHours(0, 0, 0, 0);
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(endOfWeek.getDate() + 7);
+  const scope = await resolveAgentScope(workspaceId, team, agent);
+  const [start, end] = rangeBounds("today")!;
 
-  let Task: typeof mongoose.Model | null = null;
-  try {
-    Task = (await import("@/models/Task")).default;
-  } catch {
-    Task = null;
+  const leadScope = scope ? { assignedTo: { $in: scope } } : {};
+  const taskScope = scope ? { assignedTo: { $in: scope } } : {};
+  const visitScope = scope ? { assignedTo: { $in: scope } } : {};
+  const actScope = scope ? { actorId: { $in: scope } } : {};
+  const base = { workspaceId, isContact: { $ne: true } };
+
+  if (section === "leads") {
+    const [total, returning, untouched, unassigned] = await Promise.all([
+      Lead.countDocuments({ ...base, ...leadScope }),
+      Lead.countDocuments({ ...base, ...leadScope, ...RETURNING_FILTER }),
+      Lead.countDocuments({
+        ...base,
+        ...leadScope,
+        lastContactedAt: null,
+        stage: { $in: ["new", "attempted_1", "attempted_2"] },
+      }),
+      Lead.countDocuments({ ...base, assignedTo: null }),
+    ]);
+    return ok({ total, fresh: Math.max(total - returning, 0), returning, untouched, unassigned });
   }
 
+  if (section === "today") {
+    const created = { createdAt: { $gte: start, $lte: end } };
+    const [leads, fresh, returning, tasks, siteVisits] = await Promise.all([
+      Lead.countDocuments({ ...base, ...leadScope, ...created }),
+      Lead.countDocuments({ ...base, ...leadScope, ...created, ...NOT_RETURNING_FILTER }),
+      Lead.countDocuments({ ...base, ...leadScope, ...created, ...RETURNING_FILTER }),
+      Task.countDocuments({ workspaceId, ...taskScope, scheduleAt: { $gte: start, $lte: end } }),
+      SiteVisit.countDocuments({ workspaceId, ...visitScope, scheduledAt: { $gte: start, $lte: end } }),
+    ]);
+    return ok({ leads, fresh, returning, tasks, siteVisits });
+  }
+
+  /* activity */
+  const day = { occurredAt: { $gte: start, $lte: end } };
+  const callTypes = { type: { $in: ["call_made", "call_missed"] } };
+  const contactIds = (
+    await Lead.find({ workspaceId, isContact: true }).select("_id").limit(50000).lean()
+  ).map((l) => l._id);
+
   const [
-    totalLeads,
-    freshLeads,
-    returningLeads,
-    untouchedLeads,
-    unassignedLeads,
-    todayLeads,
-    todayFresh,
-    todayTasks,
-    todayVisits,
-    newLeadsLast7d,
-    hotLeads,
-    todayFollowUps,
-    overdueFollowUps,
-    visitsThisWeek,
-    confirmedVisitsThisWeek,
-    visitExpirations,
-    bookedLeads,
-    inactiveLeads,
-    backlogLeads,
-    activeProjects,
-    activeBrokers,
-    pipelineByStage,
-    recentActivity,
-    topProjects,
-    callActivitiesToday,
-    visitActivitiesToday,
-    stageChangedToday,
-    meetingActivitiesToday,
-    whatsappActivitiesToday,
+    tasks,
+    meetingTasks,
+    meetingActs,
+    offlineCalls,
+    ivrCalls,
+    callsToLead,
+    callsToContact,
+    cpTaskCalls,
+    scheduled,
+    completed,
   ] = await Promise.all([
-    Lead.countDocuments({ workspaceId }),
-    Promise.resolve(0), // freshLeads filled below from total - returning
-    Lead.countDocuments({
+    Task.countDocuments({ workspaceId, ...taskScope, scheduleAt: { $gte: start, $lte: end } }),
+    Task.countDocuments({ workspaceId, ...taskScope, type: "meeting", scheduleAt: { $gte: start, $lte: end } }),
+    LeadActivity.countDocuments({ workspaceId, ...actScope, ...day, type: "meeting_logged" }),
+    LeadActivity.countDocuments({ workspaceId, ...actScope, ...day, ...callTypes, channel: { $ne: "voip" } }),
+    LeadActivity.countDocuments({ workspaceId, ...actScope, ...day, ...callTypes, channel: "voip" }),
+    LeadActivity.countDocuments({ workspaceId, ...actScope, ...day, ...callTypes, leadId: { $nin: contactIds } }),
+    LeadActivity.countDocuments({ workspaceId, ...actScope, ...day, ...callTypes, leadId: { $in: contactIds } }),
+    Task.countDocuments({
       workspaceId,
-      $or: [{ tags: "returning" }, { "customFields.returning": true }],
-    }),
-    Lead.countDocuments({
-      workspaceId,
-      lastContactedAt: null,
-      stage: { $in: ["new", "attempted_1", "attempted_2"] },
-    }),
-    Lead.countDocuments({ workspaceId, assignedTo: null }),
-    Lead.countDocuments({ workspaceId, createdAt: { $gte: startOfDay, $lte: endOfDay } }),
-    Lead.countDocuments({
-      workspaceId,
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
-      tags: { $ne: "returning" },
-    }),
-    Task
-      ? Task.countDocuments({
-          workspaceId,
-          scheduleAt: { $gte: startOfDay, $lte: endOfDay },
-        })
-      : Lead.countDocuments({
-          workspaceId,
-          nextActionAt: { $gte: startOfDay, $lte: endOfDay },
-        }),
-    SiteVisit.countDocuments({
-      workspaceId,
-      scheduledAt: { $gte: startOfDay, $lte: endOfDay },
-    }),
-    Lead.countDocuments({ workspaceId, createdAt: { $gte: sevenDaysAgo } }),
-    Lead.countDocuments({
-      workspaceId,
-      $or: [{ isHot: true }, { stage: "hot" }, { "score.value": { $gte: 75 } }],
-    }),
-    Lead.countDocuments({ workspaceId, nextActionAt: { $gte: startOfDay, $lte: endOfDay } }),
-    Lead.countDocuments({
-      workspaceId,
-      nextActionAt: { $lt: startOfDay },
-      isBooked: { $ne: true },
+      ...taskScope,
+      brokerId: { $ne: null },
+      type: "call",
+      status: "completed",
+      completedAt: { $gte: start, $lte: end },
     }),
     SiteVisit.countDocuments({
       workspaceId,
-      scheduledAt: { $gte: startOfWeek, $lte: endOfWeek },
+      ...visitScope,
+      scheduledAt: { $gte: start, $lte: end },
+      status: { $in: ["planned", "confirmed", "in_progress", "rescheduled"] },
     }),
     SiteVisit.countDocuments({
       workspaceId,
-      scheduledAt: { $gte: startOfWeek, $lte: endOfWeek },
-      status: { $in: ["confirmed", "done"] },
-    }),
-    SiteVisit.countDocuments({
-      workspaceId,
-      scheduledAt: { $lt: startOfDay },
-      status: { $in: ["planned", "confirmed"] },
-    }),
-    Lead.countDocuments({ workspaceId, isBooked: true }),
-    Lead.countDocuments({
-      workspaceId,
-      $or: [{ isInactive: true }, { lastContactedAt: { $lt: thirtyDaysAgo } }],
-    }),
-    Lead.countDocuments({
-      workspaceId,
-      stage: { $in: ["new", "attempted_1", "attempted_2", "warm"] },
-      isBooked: { $ne: true },
-      isInactive: { $ne: true },
-    }),
-    Project.countDocuments({ workspaceId, isActive: true, archived: { $ne: true } }),
-    Broker.countDocuments({ workspaceId, status: "active" }),
-    Lead.aggregate<{ _id: string; count: number }>([
-      { $match: { workspaceId } },
-      { $group: { _id: "$stage", count: { $sum: 1 } } },
-    ]),
-    LeadActivity.find({ workspaceId })
-      .sort({ occurredAt: -1 })
-      .limit(8)
-      .populate({ path: "leadId", select: "contact leadNumber stage" })
-      .lean(),
-    Lead.aggregate<{ _id: mongoose.Types.ObjectId; count: number; name?: string; city?: string }>([
-      { $match: { workspaceId, primaryProjectId: { $ne: null } } },
-      { $group: { _id: "$primaryProjectId", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-      { $limit: 5 },
-      {
-        $lookup: {
-          from: "projects",
-          localField: "_id",
-          foreignField: "_id",
-          as: "project",
-        },
-      },
-      { $unwind: { path: "$project", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          count: 1,
-          name: "$project.name",
-          city: "$project.location.city",
-        },
-      },
-    ]),
-    LeadActivity.countDocuments({
-      workspaceId,
-      occurredAt: { $gte: startOfDay, $lte: endOfDay },
-      type: { $in: ["call_made", "call_missed", "ai_voice_call"] },
-    }),
-    LeadActivity.countDocuments({
-      workspaceId,
-      occurredAt: { $gte: startOfDay, $lte: endOfDay },
-      type: { $in: ["site_visit_scheduled", "site_visit_completed"] },
-    }),
-    LeadActivity.countDocuments({
-      workspaceId,
-      occurredAt: { $gte: startOfDay, $lte: endOfDay },
-      type: "stage_changed",
-    }),
-    LeadActivity.countDocuments({
-      workspaceId,
-      occurredAt: { $gte: startOfDay, $lte: endOfDay },
-      type: "meeting_logged",
-    }),
-    LeadActivity.countDocuments({
-      workspaceId,
-      occurredAt: { $gte: startOfDay, $lte: endOfDay },
-      type: { $in: ["whatsapp_sent", "whatsapp_received"] },
+      ...visitScope,
+      status: "done",
+      $or: [
+        { completedAt: { $gte: start, $lte: end } },
+        { completedAt: null, scheduledAt: { $gte: start, $lte: end } },
+      ],
     }),
   ]);
 
-  const returningCount = returningLeads;
-  const freshCount = Math.max(totalLeads - returningCount, 0);
-  void freshLeads;
-
-  const pipelineMap: Record<string, number> = {};
-  for (const stage of LEAD_STAGES) pipelineMap[stage] = 0;
-  for (const p of pipelineByStage) pipelineMap[p._id] = p.count;
-
   return ok({
-    kpis: {
-      totalLeads,
-      freshLeads: freshCount,
-      returningLeads: returningCount,
-      untouchedLeads,
-      unassignedLeads,
-      todayLeads,
-      todayFresh,
-      todayReturning: Math.max(todayLeads - todayFresh, 0),
-      todayTasks,
-      todayVisits,
-      newLeadsLast7d,
-      hotLeads,
-      todayFollowUps,
-      overdueFollowUps,
-      visitsThisWeek,
-      confirmedVisitsThisWeek,
-      visitExpirations,
-      activeProjects,
-      activeBrokers,
-      bookedLeads,
-      inactiveLeads,
-      backlogLeads,
-    },
-    todayActivity: {
-      tasks: todayTasks,
-      meetings: meetingActivitiesToday,
-      siteVisitScheduled: todayVisits,
-      offlineCalls: callActivitiesToday,
-      callsToLead: callActivitiesToday,
-      whatsapp: whatsappActivitiesToday,
-      stageChanges: stageChangedToday,
-      visitActivities: visitActivitiesToday,
-      overdueFollowUps,
-    },
-    pipeline: pipelineMap,
-    recentActivity,
-    topProjects,
+    tasks,
+    meetings: meetingTasks + meetingActs,
+    offlineCalls,
+    ivrCalls,
+    callsToLead,
+    callsToContact,
+    callsToChannelPartner: cpTaskCalls,
+    siteVisitScheduled: scheduled,
+    siteVisitCompleted: completed,
   });
 });

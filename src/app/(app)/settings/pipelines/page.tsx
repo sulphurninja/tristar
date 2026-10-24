@@ -230,10 +230,10 @@ export default function PipelinesSettingsPage() {
   };
 
   return (
-    <div className="px-7 py-6 lg:px-10 lg:py-8">
+    <div className="p-4 lg:p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[20px] font-semibold tracking-tight text-slate-900">Pipelines</h1>
+          <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Pipelines</h1>
           <p className="mt-1 max-w-2xl text-[13px] text-slate-600">
             A pipeline is a workflow your leads move through (e.g. <em>Residential Sales</em>,
             <em> Rental</em>, <em> Resale</em>). Each pipeline has its own ordered stages — the

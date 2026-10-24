@@ -1,118 +1,141 @@
 import mongoose from "mongoose";
 import Task from "@/models/Task";
+import Lead from "@/models/Lead";
+import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
+import { buildTaskFilter, endOfToday, oid, mustSeeOwnOnly } from "@/lib/task-filters";
+import { recordTaskCompleted } from "@/lib/task-actions";
+
+const TYPES = ["call", "meeting", "site_visit", "follow_up", "whatsapp", "email", "other"];
+const ENTITIES = ["lead", "contact", "broker", "other"];
+const OPEN = ["pending", "upcoming"];
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const q = url.searchParams.get("q")?.trim() ?? "";
-  const status = url.searchParams.get("status") ?? "";
-  const type = url.searchParams.get("type") ?? "";
-  const assignedTo = url.searchParams.get("assignedTo") ?? "";
-  const leadId = url.searchParams.get("leadId") ?? "";
-  const brokerId = url.searchParams.get("brokerId") ?? "";
-  const range = url.searchParams.get("range") ?? "";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
-  const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
+  const sp = url.searchParams;
+  const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "50", 10) || 50, 1), 5000);
+  const page = Math.max(parseInt(sp.get("page") ?? "0", 10) || 0, 0);
+  const skip = page > 0 ? (page - 1) * limit : Math.max(parseInt(sp.get("skip") ?? "0", 10) || 0, 0);
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
-  const filter: Record<string, unknown> = { workspaceId };
+  const { filter, scopeOnly } = await buildTaskFilter(workspaceId, url, session);
 
-  if (status && status !== "all") filter.status = status;
-  if (type && type !== "all") filter.type = type;
-  if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
-    filter.assignedTo = new mongoose.Types.ObjectId(assignedTo);
-  }
-  if (leadId && mongoose.isValidObjectId(leadId)) {
-    filter.leadId = new mongoose.Types.ObjectId(leadId);
-  }
-  if (brokerId && mongoose.isValidObjectId(brokerId)) {
-    filter.brokerId = new mongoose.Types.ObjectId(brokerId);
-  }
-  if (q) {
-    filter.$or = [
-      { title: { $regex: q, $options: "i" } },
-      { remark: { $regex: q, $options: "i" } },
-    ];
-  }
+  const sortKey = sp.get("sort") ?? "";
+  const dir = sp.get("dir") === "desc" ? -1 : 1;
+  const sort: Record<string, 1 | -1> =
+    sortKey === "created"
+      ? { createdAt: dir, _id: dir }
+      : sortKey === "schedule"
+        ? { scheduleAt: dir, _id: dir }
+        : { scheduleAt: 1, createdAt: -1 };
 
-  const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
-
-  if (range === "today") {
-    filter.scheduleAt = { $gte: startOfDay, $lte: endOfDay };
-  } else if (range === "upcoming") {
-    filter.scheduleAt = { $gt: endOfDay };
-    filter.status = { $in: ["pending", "upcoming"] };
-  }
+  const sod = new Date();
+  sod.setHours(0, 0, 0, 0);
+  const eod = endOfToday();
 
   const [items, total, today, upcoming, pending, completed] = await Promise.all([
     Task.find(filter)
-      .sort({ scheduleAt: 1, createdAt: -1 })
+      .sort(sort)
       .skip(skip)
       .limit(limit)
-      .populate({ path: "leadId", select: "contact leadNumber" })
+      .populate({
+        path: "leadId",
+        select: "contact leadNumber isContact assignedTo primaryProjectId",
+        populate: [
+          { path: "assignedTo", select: "name" },
+          { path: "primaryProjectId", select: "name" },
+        ],
+      })
       .populate({ path: "assignedTo", select: "name email" })
       .populate({ path: "assignedBy", select: "name" })
       .lean(),
     Task.countDocuments(filter),
-    Task.countDocuments({
-      workspaceId,
-      scheduleAt: { $gte: startOfDay, $lte: endOfDay },
-    }),
-    Task.countDocuments({
-      workspaceId,
-      scheduleAt: { $gt: endOfDay },
-      status: { $in: ["pending", "upcoming"] },
-    }),
-    Task.countDocuments({ workspaceId, status: "pending" }),
-    Task.countDocuments({ workspaceId, status: "completed" }),
+    Task.countDocuments({ ...scopeOnly, scheduleAt: { $gte: sod, $lte: eod } }),
+    Task.countDocuments({ ...scopeOnly, scheduleAt: { $gt: eod }, status: { $in: OPEN } }),
+    Task.countDocuments({ ...scopeOnly, status: { $in: OPEN } }),
+    Task.countDocuments({ ...scopeOnly, status: "completed" }),
   ]);
 
   return ok({
     tasks: items,
     total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
     stats: { today, upcoming, pending, completed },
   });
 });
 
 export const POST = withAuth(async ({ req, session }) => {
   const body = (await req.json()) as Record<string, unknown>;
-  if (!body.title || typeof body.title !== "string") return bad("Title is required.");
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const userId = new mongoose.Types.ObjectId(session.userId);
 
+  const leadId = oid(str(body.leadId));
+  const brokerId = oid(str(body.brokerId));
+  let entityType = ENTITIES.includes(str(body.entityType)) ? str(body.entityType) : "lead";
+  let leadName = "";
+  if (leadId) {
+    const lead = await Lead.findOne({ _id: leadId, workspaceId }).select("contact isContact").lean();
+    if (!lead) return bad("Lead not found.", 404);
+    leadName = lead.contact?.name ?? "";
+    if (!body.entityType && lead.isContact) entityType = "contact";
+  }
+
+  const type = TYPES.includes(str(body.type)) ? str(body.type) : "call";
+  let scheduleAt: Date | undefined;
+  if (body.scheduleAt) {
+    scheduleAt = new Date(body.scheduleAt as string);
+    if (Number.isNaN(scheduleAt.getTime())) return bad("Invalid schedule date.");
+  }
+  const LABELS: Record<string, string> = {
+    call: "Call",
+    meeting: "Meeting",
+    site_visit: "Site Visit",
+    follow_up: "Follow Up",
+    whatsapp: "WhatsApp",
+    email: "Email",
+    other: "Task",
+  };
+  const label = LABELS[type];
+  const when = scheduleAt
+    ? scheduleAt.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true })
+    : "";
+  const title =
+    str(body.title) ||
+    (leadName ? `${label} With ${leadName}${when ? ` @ ${when}` : ""}` : `${label}${when ? ` @ ${when}` : ""}`);
+
+  let assignedTo = userId;
+  const wantAssignee = oid(str(body.assignedTo));
+  if (wantAssignee) {
+    if (mustSeeOwnOnly(session.role) && String(wantAssignee) !== session.userId) {
+      return bad("You can only assign tasks to yourself.", 403);
+    }
+    const u = await User.exists({ _id: wantAssignee, workspaceId });
+    if (!u) return bad("Assignee not found.", 404);
+    assignedTo = wantAssignee;
+  }
+
   const completed = body.completed === true || body.status === "completed";
   const task = await Task.create({
     workspaceId,
-    title: body.title,
-    type: body.type ?? "call",
-    status: completed ? "completed" : (body.status ?? "pending"),
-    scheduleAt: body.scheduleAt ? new Date(body.scheduleAt as string) : undefined,
+    title,
+    type,
+    status: completed ? "completed" : "pending",
+    scheduleAt,
     completedAt: completed ? new Date() : undefined,
+    completedBy: completed ? userId : undefined,
     remindMe: body.remindMe !== false,
-    reminderMinutes:
-      typeof body.reminderMinutes === "number" ? body.reminderMinutes : 15,
-    remark: body.remark,
-    entityType: body.entityType ?? "lead",
-    leadId:
-      body.leadId && mongoose.isValidObjectId(body.leadId as string)
-        ? new mongoose.Types.ObjectId(body.leadId as string)
-        : undefined,
-    brokerId:
-      body.brokerId && mongoose.isValidObjectId(body.brokerId as string)
-        ? new mongoose.Types.ObjectId(body.brokerId as string)
-        : undefined,
-    assignedTo:
-      body.assignedTo && mongoose.isValidObjectId(body.assignedTo as string)
-        ? new mongoose.Types.ObjectId(body.assignedTo as string)
-        : userId,
+    reminderMinutes: typeof body.reminderMinutes === "number" ? body.reminderMinutes : 15,
+    remark: str(body.remark) || undefined,
+    entityType,
+    leadId: leadId ?? undefined,
+    brokerId: brokerId ?? undefined,
+    assignedTo,
     assignedBy: userId,
     createdBy: userId,
   });
+  if (completed) await recordTaskCompleted(task, session.userId);
 
   return ok({ task }, { status: 201 });
 });

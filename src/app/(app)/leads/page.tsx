@@ -2,603 +2,694 @@
 
 export const dynamic = "force-dynamic";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import {
-  Plus,
-  Upload,
-  Pencil,
-  ArrowUpRight,
-  MessageSquare,
-  PhoneCall,
-  Mail,
-  Flame,
-  Users,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { StatusPill } from "@/components/shared/StatusPill";
-import { EmptyState } from "@/components/shared/EmptyState";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowDownUp, ChevronDown, Filter, MoreVertical, Search, X } from "lucide-react";
+import { toast } from "sonner";
+import { BdButton, BdCard, BdField, BdInput, BdPage, BdPagination, BdSelect } from "@/components/bd";
+import type { TeamAgentValue } from "@/components/bd/TeamAgentSelects";
+import { LeadsOverview, type Overview } from "@/components/leads/list/LeadsOverview";
+import { COLUMNS, LeadsTable } from "@/components/leads/list/LeadsTable";
+import { ColumnPicker } from "@/components/leads/list/ColumnPicker";
+import { FilterPanel, countFilters, FILTER_KEYS, type Filters } from "@/components/leads/list/FilterPanel";
+import { SavedFilterPicker, type SavedFilter } from "@/components/leads/list/SavedFilterPicker";
+import { LeadDrawer } from "@/components/leads/drawer/LeadDrawer";
 import { NewLeadSheet } from "@/components/leads/NewLeadSheet";
-import { LeadDetailSheet } from "@/components/leads/LeadDetailSheet";
-import {
-  LeadStageAnalysis,
-  type LeadAnalysisData,
-} from "@/components/leads/LeadStageAnalysis";
-import { PageShell, PageBody } from "@/components/shared/PageShell";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { FilterField } from "@/components/shared/FilterField";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
-import { DatePicker } from "@/components/ui/date-picker";
-import { cn, formatNumber, formatPhone } from "@/lib/utils";
-import { format } from "date-fns";
+import { EditLeadDialog } from "@/components/leads/dialogs/EditLeadDialog";
+import { SiteVisitDialog, TaskDialog } from "@/components/leads/dialogs/ActionDialogs";
+import { ConfirmDialog, UserPickDialog } from "@/components/leads/dialogs/simple";
+import { DropMenu, Modal, ModalActions, api, type MenuItem } from "@/components/leads/ui/primitives";
+import { useLeadOptions, type LeadRow } from "@/components/leads/types";
 
-interface Lead {
-  _id: string;
-  leadNumber?: string;
-  contact: { name: string; primaryPhone: string; email?: string };
-  stage: string;
-  priority: string;
-  primaryProjectId?: { name: string; code: string } | null;
-  assignedTo?: { name: string } | null;
-  source?: { primary?: string };
-  createdAt: string;
-  lastContactedAt?: string;
-  nextActionAt?: string;
-  description?: string;
-  isHot?: boolean;
-  score?: { value?: number; label?: string };
-  tags?: string[];
-}
+const COLS_KEY = "tristar.leads.columns.v1";
+const defaultCols = () => COLUMNS.filter((c) => c.defaultOn).map((c) => c.key);
 
-const BUCKET_STAGE: Record<string, string> = {
-  open: "new",
-  warm: "warm",
-  hot: "hot",
-  followup: "site_visit_scheduled",
-  interested: "interested",
-  booked: "booked",
-  cold: "not_interested",
-  cnr: "cnr",
-};
+type RowDialog =
+  | { kind: "edit" | "task" | "visit" | "transfer" | "delete"; lead: LeadRow }
+  | null;
+type BulkDialog = "transfer" | "stage" | "addTag" | "delete" | null;
 
-const STAGE_TONE: Record<
-  string,
-  { label: string; tone: "neutral" | "info" | "success" | "warning" | "danger" | "primary" }
-> = {
-  new: { label: "New", tone: "neutral" },
-  attempted_1: { label: "Attempted - 1", tone: "neutral" },
-  attempted_2: { label: "Attempted - 2", tone: "neutral" },
-  warm: { label: "Warm", tone: "info" },
-  hot: { label: "Hot", tone: "warning" },
-  interested: { label: "Interested", tone: "info" },
-  site_visit_scheduled: { label: "Site Visit Scheduled", tone: "primary" },
-  site_visit_done: { label: "Site Visit Done", tone: "primary" },
-  negotiating: { label: "Negotiating", tone: "warning" },
-  booked: { label: "Booked", tone: "success" },
-  lost: { label: "Lost", tone: "danger" },
-  not_interested: { label: "Not Interested", tone: "danger" },
-  cnr: { label: "CNR", tone: "neutral" },
-  cnc: { label: "CNC", tone: "neutral" },
-  duplicate: { label: "Duplicate", tone: "neutral" },
-  junk: { label: "Junk", tone: "neutral" },
-  switched_off: { label: "Switch Off", tone: "neutral" },
-};
+function LeadsPageInner() {
+  const router = useRouter();
+  const sp = useSearchParams();
+  const opts = useLeadOptions();
 
-const SOURCE_TAG: Record<string, { label: string; tone: string }> = {
-  walkin: { label: "Walkin", tone: "bg-amber-100 text-amber-700" },
-  channel_partner: { label: "Channel Partner", tone: "bg-orange-100 text-orange-700" },
-  telecalling: { label: "Tele-calling", tone: "bg-amber-100 text-amber-700" },
-  website: { label: "Website", tone: "bg-sky-100 text-sky-700" },
-  other: { label: "Other", tone: "bg-slate-100 text-slate-700" },
-};
+  /* Links from other pages: ?stage=hot&q=..&open=<id>&leadId=<id>&new=1 */
+  const initial = useRef({
+    q: sp.get("q") ?? "",
+    stage: sp.get("stage") ?? "",
+    open: sp.get("open") ?? sp.get("leadId") ?? "",
+    isNew: sp.get("new") === "1",
+  }).current;
 
-export default function LeadsPage() {
-  const searchParams = useSearchParams();
-  const initialStage = searchParams.get("stage") ?? "all";
-  const initialOpenNew = searchParams.get("new") === "1";
-  const initialQ = searchParams.get("q") ?? "";
-
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [analysis, setAnalysis] = useState<LeadAnalysisData | null>(null);
-  const [agents, setAgents] = useState<Array<{ _id: string; name: string }>>([]);
-  const [agentFilter, setAgentFilter] = useState("all");
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [analysisLoading, setAnalysisLoading] = useState(true);
-  const [openNew, setOpenNew] = useState(initialOpenNew);
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const [q, setQ] = useState(initialQ);
-  const [stage, setStage] = useState(initialStage);
-  const [priority, setPriority] = useState("all");
-  const [assignee, setAssignee] = useState("all");
-  const [projectId, setProjectId] = useState("all");
-  const [source, setSource] = useState("all");
-  const [hotOnly, setHotOnly] = useState(false);
-  const [createdFrom, setCreatedFrom] = useState<Date | undefined>();
-  const [createdTo, setCreatedTo] = useState<Date | undefined>();
-  const [projects, setProjects] = useState<Array<{ _id: string; name: string }>>([]);
+  const [view, setView] = useState(initial.q || initial.stage ? "all" : "active");
+  const [scope, setScope] = useState<TeamAgentValue>({ team: "", agent: "" });
+  const [card, setCard] = useState("");
+  const [q, setQ] = useState(initial.q);
+  const [qApplied, setQApplied] = useState(initial.q);
+  const [filters, setFilters] = useState<Filters>(initial.stage ? { stage: initial.stage } : {});
+  const [savedId, setSavedId] = useState("");
+  const [savedReload, setSavedReload] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [sort, setSort] = useState("createdAt");
+  const [dir, setDir] = useState<"asc" | "desc">("desc");
+  const [visible, setVisible] = useState<string[]>(defaultCols());
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const [rows, setRows] = useState<LeadRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<Overview | null>(null);
+  const [ovLoading, setOvLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const params = useMemo(() => {
-    const u = new URLSearchParams();
-    if (q) u.set("q", q);
-    if (stage && stage !== "all") u.set("stage", stage);
-    if (priority && priority !== "all") u.set("priority", priority);
-    if (assignee && assignee !== "all") u.set("assignedTo", assignee);
-    if (projectId && projectId !== "all") u.set("projectId", projectId);
-    if (source && source !== "all") u.set("source", source);
-    if (hotOnly) u.set("isHot", "1");
-    if (createdFrom) u.set("createdFrom", format(createdFrom, "yyyy-MM-dd"));
-    if (createdTo) u.set("createdTo", format(createdTo, "yyyy-MM-dd"));
-    u.set("limit", String(pageSize));
-    u.set("skip", String((page - 1) * pageSize));
-    return u.toString();
-  }, [
-    q,
-    stage,
-    priority,
-    assignee,
-    projectId,
-    source,
-    hotOnly,
-    createdFrom,
-    createdTo,
-    page,
-    pageSize,
-  ]);
-
-  const load = useCallback(() => {
-    setLoading(true);
-    fetch(`/api/leads?${params}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((leadsData) => {
-        setLeads(leadsData.leads ?? []);
-        setTotal(leadsData.total ?? 0);
-      })
-      .finally(() => setLoading(false));
-  }, [params]);
-
-  const loadAnalysis = useCallback(() => {
-    setAnalysisLoading(true);
-    const u = new URLSearchParams();
-    if (agentFilter !== "all") u.set("assignedTo", agentFilter);
-    fetch(`/api/leads/analysis?${u}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) =>
-        setAnalysis({
-          total: d.total ?? 0,
-          buckets: d.buckets ?? [],
-          kpis: d.kpis ?? {
-            untouchedLeads: 0,
-            noFollowupsLeads: 0,
-            returningLeads: 0,
-            returningNoFollowupLeads: 0,
-            overdueTaskLeads: 0,
-          },
-        }),
-      )
-      .finally(() => setAnalysisLoading(false));
-  }, [agentFilter]);
-
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(initial.open || null);
+  const [newOpen, setNewOpen] = useState(false);
   useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
-  }, [load]);
-
-  useEffect(() => {
-    loadAnalysis();
-  }, [loadAnalysis]);
-
-  useEffect(() => {
-    fetch("/api/users", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setAgents(d.users ?? []));
-    fetch("/api/projects?limit=100", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setProjects(d.projects ?? []));
+    if (initial.isNew) router.replace("/leads/new");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const [rowDlg, setRowDlg] = useState<RowDialog>(null);
+  const [bulkDlg, setBulkDlg] = useState<BulkDialog>(null);
+  const [saveName, setSaveName] = useState<Filters | null>(null);
 
+
+  /* Persisted column choice (per browser). */
   useEffect(() => {
-    setPage(1);
-  }, [
-    q,
-    stage,
-    priority,
-    assignee,
-    projectId,
-    source,
-    hotOnly,
-    createdFrom,
-    createdTo,
-    pageSize,
-  ]);
-
-  const resetFilters = () => {
-    setQ("");
-    setStage("all");
-    setPriority("all");
-    setAssignee("all");
-    setProjectId("all");
-    setSource("all");
-    setHotOnly(false);
-    setCreatedFrom(undefined);
-    setCreatedTo(undefined);
+    try {
+      const raw = localStorage.getItem(COLS_KEY);
+      if (raw) {
+        const arr = (JSON.parse(raw) as string[]).filter((k) => COLUMNS.some((c) => c.key === k));
+        if (arr.length) setVisible(arr.includes("name") ? arr : [...arr, "name"]);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const changeCols = (v: string[]) => {
+    setVisible(v);
+    try {
+      localStorage.setItem(COLS_KEY, JSON.stringify(v));
+    } catch {
+      /* ignore */
+    }
   };
 
+  /* Debounce search box. */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQApplied(q.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const scopeQs = useMemo(() => {
+    const u = new URLSearchParams();
+    u.set("view", view);
+    if (scope.team) u.set("team", scope.team);
+    if (scope.agent) u.set("agent", scope.agent);
+    return u;
+  }, [view, scope]);
+
+  const listQs = useMemo(() => {
+    const u = new URLSearchParams(scopeQs);
+    if (card) u.set("card", card);
+    if (qApplied) u.set("q", qApplied);
+    for (const k of FILTER_KEYS) if (filters[k]) u.set(k, filters[k]);
+    return u;
+  }, [scopeQs, card, qApplied, filters]);
+
+  const loadList = useCallback(() => {
+    const u = new URLSearchParams(listQs);
+    u.set("sort", sort);
+    u.set("dir", dir);
+    u.set("limit", String(pageSize));
+    u.set("skip", String((page - 1) * pageSize));
+    setLoading(true);
+    const ctl = new AbortController();
+    fetch(`/api/leads?${u}`, { cache: "no-store", signal: ctl.signal })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setRows(d.leads ?? []);
+        setTotal(d.total ?? 0);
+      })
+      .catch((e) => {
+        if (e?.name !== "AbortError") toast.error(e instanceof Error ? e.message : "Could not load leads");
+      })
+      .finally(() => setLoading(false));
+    return () => ctl.abort();
+  }, [listQs, sort, dir, page, pageSize]);
+
+  useEffect(() => loadList(), [loadList]);
+
+  const loadOverview = useCallback(() => {
+    setOvLoading(true);
+    fetch(`/api/leads/analysis?${scopeQs}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.error) setOverview(d);
+      })
+      .finally(() => setOvLoading(false));
+  }, [scopeQs]);
+  useEffect(loadOverview, [loadOverview]);
+
+  const refreshAll = useCallback(() => {
+    loadList();
+    loadOverview();
+  }, [loadList, loadOverview]);
+
+  /* Any filter change goes back to page 1 and clears the selection. */
+  const resetPaging = () => {
+    setPage(1);
+    setSelected(new Set());
+  };
+  const applyFilters = (f: Filters) => {
+    const clean: Filters = {};
+    for (const k of FILTER_KEYS) if (f[k]) clean[k] = f[k];
+    setFilters(clean);
+    setSavedId("");
+    resetPaging();
+  };
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const activeFilters = countFilters(filters) + (card ? 1 : 0);
+
+  const onSort = (field: string) => {
+    if (sort === field) setDir((d) => (d === "asc" ? "desc" : "asc"));
+    else {
+      setSort(field);
+      setDir(field === "name" ? "asc" : "desc");
+    }
+    setPage(1);
+  };
+
+  const rowActions = (l: LeadRow): MenuItem[] => [
+    { key: "view", label: "View", onSelect: () => setOpenId(l._id) },
+    { key: "edit", label: "Edit", onSelect: () => setRowDlg({ kind: "edit", lead: l }) },
+    { key: "task", label: "Add Task", onSelect: () => setRowDlg({ kind: "task", lead: l }) },
+    { key: "visit", label: "Schedule Site Visit", onSelect: () => setRowDlg({ kind: "visit", lead: l }) },
+    { key: "transfer", label: "Transfer", onSelect: () => setRowDlg({ kind: "transfer", lead: l }) },
+    { key: "delete", label: "Delete", danger: true, onSelect: () => setRowDlg({ kind: "delete", lead: l }) },
+  ];
+
+  const exportCsv = () => {
+    const u = new URLSearchParams(listQs);
+    u.set("sort", sort);
+    u.set("dir", dir);
+    window.location.href = `/api/leads/export?${u}`;
+  };
+
+  const runBulk = async (payload: Record<string, unknown>, msg: string) => {
+    await api("/api/leads/bulk", { method: "POST", json: { ids: Array.from(selected), ...payload } });
+    toast.success(msg);
+    setSelected(new Set());
+    refreshAll();
+  };
+
+  const drawerIds = useMemo(() => rows.map((r) => r._id), [rows]);
+
   return (
-    <PageShell>
-      <PageBody>
-        <LeadStageAnalysis
-          data={analysis}
-          loading={analysisLoading}
-          agentFilter={agentFilter}
-          onAgentFilterChange={setAgentFilter}
-          agents={agents}
-          onBucketClick={(key) => {
-            const mapped = BUCKET_STAGE[key];
-            if (mapped) setStage(mapped);
-          }}
+    <BdPage>
+      <LeadsOverview
+        data={overview}
+        loading={ovLoading}
+        view={view}
+        onView={(v) => {
+          setView(v);
+          setCard("");
+          resetPaging();
+        }}
+        scope={scope}
+        onScope={(s) => {
+          setScope(s);
+          resetPaging();
+        }}
+        card={card}
+        onCard={(k) => {
+          setCard(k);
+          resetPaging();
+        }}
+        stageFilter={filters.stage ?? ""}
+        onStage={(key) => applyFilters({ ...filters, stage: filters.stage === key ? "" : key })}
+      />
+
+      <BdCard bodyClassName="p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-[#eef0f6] pb-4">
+          {activeFilters > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setFilters({});
+                setCard("");
+                setSavedId("");
+                resetPaging();
+              }}
+              className="mr-auto inline-flex items-center gap-1 rounded-full bg-[#eef1fa] px-3 py-1 text-[12.5px] text-[#3a5dc2] hover:bg-[#e0e6f6]"
+            >
+              <X className="size-3" /> Clear {activeFilters} active filter{activeFilters > 1 ? "s" : ""}
+            </button>
+          ) : null}
+          <SavedFilterPicker
+            activeId={savedId}
+            reloadKey={savedReload}
+            onPick={(f: SavedFilter | null) => {
+              if (!f) {
+                setSavedId("");
+                setFilters({});
+              } else {
+                setSavedId(f._id);
+                const clean: Filters = {};
+                for (const k of FILTER_KEYS) if (f.params?.[k]) clean[k] = f.params[k];
+                setFilters(clean);
+              }
+              resetPaging();
+            }}
+          />
+          <DropMenu
+            trigger={
+              <button type="button" className="bd-btn-light inline-flex items-center gap-1.5">
+                Add <ChevronDown className="size-3.5" />
+              </button>
+            }
+            items={[
+              { key: "add", label: "Add Lead", onSelect: () => router.push("/leads/new") },
+              { key: "import", label: "Import Leads", onSelect: () => router.push("/leads/bulk-update") },
+              { key: "pipeline", label: "Pipeline View", onSelect: () => router.push("/leads/pipeline") },
+            ]}
+          />
+          <DropMenu
+            trigger={
+              <button type="button" aria-label="More" className="bd-btn-light inline-flex !px-2.5">
+                <MoreVertical className="size-4" />
+              </button>
+            }
+            items={[
+              { key: "export", label: "Export CSV", onSelect: exportCsv },
+              { key: "refresh", label: "Refresh", onSelect: refreshAll },
+              { key: "bulk", label: "Bulk Update", onSelect: () => router.push("/leads/bulk-update") },
+            ]}
+          />
+          <button
+            type="button"
+            aria-label="Filter"
+            onClick={() => setFilterOpen(true)}
+            className="relative inline-flex size-[34px] items-center justify-center rounded-[3px] bg-[#e8602c] text-white hover:bg-[#d1531f]"
+          >
+            <Filter className="size-4" />
+            {activeFilters > 0 ? (
+              <span className="absolute -right-1.5 -top-1.5 flex size-4 items-center justify-center rounded-full bg-[#2b2f3a] text-[10px]">
+                {activeFilters}
+              </span>
+            ) : null}
+          </button>
+        </div>
+
+        {selected.size > 0 ? (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[3px] bg-[#eef1fa] px-4 py-2.5 text-[13.5px]">
+            <b>{selected.size}</b> selected
+            <span className="mx-1 text-[#c3c9dc]">|</span>
+            <BdButton onClick={() => setBulkDlg("transfer")}>Transfer</BdButton>
+            <BdButton variant="light" onClick={() => setBulkDlg("stage")}>Change Lead Stage</BdButton>
+            <BdButton variant="light" onClick={() => setBulkDlg("addTag")}>Add Tag</BdButton>
+            <BdButton variant="danger" onClick={() => setBulkDlg("delete")}>Delete</BdButton>
+            <button type="button" className="ml-auto text-[#3a5dc2] hover:underline" onClick={() => setSelected(new Set())}>
+              Clear selection
+            </button>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
+          <BdPagination page={page} totalPages={totalPages} onPage={(p) => { setPage(p); setSelected(new Set()); }} />
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[12.5px] text-[#8b90a0]">{total.toLocaleString("en-IN")} leads</span>
+            <ColumnPicker value={visible} onChange={changeCols} />
+            <button
+              type="button"
+              aria-label={dir === "asc" ? "Sorted ascending - click for descending" : "Sorted descending - click for ascending"}
+              title={dir === "asc" ? "Ascending" : "Descending"}
+              onClick={() => setDir((d) => (d === "asc" ? "desc" : "asc"))}
+              className="bd-btn-light inline-flex size-[38px] items-center justify-center !p-0"
+            >
+              <ArrowDownUp className="size-4" />
+            </button>
+            <div className="flex">
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setQApplied(q.trim());
+                    setPage(1);
+                  }
+                }}
+                placeholder="Search"
+                className="bd-input !w-[260px] rounded-r-none"
+              />
+              <button
+                type="button"
+                aria-label="Search"
+                onClick={() => {
+                  setQApplied(q.trim());
+                  setPage(1);
+                }}
+                className="flex w-10 items-center justify-center bg-[#8da3dc] text-white hover:bg-[#6f89cf]"
+              >
+                <Search className="size-4" />
+              </button>
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  setQ("");
+                  setQApplied("");
+                  setPage(1);
+                }}
+                className="ml-1.5 flex w-9 items-center justify-center rounded-[3px] bg-[#e8eaf2] text-[#5a6072] hover:bg-[#dcdfea]"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
+            <BdSelect
+              className="w-[90px]"
+              clearable={false}
+              placeholder="20"
+              value={String(pageSize)}
+              onChange={(v) => {
+                setPageSize(Number(v) || 20);
+                setPage(1);
+              }}
+              options={[10, 20, 50, 100].map((n) => ({ value: String(n), label: String(n) }))}
+            />
+          </div>
+        </div>
+
+        <LeadsTable
+          rows={rows}
+          loading={loading}
+          opts={opts}
+          visible={visible}
+          page={page}
+          pageSize={pageSize}
+          sort={sort}
+          dir={dir}
+          onSort={onSort}
+          selected={selected}
+          onSelect={(id, on) =>
+            setSelected((s) => {
+              const n = new Set(s);
+              if (on) n.add(id);
+              else n.delete(id);
+              return n;
+            })
+          }
+          onSelectAll={(on) => setSelected(on ? new Set(rows.map((r) => r._id)) : new Set())}
+          onOpen={setOpenId}
+          actions={rowActions}
         />
 
-        <FilterBar
-          advancedTitle="Advanced lead filters"
-          advancedDescription="Filter by project, source, date range and more."
-          advanced={
-            <>
-              <FilterField label="Project">
-                <Select value={projectId} onValueChange={setProjectId}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="All projects" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All projects</SelectItem>
-                    {projects.map((p) => (
-                      <SelectItem key={p._id} value={p._id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FilterField>
-              <FilterField label="Source">
-                <Select value={source} onValueChange={setSource}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="All sources" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All sources</SelectItem>
-                    {Object.entries(SOURCE_TAG).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>
-                        {v.label}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="google_ads">Google Ads</SelectItem>
-                    <SelectItem value="referral">Referral</SelectItem>
-                  </SelectContent>
-                </Select>
-              </FilterField>
-              <div className="grid grid-cols-2 gap-3">
-                <FilterField label="Created from">
-                  <DatePicker value={createdFrom} onChange={setCreatedFrom} placeholder="From" />
-                </FilterField>
-                <FilterField label="Created to">
-                  <DatePicker value={createdTo} onChange={setCreatedTo} placeholder="To" />
-                </FilterField>
-              </div>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-[13px]">
-                <input
-                  type="checkbox"
-                  checked={hotOnly}
-                  onChange={(e) => setHotOnly(e.target.checked)}
-                  className="size-4 accent-emerald-600"
-                />
-                <Flame className="size-3.5 text-amber-500" />
-                Hot leads only
-              </label>
-            </>
-          }
-          actions={
-            <>
-              <Button asChild variant="outline" size="sm" className="h-9 gap-1.5">
-                <Link href="/leads/bulk-update">
-                  <Upload className="size-3.5" />
-                  Bulk update
-                </Link>
-              </Button>
-              <Button variant="outline" size="sm" className="h-9" onClick={resetFilters}>
-                Reset
-              </Button>
-              <Button size="sm" className="h-9 gap-1.5" onClick={() => setOpenNew(true)}>
-                <Plus className="size-3.5" />
-                New lead
-              </Button>
-            </>
-          }
-        >
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search name, phone, email, lead #…"
-            className="h-9 w-72"
-          />
-          <Select value={stage} onValueChange={setStage}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue placeholder="Stage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All stages</SelectItem>
-              {Object.entries(STAGE_TONE).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="h-9 w-36">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All priorities</SelectItem>
-              <SelectItem value="vip">VIP</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={assignee} onValueChange={setAssignee}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue placeholder="Assignee" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All agents</SelectItem>
-              {agents.map((a) => (
-                <SelectItem key={a._id} value={a._id}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterBar>
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 text-[12.5px] text-[#8b90a0]">
+          <span>
+            {total === 0
+              ? "No entries"
+              : `Showing ${(page - 1) * pageSize + 1} to ${Math.min(page * pageSize, total)} of ${total.toLocaleString("en-IN")} entries`}
+          </span>
+          <BdPagination page={page} totalPages={totalPages} onPage={(p) => { setPage(p); setSelected(new Set()); }} />
+        </div>
+      </BdCard>
 
-        <DataTableShell
-          title="Leads"
-          count={total}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          {loading ? (
-            <div className="space-y-2 p-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-12 animate-pulse rounded-md bg-slate-100" />
-              ))}
-            </div>
-          ) : leads.length === 0 ? (
-            <div className="p-8">
-              <EmptyState
-                icon={<Users className="size-5 text-emerald-600" strokeWidth={1.75} />}
-                title={
-                  q || stage !== "all" || priority !== "all"
-                    ? "No leads match your filters"
-                    : "No leads yet"
-                }
-                description={
-                  q || stage !== "all" || priority !== "all"
-                    ? "Try clearing filters or searching with a different term."
-                    : "Capture your first prospect to get started."
-                }
-                action={
-                  <Button onClick={() => setOpenNew(true)} className="gap-1.5">
-                    <Plus className="size-4" />
-                    Add lead
-                  </Button>
-                }
-              />
-            </div>
-          ) : (
-            <TableRoot>
-              <thead>
-                <tr>
-                  <Th className="w-10">#</Th>
-                  <Th>Name</Th>
-                  <Th>Mobile</Th>
-                  <Th>Assigned to</Th>
-                  <Th>Status</Th>
-                  <Th>Project</Th>
-                  <Th>Description</Th>
-                  <Th>Next call</Th>
-                  <Th className="text-right">Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {leads.map((lead, idx) => {
-                  const tone = STAGE_TONE[lead.stage] ?? STAGE_TONE.new;
-                  const sourceTag = SOURCE_TAG[lead.source?.primary ?? "other"];
-                  return (
-                    <tr
-                      key={lead._id}
-                      className="cursor-pointer transition-colors hover:bg-slate-50/80"
-                      onClick={() => setActiveId(lead._id)}
-                    >
-                      <Td className="tabular-nums text-slate-400">
-                        {(page - 1) * pageSize + idx + 1}
-                      </Td>
-                      <Td>
-                        <div>
-                          <p className="font-semibold text-emerald-700">
-                            {lead.contact.name}
-                            {lead.isHot ? (
-                              <Flame className="ml-1 inline size-3.5 text-amber-500" />
-                            ) : null}
-                          </p>
-                          {lead.leadNumber ? (
-                            <p className="text-[11px] text-slate-400">{lead.leadNumber}</p>
-                          ) : null}
-                          {sourceTag ? (
-                            <span
-                              className={cn(
-                                "mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider",
-                                sourceTag.tone,
-                              )}
-                            >
-                              {sourceTag.label}
-                            </span>
-                          ) : null}
-                        </div>
-                      </Td>
-                      <Td className="tabular-nums">{formatPhone(lead.contact.primaryPhone)}</Td>
-                      <Td>{lead.assignedTo?.name ?? <span className="text-slate-400">Unassigned</span>}</Td>
-                      <Td>
-                        <StatusPill tone={tone.tone} dot>
-                          {tone.label}
-                        </StatusPill>
-                      </Td>
-                      <Td>{lead.primaryProjectId?.name ?? <span className="text-slate-400">—</span>}</Td>
-                      <Td className="max-w-[220px]">
-                        <p className="line-clamp-2 text-[12.5px] text-slate-600">
-                          {lead.description ?? "—"}
-                        </p>
-                      </Td>
-                      <Td className="whitespace-nowrap text-[12px] text-slate-500">
-                        {lead.nextActionAt
-                          ? new Date(lead.nextActionAt).toLocaleString("en-IN", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })
-                          : "—"}
-                      </Td>
-                      <Td>
-                        <div
-                          className="flex items-center justify-end gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <ActionIcon
-                            href={`tel:${lead.contact.primaryPhone}`}
-                            className="bg-sky-500 hover:bg-sky-600"
-                            icon={PhoneCall}
-                            label="Call"
-                          />
-                          <ActionIcon
-                            href={`mailto:${lead.contact.email ?? ""}`}
-                            className="bg-emerald-500 hover:bg-emerald-600"
-                            icon={Mail}
-                            label="Email"
-                            disabled={!lead.contact.email}
-                          />
-                          <ActionIcon
-                            href={`https://wa.me/${lead.contact.primaryPhone.replace(/\D/g, "")}`}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                            icon={MessageSquare}
-                            label="WhatsApp"
-                            external
-                          />
-                          <button
-                            type="button"
-                            className="inline-flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            onClick={() => setActiveId(lead._id)}
-                            aria-label="Open"
-                          >
-                            <ArrowUpRight className="size-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            className="inline-flex size-7 items-center justify-center rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200"
-                            onClick={() => setActiveId(lead._id)}
-                            aria-label="Edit"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                        </div>
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </TableRoot>
-          )}
-        </DataTableShell>
+      <FilterPanel
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        value={filters}
+        onApply={applyFilters}
+        onSave={(f) => setSaveName(f)}
+      />
 
-        <p className="text-[12px] text-slate-500">
-          Showing{" "}
-          <span className="font-medium text-slate-700">
-            {leads.length ? (page - 1) * pageSize + 1 : 0}–
-            {(page - 1) * pageSize + leads.length}
-          </span>{" "}
-          of <span className="font-medium text-slate-700">{formatNumber(total)}</span>
-        </p>
-      </PageBody>
-
-      <NewLeadSheet open={openNew} onOpenChange={setOpenNew} onCreated={load} />
-      <LeadDetailSheet
-        leadId={activeId}
-        leadIds={leads.map((l) => l._id)}
-        onLeadChange={setActiveId}
-        onOpenChange={(v) => !v && setActiveId(null)}
-        onChanged={() => {
-          load();
-          loadAnalysis();
+      <SaveFilterDialog
+        filters={saveName}
+        onClose={() => setSaveName(null)}
+        onSaved={() => {
+          setSavedReload((n) => n + 1);
+          setFilterOpen(false);
         }}
       />
-    </PageShell>
+
+      <LeadDrawer
+        leadId={openId}
+        ids={drawerIds}
+        onNavigate={setOpenId}
+        onClose={() => {
+          setOpenId(null);
+          if (sp.get("open") || sp.get("leadId")) router.replace("/leads");
+        }}
+        onChanged={refreshAll}
+        onDeleted={() => {
+          setOpenId(null);
+          refreshAll();
+        }}
+      />
+
+      <NewLeadSheet
+        open={newOpen}
+        onOpenChange={(v) => {
+          setNewOpen(v);
+          if (!v && sp.get("new")) router.replace("/leads");
+        }}
+        onCreated={refreshAll}
+      />
+
+      {/* row action dialogs */}
+      <EditLeadDialog
+        open={rowDlg?.kind === "edit"}
+        lead={rowDlg?.lead ?? null}
+        onClose={() => setRowDlg(null)}
+        onSaved={refreshAll}
+      />
+      <TaskDialog
+        open={rowDlg?.kind === "task"}
+        leadId={rowDlg?.lead._id ?? ""}
+        leadName={rowDlg?.lead.contact.name}
+        onClose={() => setRowDlg(null)}
+        onDone={refreshAll}
+      />
+      <SiteVisitDialog
+        open={rowDlg?.kind === "visit"}
+        leadId={rowDlg?.lead._id ?? ""}
+        leadName={rowDlg?.lead.contact.name}
+        defaultProjectId={rowDlg?.lead.primaryProjectId?._id}
+        onClose={() => setRowDlg(null)}
+        onDone={refreshAll}
+      />
+      <UserPickDialog
+        open={rowDlg?.kind === "transfer"}
+        onClose={() => setRowDlg(null)}
+        title={`Transfer Lead${rowDlg ? ` - ${rowDlg.lead.contact.name}` : ""}`}
+        confirmLabel="Transfer"
+        onConfirm={async (uid) => {
+          await api(`/api/leads/${rowDlg!.lead._id}`, { method: "PATCH", json: { assignedTo: uid } });
+          toast.success("Lead transferred");
+          refreshAll();
+        }}
+      />
+      <ConfirmDialog
+        open={rowDlg?.kind === "delete"}
+        onClose={() => setRowDlg(null)}
+        title="Delete Lead"
+        danger
+        confirmLabel="Delete"
+        message={`Delete ${rowDlg?.lead.contact.name ?? "this lead"} permanently? Its timeline and open tasks are removed too. This cannot be undone.`}
+        onConfirm={async () => {
+          await api(`/api/leads/${rowDlg!.lead._id}`, { method: "DELETE" });
+          toast.success("Lead deleted");
+          refreshAll();
+        }}
+      />
+
+      {/* bulk dialogs */}
+      <UserPickDialog
+        open={bulkDlg === "transfer"}
+        onClose={() => setBulkDlg(null)}
+        title={`Transfer ${selected.size} lead${selected.size > 1 ? "s" : ""}`}
+        confirmLabel="Transfer"
+        onConfirm={(uid) => runBulk({ action: "transfer", assignedTo: uid }, "Leads transferred")}
+      />
+      <BulkStageDialog
+        open={bulkDlg === "stage"}
+        onClose={() => setBulkDlg(null)}
+        count={selected.size}
+        onConfirm={(stage) => runBulk({ action: "stage", stage }, "Lead stage updated")}
+      />
+      <BulkTagDialog
+        open={bulkDlg === "addTag"}
+        onClose={() => setBulkDlg(null)}
+        count={selected.size}
+        onConfirm={(tag) => runBulk({ action: "addTag", tag }, "Tag added")}
+      />
+      <ConfirmDialog
+        open={bulkDlg === "delete"}
+        onClose={() => setBulkDlg(null)}
+        title="Delete Leads"
+        danger
+        confirmLabel="Delete"
+        message={`Delete ${selected.size} selected lead${selected.size > 1 ? "s" : ""} permanently? This cannot be undone.`}
+        onConfirm={() => runBulk({ action: "delete" }, "Leads deleted")}
+      />
+    </BdPage>
   );
 }
 
-function ActionIcon({
-  href,
-  className,
-  icon: Icon,
-  label,
-  external,
-  disabled,
+function SaveFilterDialog({
+  filters,
+  onClose,
+  onSaved,
 }: {
-  href: string;
-  className: string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  label: string;
-  external?: boolean;
-  disabled?: boolean;
+  filters: Filters | null;
+  onClose: () => void;
+  onSaved: () => void;
 }) {
-  if (disabled) {
-    return (
-      <span
-        aria-label={label}
-        className="inline-flex size-7 cursor-not-allowed items-center justify-center rounded-md bg-slate-100 text-slate-300"
-      >
-        <Icon className="size-3.5" strokeWidth={2} />
-      </span>
-    );
-  }
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (filters) setName("");
+  }, [filters]);
   return (
-    <a
-      href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noopener noreferrer" : undefined}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "inline-flex size-7 items-center justify-center rounded-md text-white transition-colors",
-        className,
-      )}
+    <Modal
+      open={!!filters}
+      onClose={onClose}
+      title="Save Filter"
+      width={420}
+      footer={
+        <ModalActions
+          onCancel={onClose}
+          busy={busy}
+          disabled={!name.trim()}
+          onSubmit={async () => {
+            setBusy(true);
+            try {
+              await api("/api/leads/saved-filters", { method: "POST", json: { name, params: filters } });
+              toast.success("Filter saved");
+              onSaved();
+              onClose();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Could not save filter");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      }
     >
-      <Icon className="size-3.5" strokeWidth={2} />
-    </a>
+      <BdField label="Filter Name">
+        <BdInput autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Hot leads - Pune" />
+      </BdField>
+    </Modal>
+  );
+}
+
+function BulkStageDialog({
+  open,
+  onClose,
+  count,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  count: number;
+  onConfirm: (stage: string) => Promise<void>;
+}) {
+  const opts = useLeadOptions();
+  const [stage, setStage] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) setStage("");
+  }, [open]);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Change Lead Stage (${count})`}
+      width={420}
+      footer={
+        <ModalActions
+          onCancel={onClose}
+          busy={busy}
+          disabled={!stage}
+          onSubmit={async () => {
+            setBusy(true);
+            try {
+              await onConfirm(stage);
+              onClose();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Failed");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      }
+    >
+      <BdField label="Lead Stage">
+        <BdSelect value={stage} onChange={setStage} placeholder="Select Lead Stage" options={opts.stages.map((s) => ({ value: s.key, label: s.label }))} />
+      </BdField>
+    </Modal>
+  );
+}
+
+function BulkTagDialog({
+  open,
+  onClose,
+  count,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  count: number;
+  onConfirm: (tag: string) => Promise<void>;
+}) {
+  const [tag, setTag] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) setTag("");
+  }, [open]);
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Add Tag (${count})`}
+      width={420}
+      footer={
+        <ModalActions
+          onCancel={onClose}
+          busy={busy}
+          disabled={!tag.trim()}
+          submitLabel="Add"
+          onSubmit={async () => {
+            setBusy(true);
+            try {
+              await onConfirm(tag);
+              onClose();
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Failed");
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      }
+    >
+      <BdField label="Tag">
+        <BdInput autoFocus value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Tag name" />
+      </BdField>
+    </Modal>
+  );
+}
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={null}>
+      <LeadsPageInner />
+    </Suspense>
   );
 }

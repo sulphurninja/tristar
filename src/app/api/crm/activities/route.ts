@@ -1,61 +1,19 @@
 import mongoose from "mongoose";
 import LeadActivity from "@/models/LeadActivity";
-import SiteVisit from "@/models/SiteVisit";
 import { withAuth, ok } from "@/lib/api";
+import { buildActivityFilter, pageParams } from "@/lib/crm-activity-filter";
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const range = url.searchParams.get("range") ?? "today";
   const types = url.searchParams.get("types")?.split(",").filter(Boolean) ?? [];
-  const q = url.searchParams.get("q")?.trim() ?? "";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
-  const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
+  const { limit, skip } = pageParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
-  const now = new Date();
-  const startOfDay = new Date(now);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(now);
-  endOfDay.setHours(23, 59, 59, 999);
+  const filter = await buildActivityFilter(url, workspaceId, types);
+  // The summary report ignores the type filter so the numbers stay comparable.
+  const reportFilter = await buildActivityFilter(url, workspaceId, []);
 
-  const dateFilter: Record<string, Date> = {};
-  if (range === "today") {
-    dateFilter.$gte = startOfDay;
-    dateFilter.$lte = endOfDay;
-  } else if (range === "week") {
-    const weekAgo = new Date(now);
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    dateFilter.$gte = weekAgo;
-  } else if (range === "month") {
-    const monthAgo = new Date(now);
-    monthAgo.setMonth(monthAgo.getMonth() - 1);
-    dateFilter.$gte = monthAgo;
-  }
-
-  const filter: Record<string, unknown> = { workspaceId };
-  if (Object.keys(dateFilter).length) filter.occurredAt = dateFilter;
-  if (types.length) filter.type = { $in: types };
-  if (q) {
-    filter.$or = [
-      { description: { $regex: q, $options: "i" } },
-      { actorName: { $regex: q, $options: "i" } },
-    ];
-  }
-
-  const occurredFilter =
-    range === "all" ? { workspaceId } : { workspaceId, occurredAt: dateFilter };
-
-  const [
-    activities,
-    total,
-    callCount,
-    visitActCount,
-    stageCount,
-    meetingCount,
-    whatsappCount,
-    visitsScheduled,
-    visitsCompleted,
-  ] = await Promise.all([
+  const [activities, total, byType] = await Promise.all([
     LeadActivity.find(filter)
       .sort({ occurredAt: -1 })
       .skip(skip)
@@ -63,48 +21,32 @@ export const GET = withAuth(async ({ req, session }) => {
       .populate({ path: "leadId", select: "contact leadNumber stage source" })
       .lean(),
     LeadActivity.countDocuments(filter),
-    LeadActivity.countDocuments({
-      ...occurredFilter,
-      type: { $in: ["call_made", "call_missed"] },
-    }),
-    LeadActivity.countDocuments({
-      ...occurredFilter,
-      type: { $in: ["site_visit_scheduled", "site_visit_completed"] },
-    }),
-    LeadActivity.countDocuments({ ...occurredFilter, type: "stage_changed" }),
-    LeadActivity.countDocuments({ ...occurredFilter, type: "meeting_logged" }),
-    LeadActivity.countDocuments({
-      ...occurredFilter,
-      type: { $in: ["whatsapp_sent", "whatsapp_received"] },
-    }),
-    SiteVisit.countDocuments({
-      workspaceId,
-      ...(range === "today"
-        ? { scheduledAt: { $gte: startOfDay, $lte: endOfDay } }
-        : range === "all"
-          ? {}
-          : { scheduledAt: dateFilter.$gte ? { $gte: dateFilter.$gte } : {} }),
-    }),
-    SiteVisit.countDocuments({
-      workspaceId,
-      status: "done",
-      ...(range === "today"
-        ? { updatedAt: { $gte: startOfDay, $lte: endOfDay } }
-        : {}),
-    }),
+    LeadActivity.aggregate<{ _id: string; n: number }>([
+      { $match: reportFilter },
+      { $group: { _id: "$type", n: { $sum: 1 } } },
+    ]),
   ]);
+
+  const c: Record<string, number> = {};
+  for (const r of byType) c[r._id] = r.n;
+  const sum = (...k: string[]) => k.reduce((a, t) => a + (c[t] ?? 0), 0);
 
   return ok({
     activities,
     total,
     report: {
-      stageChanges: stageCount,
-      meetings: meetingCount,
-      siteVisitScheduled: visitsScheduled,
-      siteVisitCompleted: visitsCompleted || visitActCount,
-      offlineCalls: callCount,
-      callsToLead: callCount,
-      whatsapp: whatsappCount,
+      stageChanges: sum("stage_changed"),
+      meetings: sum("meeting_logged"),
+      siteVisitScheduled: sum("site_visit_scheduled"),
+      siteVisitCompleted: sum("site_visit_completed"),
+      callsMade: sum("call_made"),
+      callsMissed: sum("call_missed"),
+      whatsapp: sum("whatsapp_sent", "whatsapp_received"),
+      emails: sum("email_sent", "email_received"),
+      sms: sum("sms_sent", "sms_received"),
+      followups: sum("followup_set"),
+      comments: sum("comment_added"),
+      total: Object.values(c).reduce((a, b) => a + b, 0),
     },
   });
 });

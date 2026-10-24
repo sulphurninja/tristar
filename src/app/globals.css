@@ -481,3 +481,55 @@ body {
   opacity: 0.85;
   z-index: -1;
 }
+
+/* ──────────────────────────────────────────────────────────
+ * Buildesk-style CRM theme — applied via body.bd-app (set by AppShell).
+ * Remaps the emerald palette + primary tokens to the Buildesk blue so every
+ * existing page/dialog (portals included) picks it up.
+ * ────────────────────────────────────────────────────────── */
+body.bd-app {
+  --background: 220 33% 97%;
+  --primary: 224 54% 50%;
+  --primary-50: 223 70% 96%;
+  --primary-100: 223 70% 92%;
+  --primary-500: 224 54% 54%;
+  --primary-600: 224 54% 50%;
+  --primary-700: 224 52% 41%;
+  --ring: 224 54% 50%;
+  --accent: 223 70% 96%;
+  --accent-foreground: 224 52% 35%;
+  --font-sans: var(--font-roboto), "Roboto", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-emerald-50: #eef2fc;
+  --color-emerald-100: #dce5f9;
+  --color-emerald-200: #bccbf3;
+  --color-emerald-300: #93aae9;
+  --color-emerald-400: #6683d8;
+  --color-emerald-500: #4a6ccb;
+  --color-emerald-600: #3a5dc2;
+  --color-emerald-700: #2f4ca0;
+  --color-emerald-800: #283f82;
+  --color-emerald-900: #1f3166;
+  --bd-blue: #3a5dc2;
+  --bd-orange: #e8602c;
+  font-family: var(--font-sans);
+  font-feature-settings: normal;
+  background: #f4f6fb;
+}
+body.bd-app html, body.bd-app { font-size: 15px; }
+
+/* Buildesk KPI card: white, 4px blue left rule, tinted icon square */
+.bd-kpi {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #fff; border-left: 4px solid var(--bd-blue);
+  padding: 16px 18px; box-shadow: 0 1px 6px rgba(30, 50, 110, 0.07);
+}
+.bd-card { background: #fff; border: 1px solid #e6e9f2; box-shadow: 0 1px 4px rgba(30, 50, 110, 0.05); }
+.bd-table th { background: #fff; color: #2b2f3a; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 2px solid #e6e9f2; white-space: nowrap; }
+.bd-table td { font-size: 13px; color: #2b2f3a; border-bottom: 1px solid #eef0f6; }
+.bd-table tbody tr:hover { background: #f6f8fd; }
+.bd-btn { background: var(--bd-blue); color: #fff; font-size: 12.5px; font-weight: 500; padding: 7px 12px; border-radius: 3px; }
+.bd-btn:hover { background: #2f4ca0; }
+.bd-btn-light { background: #fff; color: var(--bd-blue); border: 1px solid #cfd8f1; font-size: 12.5px; padding: 7px 12px; border-radius: 3px; }
+.bd-label { font-size: 13px; font-weight: 700; color: #2b2f3a; margin-bottom: 6px; display: block; }
+.bd-input { height: 38px; border: 1px solid #dfe3ee; background: #fff; border-radius: 3px; padding: 0 10px; font-size: 13px; width: 100%; color: #2b2f3a; }
+.bd-input::placeholder { color: #9aa1b5; }

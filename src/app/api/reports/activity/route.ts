@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import LeadActivity from "@/models/LeadActivity";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams } from "@/lib/report-utils";
+import { boundsFromSearchParams, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 /**
  * Activity Report — for every user, count:
@@ -15,6 +15,7 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
 
   const [users, agg] = await Promise.all([
     User.find({ workspaceId }).select("name email role").lean(),
@@ -28,6 +29,7 @@ export const GET = withAuth(async ({ req, session }) => {
       {
         $match: {
           workspaceId,
+          ...scopeMatch(scope, "actorId"),
           occurredAt: { $gte: start, $lte: end },
           actorId: { $ne: null },
         },

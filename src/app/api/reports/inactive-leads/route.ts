@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams } from "@/lib/report-utils";
+import { boundsFromSearchParams, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 /**
  * Inactive Lead Report — leads with no contact for 30+ days (as of date),
@@ -19,6 +19,7 @@ export const GET = withAuth(async ({ req, session }) => {
   cutoff.setDate(cutoff.getDate() - 30);
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
 
   const [users, agg] = await Promise.all([
     User.find({ workspaceId }).select("name").lean(),
@@ -26,6 +27,7 @@ export const GET = withAuth(async ({ req, session }) => {
       {
         $match: {
           workspaceId,
+          ...scopeMatch(scope),
           isBooked: { $ne: true },
           createdAt: { $lte: asOf },
           $or: [

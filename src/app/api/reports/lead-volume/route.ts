@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import SiteVisit from "@/models/SiteVisit";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams } from "@/lib/report-utils";
+import { boundsFromSearchParams, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 /**
  * Lead volume time-series — buckets by day for the requested range.
@@ -12,6 +12,7 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
 
   const dayBucket = {
     $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
@@ -19,7 +20,8 @@ export const GET = withAuth(async ({ req, session }) => {
 
   const [leadsAgg, visitsAgg, conversionsAgg] = await Promise.all([
     Lead.aggregate<{ _id: string; count: number }>([
-      { $match: { workspaceId, createdAt: { $gte: start, $lte: end } } },
+      { $match: { workspaceId,
+          ...scopeMatch(scope), createdAt: { $gte: start, $lte: end } } },
       { $group: { _id: dayBucket, count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
     ]),
@@ -27,6 +29,7 @@ export const GET = withAuth(async ({ req, session }) => {
       {
         $match: {
           workspaceId,
+          ...scopeMatch(scope),
           completedAt: { $gte: start, $lte: end },
           status: "done",
         },
@@ -43,6 +46,7 @@ export const GET = withAuth(async ({ req, session }) => {
       {
         $match: {
           workspaceId,
+          ...scopeMatch(scope),
           isBooked: true,
           convertedAt: { $gte: start, $lte: end },
         },

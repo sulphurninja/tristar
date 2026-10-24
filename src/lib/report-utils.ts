@@ -100,3 +100,35 @@ export const PIPELINE_COLUMNS: Array<{ key: string; label: string }> = [
   { key: "cnr", label: "CNR" },
   { key: "cnc", label: "CNC" },
 ];
+
+/**
+ * Stage columns for stage-matrix reports: the workspace's default pipeline
+ * stages in order (so column sums equal each row's Total), falling back to the
+ * legacy fixed list when no pipeline exists.
+ */
+export async function pipelineColumns(
+  workspaceId: mongoose.Types.ObjectId,
+): Promise<Array<{ key: string; label: string }>> {
+  const { default: Pipeline } = await import("@/models/Pipeline");
+  const p = await Pipeline.findOne({ workspaceId, isDefault: true }).select("stages").lean();
+  const stages = (p?.stages ?? []) as Array<{ key: string; label: string; order?: number }>;
+  if (!stages.length) return PIPELINE_COLUMNS;
+  return [...stages]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    .map((s) => ({ key: s.key, label: s.label }));
+}
+
+/* Team / Sales Agent scoping (server) */
+import type mongoose from "mongoose";
+import { resolveAgentScope, scopeParams } from "@/lib/scope";
+
+/** User ids selected by the Team / Sales Agent filter, or null when unfiltered. */
+export async function scopeIds(url: URL, workspaceId: mongoose.Types.ObjectId) {
+  const { team, agent } = scopeParams(url);
+  return resolveAgentScope(workspaceId, team, agent);
+}
+
+/** Mongo fragment restricting `field` (default assignedTo) to the scoped users. */
+export function scopeMatch(ids: mongoose.Types.ObjectId[] | null, field = "assignedTo") {
+  return ids ? { [field]: { $in: ids } } : {};
+}

@@ -1,16 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  Shield,
-  Mail,
-  Phone,
-} from "lucide-react";
+import { Download, Pencil, Plus, Ban, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,19 +10,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { StatusPill } from "@/components/shared/StatusPill";
+  BdBadge,
+  BdButton,
+  BdCard,
+  BdEmptyRow,
+  BdField,
+  BdInput,
+  BdPage,
+  BdSelect,
+  BdTable,
+  BdTableToolbar,
+  BdTd,
+  BdTh,
+} from "@/components/bd";
 import { ROLE_LABELS } from "@/lib/roles";
-import { initials } from "@/lib/utils";
+import { downloadCsv } from "@/lib/csv";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface UserItem {
@@ -40,237 +35,283 @@ interface UserItem {
   phone?: string;
   title?: string;
   role: string;
+  teamId?: string | null;
   status: "active" | "invited" | "suspended";
   lastLoginAt?: string;
-  createdAt?: string;
+}
+interface TeamItem {
+  _id: string;
+  name: string;
 }
 
-const ROLES = Object.keys(ROLE_LABELS);
+const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }));
+const STATUS_COLOR = { active: "#37b24d", invited: "#3d7be8", suspended: "#e5484d" } as const;
 
 export default function UsersPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [newOpen, setNewOpen] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState("");
   const { user: me } = useAuth();
 
-  const totalPages = Math.max(1, Math.ceil(users.length / pageSize));
-  const pagedUsers = useMemo(
-    () => users.slice((page - 1) * pageSize, page * pageSize),
-    [users, page, pageSize],
-  );
-
-  useEffect(() => {
-    setPage(1);
-  }, [pageSize]);
-
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
-    fetch("/api/users", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setUsers(d.users ?? []))
+    Promise.all([
+      fetch("/api/users", { cache: "no-store" }).then((r) => r.json()),
+      fetch("/api/teams", { cache: "no-store" }).then((r) => r.json()),
+    ])
+      .then(([u, t]) => {
+        setUsers(u.users ?? []);
+        setTeams(t.teams ?? []);
+      })
+      .catch(() => toast.error("Couldn't load users"))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
-  const onDelete = async (id: string) => {
-    if (id === me?.id) {
-      toast.error("You can't suspend your own account.");
-      return;
-    }
-    if (!confirm("Suspend this user? They'll lose access immediately.")) return;
-    const res = await fetch(`/api/users/${id}`, { method: "DELETE" });
+  const teamName = useMemo(() => new Map(teams.map((t) => [t._id, t.name])), [teams]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      [u.name, u.email, u.phone, u.title, ROLE_LABELS[u.role as keyof typeof ROLE_LABELS], teamName.get(String(u.teamId ?? ""))]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q)),
+    );
+  }, [users, search, teamName]);
+
+  useEffect(() => setPage(1), [search, pageSize]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
+
+  const setStatus = async (u: UserItem, status: "active" | "suspended") => {
+    if (u._id === me?.id) return toast.error("You can't suspend your own account.");
+    if (status === "suspended" && !confirm(`Suspend ${u.name}? They'll lose access immediately.`)) return;
+    const res = await fetch(`/api/users/${u._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    const d = await res.json().catch(() => ({}));
     if (res.ok) {
-      toast.success("User suspended");
+      toast.success(status === "active" ? "User activated" : "User suspended");
       load();
-    } else {
-      toast.error("Couldn't suspend user");
-    }
+    } else toast.error(d.error || "Couldn't update user");
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 p-6 lg:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900">Manage Users</h1>
-          <p className="mt-1 text-[12.5px] text-slate-500">
-            Invite team members, set roles and suspend access.
-          </p>
+    <BdPage>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Users</h1>
+        <div className="flex gap-2">
+          <BdButton
+            variant="light"
+            onClick={() =>
+              downloadCsv("users", [
+                ["Name", "Email", "Phone", "Title", "Role", "Team", "Status"],
+                ...filtered.map((u) => [
+                  u.name,
+                  u.email,
+                  u.phone ?? "",
+                  u.title ?? "",
+                  ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ?? u.role,
+                  teamName.get(String(u.teamId ?? "")) ?? "",
+                  u.status,
+                ]),
+              ])
+            }
+          >
+            <Download className="size-3.5" /> Export CSV
+          </BdButton>
+          <BdButton onClick={() => setNewOpen(true)}>
+            <Plus className="size-3.5" /> Add User
+          </BdButton>
         </div>
-        <Button onClick={() => setNewOpen(true)} className="gap-1.5">
-          <Plus className="size-4" strokeWidth={2} />
-          New user
-        </Button>
       </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-14 animate-pulse rounded-md bg-slate-100" />
-          ))}
-        </div>
-      ) : users.length === 0 ? (
-        <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
-          No users yet — let&apos;s invite your first one.
-        </div>
-      ) : (
-        <DataTableShell
-          title="Users"
-          count={users.length}
+      <BdCard>
+        <BdTableToolbar
           page={page}
           totalPages={totalPages}
-          onPageChange={setPage}
+          onPage={setPage}
+          search={search}
+          onSearch={setSearch}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          <TableRoot>
-            <thead>
-              <tr>
-                <Th>User</Th>
-                <Th>Email</Th>
-                <Th>Phone</Th>
-                <Th>Role</Th>
-                <Th>Status</Th>
-                <Th className="text-right">Action</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedUsers.map((u) => (
-                <tr key={u._id} className="transition-colors hover:bg-slate-50/80">
-                  <Td>
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-[11px] font-bold text-white">
-                        {initials(u.name)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-slate-900">{u.name}</p>
-                        {u.title ? (
-                          <p className="text-[11px] text-slate-500">{u.title}</p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </Td>
-                  <Td>
-                    <span className="inline-flex items-center gap-1">
-                      <Mail className="size-3.5 text-slate-400" /> {u.email}
-                    </span>
-                  </Td>
-                  <Td>
-                    {u.phone ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Phone className="size-3.5 text-slate-400" /> {u.phone}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </Td>
-                  <Td>
-                    <span className="inline-flex items-center gap-1.5">
-                      <Shield className="size-3.5 text-emerald-600" />
-                      {ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ?? u.role}
-                    </span>
-                  </Td>
-                  <Td>
-                    <StatusPill
-                      tone={
-                        u.status === "active"
-                          ? "success"
-                          : u.status === "invited"
-                            ? "info"
-                            : "danger"
-                      }
-                      dot
-                    >
+          onPageSize={setPageSize}
+        />
+        <BdTable minWidth={960}>
+          <thead>
+            <tr>
+              <BdTh>#</BdTh>
+              <BdTh>Name</BdTh>
+              <BdTh>Email</BdTh>
+              <BdTh>Phone</BdTh>
+              <BdTh>Role</BdTh>
+              <BdTh>Team</BdTh>
+              <BdTh>Status</BdTh>
+              <BdTh className="text-right">Action</BdTh>
+            </tr>
+          </thead>
+          <tbody>
+            {paged.length === 0 ? (
+              <BdEmptyRow colSpan={8} loading={loading} />
+            ) : (
+              paged.map((u, i) => (
+                <tr key={u._id}>
+                  <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
+                  <BdTd>
+                    <p className="font-medium">{u.name}</p>
+                    {u.title ? <p className="text-[11.5px] text-[#8b90a0]">{u.title}</p> : null}
+                  </BdTd>
+                  <BdTd>{u.email}</BdTd>
+                  <BdTd>{u.phone || "-"}</BdTd>
+                  <BdTd>{ROLE_LABELS[u.role as keyof typeof ROLE_LABELS] ?? u.role}</BdTd>
+                  <BdTd>{teamName.get(String(u.teamId ?? "")) ?? "-"}</BdTd>
+                  <BdTd>
+                    <BdBadge color={STATUS_COLOR[u.status]} className="capitalize">
                       {u.status}
-                    </StatusPill>
-                  </Td>
-                  <Td className="text-right">
+                    </BdBadge>
+                  </BdTd>
+                  <BdTd className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 gap-1"
+                      <button
+                        type="button"
+                        title="Edit"
                         onClick={() => setEditing(u)}
+                        className="rounded p-1.5 text-[#3a5dc2] hover:bg-[#eef1fa]"
                       >
-                        <Pencil className="size-3.5" strokeWidth={1.75} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() => onDelete(u._id)}
-                      >
-                        <Trash2 className="size-3.5" strokeWidth={1.75} />
-                      </Button>
+                        <Pencil className="size-4" />
+                      </button>
+                      {u.status === "suspended" ? (
+                        <button
+                          type="button"
+                          title="Activate"
+                          onClick={() => setStatus(u, "active")}
+                          className="rounded p-1.5 text-[#37b24d] hover:bg-[#eaf8ee]"
+                        >
+                          <CheckCircle2 className="size-4" />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          title="Suspend"
+                          onClick={() => setStatus(u, "suspended")}
+                          disabled={u._id === me?.id}
+                          className="rounded p-1.5 text-[#e5484d] hover:bg-[#fdecec] disabled:opacity-30"
+                        >
+                          <Ban className="size-4" />
+                        </button>
+                      )}
                     </div>
-                  </Td>
+                  </BdTd>
                 </tr>
-              ))}
-            </tbody>
-          </TableRoot>
-        </DataTableShell>
-      )}
+              ))
+            )}
+          </tbody>
+        </BdTable>
+        <p className="pt-3 text-[12.5px] text-[#8b90a0]">
+          Showing {filtered.length === 0 ? 0 : (page - 1) * pageSize + 1} to{" "}
+          {Math.min(page * pageSize, filtered.length)} of {filtered.length} entries
+        </p>
+      </BdCard>
 
-      <NewUserDialog open={newOpen} onOpenChange={setNewOpen} onCreated={load} />
-      <EditUserDialog user={editing} onOpenChange={() => setEditing(null)} onSaved={load} />
-    </div>
+      <UserDialog
+        open={newOpen}
+        user={null}
+        teams={teams}
+        isOwner={me?.role === "owner"}
+        onOpenChange={setNewOpen}
+        onSaved={load}
+      />
+      <UserDialog
+        open={!!editing}
+        user={editing}
+        teams={teams}
+        isOwner={me?.role === "owner"}
+        onOpenChange={() => setEditing(null)}
+        onSaved={load}
+      />
+    </BdPage>
   );
 }
 
-function NewUserDialog({
+function UserDialog({
   open,
+  user,
+  teams,
+  isOwner,
   onOpenChange,
-  onCreated,
+  onSaved,
 }: {
   open: boolean;
+  user: UserItem | null;
+  teams: TeamItem[];
+  isOwner: boolean;
   onOpenChange: (v: boolean) => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    title: "",
-    role: "sales_executive",
-    password: "",
-  });
+  const blank = { name: "", email: "", phone: "", title: "", role: "sales_executive", teamId: "", status: "active", password: "" };
+  const [form, setForm] = useState(blank);
   const [saving, setSaving] = useState(false);
+  const editing = !!user;
 
-  const reset = () =>
-    setForm({
-      name: "",
-      email: "",
-      phone: "",
-      title: "",
-      role: "sales_executive",
-      password: "",
-    });
+  useEffect(() => {
+    if (!open) return;
+    setForm(
+      user
+        ? {
+            name: user.name,
+            email: user.email,
+            phone: user.phone ?? "",
+            title: user.title ?? "",
+            role: user.role,
+            teamId: String(user.teamId ?? ""),
+            status: user.status,
+            password: "",
+          }
+        : blank,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, user]);
+
+  const set = (k: keyof typeof blank) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
-    if (!form.name || !form.email || form.password.length < 8) {
-      toast.error("Name, email and an 8+ character password are required.");
-      return;
+    if (!form.name.trim()) return toast.error("Name is required.");
+    if (!editing && (!form.email.trim() || form.password.length < 8)) {
+      return toast.error("Email and an 8+ character password are required.");
     }
+    if (editing && form.password && form.password.length < 8) return toast.error("Password must be 8+ characters.");
     setSaving(true);
     try {
-      const res = await fetch("/api/users", {
-        method: "POST",
+      const payload: Record<string, unknown> = {
+        name: form.name,
+        phone: form.phone,
+        title: form.title,
+        role: form.role,
+        teamId: form.teamId || null,
+      };
+      if (editing) payload.status = form.status;
+      if (!editing) payload.email = form.email;
+      if (form.password) payload.password = form.password;
+      const res = await fetch(editing ? `/api/users/${user!._id}` : "/api/users", {
+        method: editing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Couldn't create user.");
-        return;
-      }
-      toast.success("User created");
-      reset();
-      onCreated();
+      if (!res.ok) return toast.error(data.error || "Couldn't save user.");
+      toast.success(editing ? "User updated" : "User created");
+      // POST ignores a null teamId; set via PATCH is not needed because null === none.
+      onSaved();
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -281,245 +322,81 @@ function NewUserDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add user</DialogTitle>
+          <DialogTitle>{editing ? "Edit User" : "Add User"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          <Field label="Full name" required>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="Priya Sharma"
-            />
-          </Field>
+          <BdField label="Name">
+            <BdInput value={form.name} onChange={(e) => set("name")(e.target.value)} placeholder="Full name" />
+          </BdField>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Email" required>
-              <Input
+            <BdField label="Email">
+              <BdInput
                 type="email"
+                disabled={editing}
                 value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="priya@tristarrealtors.in"
+                onChange={(e) => set("email")(e.target.value)}
+                placeholder="name@company.com"
               />
-            </Field>
-            <Field label="Phone">
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+91 98765 43210"
-              />
-            </Field>
+            </BdField>
+            <BdField label="Phone">
+              <BdInput value={form.phone} onChange={(e) => set("phone")(e.target.value)} placeholder="Phone" />
+            </BdField>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Title">
-              <Input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Sr. Sales Executive"
+            <BdField label="Role">
+              <BdSelect
+                clearable={false}
+                value={form.role}
+                onChange={set("role")}
+                options={ROLE_OPTIONS.filter((o) => isOwner || o.value !== "owner" || form.role === "owner")}
               />
-            </Field>
-            <Field label="Role">
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {ROLE_LABELS[r as keyof typeof ROLE_LABELS]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            </BdField>
+            <BdField label="Team">
+              <BdSelect
+                placeholder="Select Team"
+                value={form.teamId}
+                onChange={set("teamId")}
+                options={teams.map((t) => ({ value: t._id, label: t.name }))}
+              />
+            </BdField>
           </div>
-          <Field label="Temporary password" required hint="At least 8 characters.">
-            <Input
+          <div className="grid grid-cols-2 gap-3">
+            <BdField label="Title">
+              <BdInput value={form.title} onChange={(e) => set("title")(e.target.value)} placeholder="Designation" />
+            </BdField>
+            {editing ? (
+              <BdField label="Status">
+                <BdSelect
+                  clearable={false}
+                  value={form.status}
+                  onChange={set("status")}
+                  options={[
+                    { value: "active", label: "Active" },
+                    { value: "invited", label: "Invited" },
+                    { value: "suspended", label: "Suspended" },
+                  ]}
+                />
+              </BdField>
+            ) : null}
+          </div>
+          <BdField label={editing ? "Reset Password (leave blank to keep)" : "Password"}>
+            <BdInput
               type="text"
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onChange={(e) => set("password")(e.target.value)}
               placeholder="At least 8 characters"
             />
-          </Field>
+          </BdField>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+          <BdButton variant="light" onClick={() => onOpenChange(false)}>
             Cancel
-          </Button>
-          <Button onClick={submit} loading={saving}>
-            Create user
-          </Button>
+          </BdButton>
+          <BdButton onClick={submit} disabled={saving}>
+            {saving ? "Saving…" : editing ? "Save Changes" : "Create User"}
+          </BdButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function EditUserDialog({
-  user,
-  onOpenChange,
-  onSaved,
-}: {
-  user: UserItem | null;
-  onOpenChange: (v: boolean) => void;
-  onSaved: () => void;
-}) {
-  const [form, setForm] = useState<{
-    name: string;
-    phone: string;
-    title: string;
-    role: string;
-    status: "active" | "invited" | "suspended";
-    password: string;
-  } | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      setForm({
-        name: user.name,
-        phone: user.phone ?? "",
-        title: user.title ?? "",
-        role: user.role,
-        status: user.status,
-        password: "",
-      });
-    } else {
-      setForm(null);
-    }
-  }, [user]);
-
-  if (!user || !form) return null;
-
-  const submit = async () => {
-    setSaving(true);
-    try {
-      const payload: Record<string, unknown> = {
-        name: form.name,
-        phone: form.phone,
-        title: form.title,
-        role: form.role,
-        status: form.status,
-      };
-      if (form.password.length >= 8) payload.password = form.password;
-
-      const res = await fetch(`/api/users/${user._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "Couldn't save user.");
-        return;
-      }
-      toast.success("User updated");
-      onSaved();
-      onOpenChange(false);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit user</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          <Field label="Full name">
-            <Input
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Phone">
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            </Field>
-            <Field label="Title">
-              <Input
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-              />
-            </Field>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Role">
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {ROLE_LABELS[r as keyof typeof ROLE_LABELS]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label="Status">
-              <Select
-                value={form.status}
-                onValueChange={(v) =>
-                  setForm({ ...form, status: v as "active" | "invited" | "suspended" })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="invited">Invited</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
-                </SelectContent>
-              </Select>
-            </Field>
-          </div>
-          <Field label="Reset password" hint="Leave blank to keep the current one.">
-            <Input
-              type="text"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              placeholder="At least 8 characters"
-            />
-          </Field>
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={submit} loading={saving}>
-            Save changes
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function Field({
-  label,
-  required,
-  hint,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  hint?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1 text-[12px] font-medium text-slate-700">
-        {label}
-        {required ? <span className="text-red-500">*</span> : null}
-      </Label>
-      {children}
-      {hint ? <p className="text-[11px] text-slate-400">{hint}</p> : null}
-    </div>
   );
 }

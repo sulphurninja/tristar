@@ -1,21 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
-import {
-  Upload,
-  FileSpreadsheet,
-  CheckCircle2,
-  AlertTriangle,
-  Download,
-  Info,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle, CheckCircle2, Download, FileSpreadsheet, Upload } from "lucide-react";
+import { BdButton, BdCard, BdKpi, BdPage } from "@/components/bd";
 
 const MAGIC_FIELDS = [
   "leadNumber",
+  "phone",
   "stage",
+  "stageReason",
   "priority",
+  "category",
+  "source",
   "description",
   "assignedTo",
   "primaryProjectId",
@@ -25,6 +23,8 @@ const MAGIC_FIELDS = [
   "configuration",
   "budgetRange",
 ];
+
+const MAX_BYTES = 10 * 1024 * 1024;
 
 interface BulkResult {
   total: number;
@@ -38,6 +38,15 @@ export default function BulkUpdatePage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<BulkResult | null>(null);
+
+  const choose = (f: File | null) => {
+    if (f && f.size > MAX_BYTES) {
+      toast.error("File is larger than 10 MB.");
+      return;
+    }
+    setFile(f);
+    setResult(null);
+  };
 
   const onUpload = async () => {
     if (!file) {
@@ -59,9 +68,7 @@ export default function BulkUpdatePage() {
         return;
       }
       setResult(data.result as BulkResult);
-      toast.success(
-        `Bulk update complete · ${data.result.updated} updated, ${data.result.skipped} skipped.`,
-      );
+      toast.success(`Bulk update complete - ${data.result.updated} updated, ${data.result.skipped} skipped.`);
     } catch (err) {
       console.error(err);
       toast.error("Network error during bulk update.");
@@ -85,126 +92,92 @@ TS-2026-00002,site_visit_scheduled,medium,"Visit booked for Saturday 11AM","2BHK
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-6 p-4 lg:p-8">
-      <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-slate-900">Update Leads</h1>
-        <p className="mt-1 text-[13px] text-slate-600">
-          Upload a CSV to update existing leads in bulk. Match-by{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px]">leadNumber</code> or{" "}
-          <code className="rounded bg-slate-100 px-1 py-0.5 text-[11px]">contact.primaryPhone</code>
-          .
-        </p>
+    <BdPage className="mx-auto max-w-5xl">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-[22px] font-medium text-[#2b2f3a]">Bulk Update</h1>
+          <p className="mt-1 text-[13px] text-[#6b7186]">
+            Upload a CSV to update existing leads in bulk. Leads are matched by <code className="rounded bg-[#eef1fa] px-1">leadNumber</code> or{" "}
+            <code className="rounded bg-[#eef1fa] px-1">phone</code> (primary number).
+          </p>
+        </div>
+        <Link href="/leads" className="bd-btn-light inline-flex items-center">
+          Back to Leads
+        </Link>
       </div>
 
-      <section className="rounded-xl border border-slate-200/70 bg-white p-6 shadow-xs">
-        <div className="flex items-start gap-4">
-          <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-            <FileSpreadsheet className="size-5" />
-          </div>
-          <div className="flex-1">
-            <p className="text-[14px] font-semibold text-slate-900">Choose a file</p>
-            <p className="mt-1 text-[12.5px] text-slate-500">
-              CSV only. The first row must contain column headers.
-            </p>
-          </div>
-        </div>
-
+      <BdCard
+        title="Choose a file"
+        actions={
+          <BdButton variant="light" onClick={downloadSample}>
+            <Download className="size-4" /> Sample CSV
+          </BdButton>
+        }
+      >
         <label
           htmlFor="csv"
-          className="mt-5 flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-slate-300 bg-slate-50/60 px-6 py-10 text-center transition-colors hover:border-emerald-400 hover:bg-emerald-50/40"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            choose(e.dataTransfer.files?.[0] ?? null);
+          }}
+          className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[3px] border-2 border-dashed border-[#cfd8f1] bg-[#f6f8fd] px-6 py-10 text-center transition-colors hover:border-[#3a5dc2] hover:bg-[#eef1fa]"
         >
-          <Upload className="size-8 text-slate-400" strokeWidth={1.5} />
+          {file ? <FileSpreadsheet className="size-8 text-[#3a5dc2]" strokeWidth={1.5} /> : <Upload className="size-8 text-[#8b90a0]" strokeWidth={1.5} />}
           <div>
-            <p className="text-[14px] font-semibold text-slate-700">
-              {file ? file.name : "Click to choose CSV or drag and drop"}
-            </p>
-            <p className="mt-1 text-[11.5px] text-slate-500">
-              {file
-                ? `${(file.size / 1024).toFixed(1)} KB · ready to upload`
-                : "Up to 10 MB · UTF-8"}
+            <p className="text-[14px] font-medium text-[#2b2f3a]">{file ? file.name : "Click to choose CSV or drag and drop"}</p>
+            <p className="mt-1 text-[12px] text-[#8b90a0]">
+              {file ? `${(file.size / 1024).toFixed(1)} KB - ready to upload` : "CSV only, first row = column headers. Up to 10 MB, 5,000 rows."}
             </p>
           </div>
-          <input
-            id="csv"
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
+          <input id="csv" type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => choose(e.target.files?.[0] ?? null)} />
         </label>
-
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <Button variant="outline" onClick={downloadSample} className="gap-1.5">
-            <Download className="size-4" strokeWidth={1.75} />
-            Sample CSV
-          </Button>
-          <div className="flex items-center gap-2">
-            {file ? (
-              <Button variant="ghost" onClick={() => setFile(null)}>
-                Remove
-              </Button>
-            ) : null}
-            <Button onClick={onUpload} loading={uploading} className="gap-1.5">
-              <Upload className="size-4" strokeWidth={2} />
-              Upload &amp; update
-            </Button>
-          </div>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          {file ? (
+            <BdButton variant="light" onClick={() => choose(null)}>
+              Remove
+            </BdButton>
+          ) : null}
+          <BdButton onClick={onUpload} disabled={uploading || !file}>
+            <Upload className="size-4" /> {uploading ? "Updating…" : "Upload & update"}
+          </BdButton>
         </div>
-      </section>
+      </BdCard>
 
-      <section className="rounded-xl border border-slate-200/70 bg-white p-6 shadow-xs">
-        <div className="flex items-center gap-2">
-          <Info className="size-4 text-emerald-600" strokeWidth={1.75} />
-          <h2 className="text-[14px] font-semibold text-slate-900">
-            Magic fields to update
-          </h2>
-        </div>
-        <p className="mt-1 text-[12.5px] text-slate-500">
-          Any of these column headers will be picked up automatically.
+      <BdCard title="Columns that are applied" bodyClassName="pt-3">
+        <p className="text-[13px] text-[#6b7186]">
+          Any of these column headers are picked up automatically; <code>assignedTo</code> accepts a user name, e-mail or id and{" "}
+          <code>primaryProjectId</code> a project name, code or id.
         </p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {MAGIC_FIELDS.map((f) => (
-            <span
-              key={f}
-              className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[11px] text-slate-700"
-            >
+            <span key={f} className="rounded-[3px] bg-[#eef1fa] px-2 py-1 font-mono text-[11.5px] text-[#3a5dc2]">
               {f}
             </span>
           ))}
         </div>
-      </section>
+      </BdCard>
 
       {result ? (
-        <section
-          className={`rounded-xl border p-6 ${
-            result.errors.length === 0
-              ? "border-emerald-200 bg-emerald-50/40"
-              : "border-amber-200 bg-amber-50/40"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            {result.errors.length === 0 ? (
-              <CheckCircle2 className="size-5 text-emerald-600" />
-            ) : (
-              <AlertTriangle className="size-5 text-amber-600" />
-            )}
-            <h2 className="text-[14px] font-semibold text-slate-900">
+        <BdCard
+          title={
+            <span className="flex items-center gap-2">
+              {result.errors.length === 0 ? <CheckCircle2 className="size-5 text-[#37c47f]" /> : <AlertTriangle className="size-5 text-[#e9b72a]" />}
               Bulk update complete
-            </h2>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Rows" value={result.total} />
-            <Stat label="Matched" value={result.matched} />
-            <Stat label="Updated" value={result.updated} tone="success" />
-            <Stat label="Skipped" value={result.skipped} tone="warning" />
+            </span>
+          }
+        >
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <BdKpi label="Rows" value={result.total} tone="blue" />
+            <BdKpi label="Matched" value={result.matched} tone="violet" />
+            <BdKpi label="Updated" value={result.updated} tone="green" />
+            <BdKpi label="Skipped" value={result.skipped} tone="yellow" />
           </div>
           {result.errors.length > 0 ? (
             <div className="mt-4">
-              <p className="text-[12px] font-semibold text-slate-700">
-                {result.errors.length} row(s) with issues:
-              </p>
-              <ul className="mt-2 max-h-48 space-y-1 overflow-auto rounded-md bg-white p-3 text-[11.5px] text-slate-600">
-                {result.errors.slice(0, 50).map((e, i) => (
+              <p className="text-[13px] font-medium text-[#2b2f3a]">{result.errors.length} row(s) with issues</p>
+              <ul className="mt-2 max-h-52 space-y-1 overflow-auto rounded-[3px] bg-[#f6f8fd] p-3 text-[12.5px] text-[#4a4f5f]">
+                {result.errors.slice(0, 100).map((e, i) => (
                   <li key={i}>
                     <span className="font-mono">row {e.row}:</span> {e.reason}
                   </li>
@@ -212,33 +185,8 @@ TS-2026-00002,site_visit_scheduled,medium,"Visit booked for Saturday 11AM","2BHK
               </ul>
             </div>
           ) : null}
-        </section>
+        </BdCard>
       ) : null}
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "success" | "warning";
-}) {
-  const color =
-    tone === "success"
-      ? "text-emerald-700"
-      : tone === "warning"
-        ? "text-amber-700"
-        : "text-slate-900";
-  return (
-    <div className="rounded-lg bg-white px-4 py-3 shadow-xs">
-      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
-        {label}
-      </p>
-      <p className={`mt-1 text-[20px] font-bold tabular-nums ${color}`}>{value}</p>
-    </div>
+    </BdPage>
   );
 }

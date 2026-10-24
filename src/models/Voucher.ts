@@ -28,6 +28,8 @@ const VoucherSchema = new Schema(
       default: "none",
     },
     taxAmount: { type: Number, default: 0 },
+    /** amount - TDS + tax: the value posted Dr to "To" / Cr from "From". */
+    totalAmount: { type: Number, default: 0 },
     narration: String,
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
@@ -39,6 +41,8 @@ VoucherSchema.index({ workspaceId: 1, date: -1 });
 export type VoucherDoc = InferSchemaType<typeof VoucherSchema> & {
   _id: mongoose.Types.ObjectId;
 };
+
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Voucher;
 
 const Voucher =
   (mongoose.models.Voucher as Model<VoucherDoc>) ||

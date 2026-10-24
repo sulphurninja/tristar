@@ -50,6 +50,16 @@ const LeadActivitySchema = new Schema(
         "merged",
         "imported",
         "exported",
+        "contact_converted",
+        "owner_added",
+        "owner_removed",
+        "cp_linked",
+        "cp_unlinked",
+        "interest_added",
+        "interest_removed",
+        "requirement_updated",
+        "document_deleted",
+        "note_added",
         "other",
       ],
       required: true,
@@ -83,6 +93,8 @@ LeadActivitySchema.index({ leadId: 1, occurredAt: -1 });
 LeadActivitySchema.index({ workspaceId: 1, type: 1, occurredAt: -1 });
 
 export type LeadActivityDoc = InferSchemaType<typeof LeadActivitySchema> & { _id: mongoose.Types.ObjectId };
+
+if (mongoose.models.LeadActivity && !(mongoose.models.LeadActivity.schema.path("type") as { enumValues?: string[] }).enumValues?.includes("note_added")) mongoose.deleteModel("LeadActivity");
 
 const LeadActivity =
   (mongoose.models.LeadActivity as Model<LeadActivityDoc>) ||

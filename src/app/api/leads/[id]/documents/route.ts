@@ -1,9 +1,12 @@
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok, bad } from "@/lib/api";
+
+/** Anything that could run script when served from our own origin (html, svg, js ...) is rejected. */
+const ALLOWED_EXT = new Set([".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".csv", ".txt", ".zip", ".heic"]);
 
 export const POST = withAuth<{ id: string }>(async ({ req, session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
@@ -18,6 +21,8 @@ export const POST = withAuth<{ id: string }>(async ({ req, session, params }) =>
   const file = form.get("file");
   if (!(file instanceof File)) return bad("file is required");
   if (file.size > 8 * 1024 * 1024) return bad("Max file size is 8MB");
+  const ext = path.extname(file.name).toLowerCase();
+  if (!ALLOWED_EXT.has(ext)) return bad("This file type is not allowed. Upload PDF, image, Word, Excel, PowerPoint, CSV, text or ZIP files.");
 
   const bytes = Buffer.from(await file.arrayBuffer());
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120);
@@ -62,4 +67,34 @@ export const GET = withAuth<{ id: string }>(async ({ session, params }) => {
     .lean();
   if (!lead) return bad("Lead not found", 404);
   return ok({ documents: lead.documents ?? [] });
+});
+
+export const DELETE = withAuth<{ id: string }>(async ({ req, session, params }) => {
+  if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
+  const docId = new URL(req.url).searchParams.get("docId") ?? "";
+  if (!mongoose.isValidObjectId(docId)) return bad("docId is required");
+  const lead = await Lead.findOne({ _id: params.id, workspaceId: session.workspaceId });
+  if (!lead) return bad("Lead not found", 404);
+  const doc = (lead.documents ?? []).find((d) => String((d as unknown as { _id: unknown })._id) === docId);
+  if (!doc) return bad("Document not found", 404);
+  await Lead.updateOne({ _id: lead._id }, { $pull: { documents: { _id: new mongoose.Types.ObjectId(docId) } } });
+  /* Best-effort removal of the stored file (only ever inside our uploads folder). */
+  const prefix = `/uploads/${session.workspaceId}/${params.id}/`;
+  if (doc.url.startsWith(prefix) && !doc.url.includes("..")) {
+    try {
+      await unlink(path.join(process.cwd(), "public", doc.url));
+    } catch {
+      /* already gone */
+    }
+  }
+  await LeadActivity.create({
+    workspaceId: lead.workspaceId,
+    leadId: lead._id,
+    actorId: new mongoose.Types.ObjectId(session.userId),
+    type: "document_deleted",
+    description: `Removed ${doc.name}`,
+    occurredAt: new Date(),
+  });
+  const updated = await Lead.findById(lead._id).select("documents").lean();
+  return ok({ documents: updated?.documents ?? [] });
 });

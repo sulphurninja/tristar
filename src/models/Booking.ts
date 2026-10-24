@@ -35,6 +35,8 @@ export type BookingDoc = InferSchemaType<typeof BookingSchema> & {
   _id: mongoose.Types.ObjectId;
 };
 
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Booking;
+
 const Booking =
   (mongoose.models.Booking as Model<BookingDoc>) ||
   mongoose.model<BookingDoc>("Booking", BookingSchema);

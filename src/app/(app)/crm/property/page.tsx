@@ -1,23 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { PageShell, PageBody, Section } from "@/components/shared/PageShell";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
-import { StatusPill } from "@/components/shared/StatusPill";
-import { EmptyState } from "@/components/shared/EmptyState";
+  BdBadge,
+  BdButton,
+  BdCard,
+  BdEmptyRow,
+  BdField,
+  BdPage,
+  BdSelect,
+  BdTable,
+  BdTableToolbar,
+  BdTd,
+  BdTh,
+} from "@/components/bd";
+import { ColumnPicker, type ColumnDef } from "@/components/crm/ColumnPicker";
+import { RowMenu } from "@/components/crm/RowMenu";
+import { downloadCsv } from "@/components/crm/csv";
+import { useProjects } from "@/components/crm/ContactModals";
 import { AddPropertyDialog } from "@/components/properties/AddPropertyDialog";
 import { PropertyDetailSheet } from "@/components/properties/PropertyDetailSheet";
+import { formatCurrency } from "@/lib/utils";
 
 interface PropertyRow {
   _id: string;
@@ -25,183 +29,270 @@ interface PropertyRow {
   title?: string;
   inventoryType?: string;
   location?: string;
+  city?: string;
+  configuration?: string;
+  area?: number;
+  price?: number;
   availableFor?: string;
   status?: string;
   ownerName?: string;
-  projectId?: { name?: string; code?: string } | null;
+  ownerMobile?: string;
+  projectId?: { _id?: string; name?: string; code?: string } | null;
 }
 
+const INVENTORY_TYPES = [
+  { value: "residential", label: "Residential" },
+  { value: "residential_apartment", label: "Apartment" },
+  { value: "residential_villa", label: "Villa" },
+  { value: "residential_plot", label: "Plot" },
+  { value: "residential_independent_house", label: "Independent House" },
+  { value: "commercial", label: "Commercial" },
+  { value: "commercial_office", label: "Office" },
+  { value: "commercial_retail", label: "Retail" },
+  { value: "commercial_warehouse", label: "Warehouse" },
+];
+const AVAILABLE_FOR = [
+  { value: "sale", label: "Sale" },
+  { value: "rent", label: "Rent" },
+  { value: "both", label: "Both" },
+];
+const STATUSES = [
+  { value: "available", label: "Available" },
+  { value: "held", label: "Held" },
+  { value: "booked", label: "Booked" },
+  { value: "sold", label: "Sold" },
+  { value: "unavailable", label: "Unavailable" },
+];
+const STATUS_COLOR: Record<string, string> = {
+  available: "#37c47f",
+  held: "#e9b72a",
+  booked: "#3d7be8",
+  sold: "#9a9ca6",
+  unavailable: "#ef6a6a",
+};
+const cap = (s?: string) => (s ? s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) : "-");
+
+const COLUMNS: ColumnDef[] = [
+  { key: "number", label: "Property #" },
+  { key: "title", label: "Title" },
+  { key: "type", label: "Type" },
+  { key: "location", label: "Location" },
+  { key: "config", label: "Configuration" },
+  { key: "area", label: "Area" },
+  { key: "price", label: "Price" },
+  { key: "for", label: "Available For" },
+  { key: "status", label: "Status" },
+  { key: "owner", label: "Owner" },
+  { key: "project", label: "Project" },
+];
+
+interface Filters {
+  projectId: string;
+  inventoryType: string;
+  availableFor: string;
+  status: string;
+}
+const DEFAULT: Filters = { projectId: "", inventoryType: "", availableFor: "", status: "" };
+
 export default function PropertyPage() {
-  const [properties, setProperties] = useState<PropertyRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const projects = useProjects();
+  const [draft, setDraft] = useState<Filters>(DEFAULT);
+  const [applied, setApplied] = useState<Filters>(DEFAULT);
+  const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [cols, setCols] = useState<string[]>(COLUMNS.map((c) => c.key).filter((k) => k !== "config" && k !== "area"));
+  const [rows, setRows] = useState<PropertyRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [openAdd, setOpenAdd] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => {
+    const t = setTimeout(() => setQ(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  useEffect(() => setPage(1), [q, applied, pageSize]);
+
+  const query = useCallback(
+    (limit: number, skip: number) => {
+      const u = new URLSearchParams({ limit: String(limit), skip: String(skip) });
+      if (q) u.set("q", q);
+      for (const [k, v] of Object.entries(applied)) if (v) u.set(k, v);
+      return u;
+    },
+    [applied, q],
+  );
 
   const load = useCallback(() => {
     setLoading(true);
-    const u = new URLSearchParams({
-      limit: String(pageSize),
-      skip: String((page - 1) * pageSize),
-    });
-    if (q) u.set("q", q);
-    if (status !== "all") u.set("status", status);
-    fetch(`/api/properties?${u}`, { cache: "no-store" })
+    fetch(`/api/properties?${query(pageSize, (page - 1) * pageSize)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        setProperties(d.properties ?? []);
+        setRows(d.properties ?? []);
         setTotal(d.total ?? 0);
       })
       .finally(() => setLoading(false));
-  }, [q, status, page, pageSize]);
+  }, [query, page, pageSize]);
+  useEffect(load, [load]);
 
-  useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
-  }, [load]);
+  const remove = async (p: PropertyRow) => {
+    if (!window.confirm(`Delete property "${p.title}"?`)) return;
+    const res = await fetch(`/api/properties/${p._id}`, { method: "DELETE" });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) toast.error(j.error || "Couldn't delete.");
+    else {
+      toast.success("Property deleted");
+      load();
+    }
+  };
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, status, pageSize]);
+  const exportCsv = async () => {
+    const d = await fetch(`/api/properties?${query(1000, 0)}`, { cache: "no-store" }).then((r) => r.json());
+    const list: PropertyRow[] = d.properties ?? [];
+    downloadCsv(
+      "properties.csv",
+      ["Property #", "Title", "Type", "Location", "City", "Configuration", "Area", "Price", "Available For", "Status", "Owner", "Owner Mobile", "Project"],
+      list.map((p) => [
+        p.propertyNumber,
+        p.title,
+        cap(p.inventoryType),
+        p.location,
+        p.city,
+        p.configuration,
+        p.area,
+        p.price,
+        cap(p.availableFor),
+        cap(p.status),
+        p.ownerName,
+        p.ownerMobile,
+        p.projectId?.name,
+      ]),
+    );
+  };
+
+  const show = (k: string) => cols.includes(k);
 
   return (
-    <PageShell>
-      <PageBody>
-        <Section>
-          <FilterBar
-            actions={
-              <>
-                <Button size="sm" variant="outline" onClick={load}>
-                  Search
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setQ("");
-                    setStatus("all");
-                  }}
-                >
-                  Clear
-                </Button>
-                <Button size="sm" className="h-9 gap-1" onClick={() => setOpenAdd(true)}>
-                  <Plus className="size-3.5" />
-                  Add property
-                </Button>
-              </>
-            }
+    <BdPage>
+      <BdCard bodyClassName="!p-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <BdField label="Project">
+            <BdSelect
+              value={draft.projectId}
+              onChange={(projectId) => setDraft((d) => ({ ...d, projectId }))}
+              placeholder="Select Project"
+              options={projects.map((p) => ({ value: p._id, label: p.name }))}
+            />
+          </BdField>
+          <BdField label="Property Type">
+            <BdSelect value={draft.inventoryType} onChange={(inventoryType) => setDraft((d) => ({ ...d, inventoryType }))} placeholder="Select Property Type" options={INVENTORY_TYPES} />
+          </BdField>
+          <BdField label="Available For">
+            <BdSelect value={draft.availableFor} onChange={(availableFor) => setDraft((d) => ({ ...d, availableFor }))} placeholder="Select Available For" options={AVAILABLE_FOR} />
+          </BdField>
+          <BdField label="Status">
+            <BdSelect value={draft.status} onChange={(status) => setDraft((d) => ({ ...d, status }))} placeholder="Select Status" options={STATUSES} />
+          </BdField>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <BdButton onClick={() => setApplied(draft)}>Search</BdButton>
+          <BdButton
+            variant="light"
+            onClick={() => {
+              setDraft(DEFAULT);
+              setApplied(DEFAULT);
+              setSearch("");
+            }}
           >
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search title, location, owner…"
-              className="h-9 w-64"
-            />
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="available">Available</SelectItem>
-                <SelectItem value="reserved">Reserved</SelectItem>
-                <SelectItem value="sold">Sold</SelectItem>
-                <SelectItem value="rented">Rented</SelectItem>
-              </SelectContent>
-            </Select>
-          </FilterBar>
-        </Section>
+            Clear
+          </BdButton>
+          <BdButton variant="light" onClick={exportCsv}>
+            Export CSV
+          </BdButton>
+          <BdButton onClick={() => setOpenAdd(true)}>Add Property</BdButton>
+        </div>
+      </BdCard>
 
-        <DataTableShell
-          title="Properties"
-          count={total}
-          search={q}
-          onSearchChange={setQ}
+      <BdCard title="Property">
+        <BdTableToolbar
           page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+          totalPages={Math.ceil(total / pageSize)}
+          onPage={setPage}
+          search={search}
+          onSearch={setSearch}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          {loading ? (
-            <div className="h-40 animate-pulse bg-slate-50" />
-          ) : properties.length === 0 ? (
-            <EmptyState
-              title="No properties found"
-              description="Add a listing or clear filters."
-              action={
-                <Button onClick={() => setOpenAdd(true)} className="gap-1.5">
-                  <Plus className="size-4" />
-                  Add property
-                </Button>
-              }
-            />
-          ) : (
-            <TableRoot>
-              <thead>
-                <tr>
-                  <Th>#</Th>
-                  <Th>Property #</Th>
-                  <Th>Title</Th>
-                  <Th>Type</Th>
-                  <Th>Location</Th>
-                  <Th>Available for</Th>
-                  <Th>Status</Th>
-                  <Th>Owner</Th>
-                  <Th>Project</Th>
+          onPageSize={setPageSize}
+          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          right={<ColumnPicker columns={COLUMNS} visible={cols} onChange={setCols} />}
+        />
+        <BdTable minWidth={980}>
+          <thead>
+            <tr>
+              <BdTh>#</BdTh>
+              {COLUMNS.filter((c) => show(c.key)).map((c) => (
+                <BdTh key={c.key}>{c.label}</BdTh>
+              ))}
+              <BdTh>Action</BdTh>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <BdEmptyRow colSpan={cols.length + 2} loading={loading} />
+            ) : (
+              rows.map((p, i) => (
+                <tr key={p._id}>
+                  <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                  {show("number") ? <BdTd>{p.propertyNumber ?? "-"}</BdTd> : null}
+                  {show("title") ? (
+                    <BdTd className="max-w-[240px]">
+                      <button type="button" onClick={() => setActiveId(p._id)} className="truncate text-left font-medium text-[#3a5dc2] hover:underline">
+                        {p.title ?? "-"}
+                      </button>
+                    </BdTd>
+                  ) : null}
+                  {show("type") ? <BdTd>{cap(p.inventoryType)}</BdTd> : null}
+                  {show("location") ? <BdTd className="max-w-[200px] truncate">{[p.location, p.city].filter(Boolean).join(", ") || "-"}</BdTd> : null}
+                  {show("config") ? <BdTd>{p.configuration ?? "-"}</BdTd> : null}
+                  {show("area") ? <BdTd>{p.area ?? "-"}</BdTd> : null}
+                  {show("price") ? <BdTd className="whitespace-nowrap">{p.price ? formatCurrency(p.price) : "-"}</BdTd> : null}
+                  {show("for") ? <BdTd>{cap(p.availableFor)}</BdTd> : null}
+                  {show("status") ? (
+                    <BdTd>
+                      <BdBadge color={STATUS_COLOR[p.status ?? ""] ?? "#9a9ca6"}>{(p.status ?? "-").toUpperCase()}</BdBadge>
+                    </BdTd>
+                  ) : null}
+                  {show("owner") ? (
+                    <BdTd>
+                      {p.ownerName ?? "-"}
+                      {p.ownerMobile ? <div className="text-[11.5px] text-[#8b90a0]">{p.ownerMobile}</div> : null}
+                    </BdTd>
+                  ) : null}
+                  {show("project") ? <BdTd>{p.projectId?.name ?? "-"}</BdTd> : null}
+                  <BdTd>
+                    <RowMenu
+                      items={[
+                        { label: "Open", onClick: () => setActiveId(p._id) },
+                        { label: "Delete", danger: true, onClick: () => remove(p) },
+                      ]}
+                    />
+                  </BdTd>
                 </tr>
-              </thead>
-              <tbody>
-                {properties.map((p, i) => (
-                  <tr
-                    key={p._id}
-                    className="cursor-pointer hover:bg-slate-50/80"
-                    onClick={() => setActiveId(p._id)}
-                  >
-                    <Td className="tabular-nums text-slate-400">
-                      {(page - 1) * pageSize + i + 1}
-                    </Td>
-                    <Td className="font-medium text-emerald-700">{p.propertyNumber ?? "—"}</Td>
-                    <Td className="max-w-[200px] truncate font-medium">{p.title ?? "—"}</Td>
-                    <Td className="capitalize">{(p.inventoryType ?? "—").replace(/_/g, " ")}</Td>
-                    <Td className="max-w-[160px] truncate">{p.location ?? "—"}</Td>
-                    <Td className="capitalize">{(p.availableFor ?? "—").replace(/_/g, " ")}</Td>
-                    <Td>
-                      <StatusPill
-                        tone={
-                          p.status === "available"
-                            ? "success"
-                            : p.status === "sold" || p.status === "rented"
-                              ? "neutral"
-                              : "warning"
-                        }
-                      >
-                        {(p.status ?? "—").replace(/_/g, " ")}
-                      </StatusPill>
-                    </Td>
-                    <Td>{p.ownerName ?? "—"}</Td>
-                    <Td>{p.projectId?.name ?? "—"}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </TableRoot>
-          )}
-        </DataTableShell>
-      </PageBody>
+              ))
+            )}
+          </tbody>
+        </BdTable>
+      </BdCard>
+
       <AddPropertyDialog open={openAdd} onOpenChange={setOpenAdd} onCreated={load} />
       <PropertyDetailSheet
         propertyId={activeId}
-        propertyIds={properties.map((p) => p._id)}
+        propertyIds={rows.map((p) => p._id)}
         onPropertyChange={setActiveId}
         onOpenChange={(v) => !v && setActiveId(null)}
         onChanged={load}
       />
-    </PageShell>
+    </BdPage>
   );
 }

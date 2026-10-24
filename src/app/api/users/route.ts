@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import User from "@/models/User";
+import Team from "@/models/Team";
 import { withAuth, ok, bad } from "@/lib/api";
+import { ROLE_HIERARCHY } from "@/lib/roles";
 import { hashPassword, hasRole, type Role } from "@/lib/auth";
 
 export const GET = withAuth(async ({ session }) => {
@@ -20,6 +22,8 @@ export const POST = withAuth(async ({ req, session }) => {
     typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
   const role = typeof body.role === "string" ? body.role : "sales_executive";
+  if (!(role in ROLE_HIERARCHY)) return bad("Invalid role.");
+  if (role === "owner" && session.role !== "owner") return bad("Only an owner can create another owner.", 403);
   const phone = typeof body.phone === "string" ? body.phone.trim() : undefined;
   const title = typeof body.title === "string" ? body.title.trim() : undefined;
 
@@ -28,6 +32,13 @@ export const POST = withAuth(async ({ req, session }) => {
   }
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  let teamId: mongoose.Types.ObjectId | undefined;
+  if (typeof body.teamId === "string" && body.teamId) {
+    if (!mongoose.isValidObjectId(body.teamId) || !(await Team.exists({ _id: body.teamId, workspaceId }))) {
+      return bad("Team not found.");
+    }
+    teamId = new mongoose.Types.ObjectId(body.teamId);
+  }
   const existing = await User.findOne({ workspaceId, email });
   if (existing) {
     return bad("A user with this email already exists in your workspace.", 409);
@@ -40,6 +51,7 @@ export const POST = withAuth(async ({ req, session }) => {
     phone,
     title,
     role,
+    teamId,
     passwordHash: await hashPassword(password),
     invitedBy: new mongoose.Types.ObjectId(session.userId),
     invitedAt: new Date(),

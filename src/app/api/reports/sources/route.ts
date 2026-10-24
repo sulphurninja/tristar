@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams, PIPELINE_COLUMNS } from "@/lib/report-utils";
+import { boundsFromSearchParams, pipelineColumns, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 const SOURCE_LABEL: Record<string, string> = {
   walkin: "Walkin",
@@ -28,12 +28,15 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
+  const cols = await pipelineColumns(workspaceId);
 
   const agg = await Lead.aggregate<{
     _id: { source: string; stage: string };
     count: number;
   }>([
-    { $match: { workspaceId, createdAt: { $gte: start, $lte: end } } },
+    { $match: { workspaceId,
+          ...scopeMatch(scope), createdAt: { $gte: start, $lte: end } } },
     {
       $group: {
         _id: { source: "$source.primary", stage: "$stage" },
@@ -52,7 +55,7 @@ export const GET = withAuth(async ({ req, session }) => {
   const rows = Object.entries(indexed).map(([source, stages]) => {
     const total = Object.values(stages).reduce((a, b) => a + b, 0);
     const cells: Record<string, number> = {};
-    for (const c of PIPELINE_COLUMNS) cells[c.key] = stages[c.key] ?? 0;
+    for (const c of cols) cells[c.key] = stages[c.key] ?? 0;
     return {
       source,
       label: SOURCE_LABEL[source] ?? source,
@@ -66,11 +69,11 @@ export const GET = withAuth(async ({ req, session }) => {
   const totalsRow = {
     label: "Total",
     total: rows.reduce((a, b) => a + b.total, 0),
-    stages: PIPELINE_COLUMNS.reduce<Record<string, number>>((acc, c) => {
+    stages: cols.reduce<Record<string, number>>((acc, c) => {
       acc[c.key] = rows.reduce((a, b) => a + (b.stages[c.key] ?? 0), 0);
       return acc;
     }, {}),
   };
 
-  return ok({ range, columns: PIPELINE_COLUMNS, rows, totalsRow });
+  return ok({ range, columns: cols, rows, totalsRow });
 });

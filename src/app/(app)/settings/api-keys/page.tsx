@@ -133,10 +133,10 @@ export default function ApiKeysPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-5 p-6 lg:p-8">
+    <div className="space-y-4 p-4 lg:p-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900">API Keys</h1>
+          <h1 className="text-[20px] font-semibold text-[#2b2f3a]">API Keys</h1>
           <p className="mt-1 text-[12.5px] text-slate-500">
             Project-scoped keys for kiosks, partner lead-feed integrations and webhooks.
           </p>

@@ -14,6 +14,7 @@ import {
   PieChart,
   CalendarCheck,
 } from "lucide-react";
+import { BdPage } from "@/components/bd";
 
 interface ReportItem {
   href: string;
@@ -33,6 +34,12 @@ const GROUPS: ReportGroup[] = [
     title: "Lead analysis",
     desc: "Volume, pipeline health and inactivity.",
     items: [
+      {
+        href: "/reports/lead-analysis",
+        title: "Lead Analysis",
+        desc: "Day-wise lead, site visit, booking and unqualified counts with activity delay.",
+        icon: PieChart,
+      },
       {
         href: "/reports/advance-analysis",
         title: "Advance Analysis",
@@ -143,12 +150,14 @@ function ReportCard({ r }: { r: ReportItem }) {
   const Icon = r.icon;
   return (
     <Link href={r.href} className="block">
-      <div className="rounded-xl border border-slate-200/70 bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-md">
-        <div className="flex size-10 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
-          <Icon className="size-5" />
+      <div className="bd-card flex h-full items-start gap-4 rounded-[3px] p-5 transition-shadow hover:shadow-[0_2px_12px_rgba(30,50,110,0.16)]">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-[12px] bg-[#dbe8fd] text-[#3d7be8]">
+          <Icon className="size-6" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-medium text-[#2b2f3a]">{r.title}</h3>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-[#8b90a0]">{r.desc}</p>
         </div>
-        <h3 className="mt-3 text-[14px] font-semibold text-slate-900">{r.title}</h3>
-        <p className="mt-1 text-[12px] leading-relaxed text-slate-600">{r.desc}</p>
       </div>
     </Link>
   );
@@ -156,28 +165,27 @@ function ReportCard({ r }: { r: ReportItem }) {
 
 export default function ReportsLandingPage() {
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-8 p-6 lg:p-10">
+    <BdPage className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Reports</h1>
-        <p className="mt-1 text-[13px] text-slate-600">
-          Operational reports across leads, sources, brokers, site visits and team activity —
-          live data, always.
+        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Reports</h1>
+        <p className="mt-0.5 text-[12.5px] text-[#8b90a0]">
+          Operational reports across leads, sources, brokers, site visits and team activity - live data.
         </p>
       </div>
 
       {GROUPS.map((g) => (
         <section key={g.title} className="space-y-3">
           <div>
-            <h2 className="text-[15px] font-semibold text-slate-900">{g.title}</h2>
-            <p className="text-[12.5px] text-slate-500">{g.desc}</p>
+            <h2 className="text-[16px] font-medium text-[#2b2f3a]">{g.title}</h2>
+            <p className="text-[12.5px] text-[#8b90a0]">{g.desc}</p>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {g.items.map((r) => (
               <ReportCard key={r.title} r={r} />
             ))}
           </div>
         </section>
       ))}
-    </div>
+    </BdPage>
   );
 }

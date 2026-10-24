@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams, PIPELINE_COLUMNS } from "@/lib/report-utils";
+import { boundsFromSearchParams, pipelineColumns, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 /**
  * Team Performance Report — for every user in the workspace, count leads in
@@ -15,12 +15,15 @@ export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
   const { start, end, range } = boundsFromSearchParams(url);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
+  const cols = await pipelineColumns(workspaceId);
 
   const [users, perUser] = await Promise.all([
     User.find({ workspaceId }).select("name email role status").lean(),
     Lead.aggregate<{ _id: { user: mongoose.Types.ObjectId | null; stage: string }; count: number }>(
       [
-        { $match: { workspaceId, createdAt: { $gte: start, $lte: end } } },
+        { $match: { workspaceId,
+          ...scopeMatch(scope), createdAt: { $gte: start, $lte: end } } },
         {
           $group: {
             _id: { user: "$assignedTo", stage: "$stage" },
@@ -42,7 +45,7 @@ export const GET = withAuth(async ({ req, session }) => {
     const stages = indexed[String(u._id)] ?? {};
     const total = Object.values(stages).reduce((a, b) => a + b, 0);
     const cells: Record<string, number> = {};
-    for (const c of PIPELINE_COLUMNS) cells[c.key] = stages[c.key] ?? 0;
+    for (const c of cols) cells[c.key] = stages[c.key] ?? 0;
     return {
       userId: String(u._id),
       name: u.name,
@@ -57,7 +60,7 @@ export const GET = withAuth(async ({ req, session }) => {
     const total = Object.values(indexed._unassigned).reduce((a, b) => a + b, 0);
     if (total > 0) {
       const cells: Record<string, number> = {};
-      for (const c of PIPELINE_COLUMNS) cells[c.key] = indexed._unassigned[c.key] ?? 0;
+      for (const c of cols) cells[c.key] = indexed._unassigned[c.key] ?? 0;
       filtered.push({ userId: "_unassigned", name: "Unassigned", total, stages: cells });
     }
   }
@@ -68,11 +71,11 @@ export const GET = withAuth(async ({ req, session }) => {
   const totalsRow = {
     name: "Total",
     total: filtered.reduce((a, b) => a + b.total, 0),
-    stages: PIPELINE_COLUMNS.reduce<Record<string, number>>((acc, c) => {
+    stages: cols.reduce<Record<string, number>>((acc, c) => {
       acc[c.key] = filtered.reduce((a, b) => a + (b.stages[c.key] ?? 0), 0);
       return acc;
     }, {}),
   };
 
-  return ok({ range, columns: PIPELINE_COLUMNS, rows: filtered, totalsRow });
+  return ok({ range, columns: cols, rows: filtered, totalsRow });
 });

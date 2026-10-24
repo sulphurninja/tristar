@@ -20,6 +20,8 @@ const TaskSchema = new Schema(
     },
     scheduleAt: { type: Date, index: true },
     completedAt: Date,
+    completedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rescheduleCount: { type: Number, default: 0 },
     remindMe: { type: Boolean, default: true },
     reminderMinutes: { type: Number, default: 15 },
     assignedTo: { type: Schema.Types.ObjectId, ref: "User", index: true },
@@ -33,6 +35,9 @@ const TaskSchema = new Schema(
 
 TaskSchema.index({ workspaceId: 1, scheduleAt: -1 });
 TaskSchema.index({ workspaceId: 1, status: 1, assignedTo: 1 });
+
+// Dev only: re-register on hot reload so schema edits are picked up.
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Task;
 
 export type TaskDoc = InferSchemaType<typeof TaskSchema> & { _id: mongoose.Types.ObjectId };
 

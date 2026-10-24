@@ -1,170 +1,154 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import {
-  Plus,
-  Search,
-  ChevronDown,
-  LogOut,
-  Settings as SettingsIcon,
-} from "lucide-react";
+import { Bell, ChevronDown, LogOut, Megaphone, Settings as SettingsIcon } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { initials, cn } from "@/lib/utils";
+import { initials } from "@/lib/utils";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { MobileNavTrigger } from "@/components/layout/Sidebar";
 
-const PATH_LABELS: Record<string, string> = {
-  "/dashboard": "Home",
-  "/tasks": "Tasks",
-  "/leads": "Leads",
-  "/leads/pipeline": "Pipeline",
-  "/leads/bulk-update": "Bulk Update",
-  "/crm/contacts": "Contacts",
-  "/crm/activities": "Activities",
-  "/crm/logs": "Lead Logs",
-  "/crm/property": "Property",
-  "/visits": "Site Visits",
-  "/visits/scheduled": "SVP Dashboard",
-  "/projects": "Projects",
-  "/brokers": "Channel Partners",
-  "/bookings": "Bookings",
-  "/bookings/payments": "Payments",
-  "/campaigns": "Campaigns",
-  "/accounts/ledger": "Ledger",
-  "/accounts/vouchers": "Vouchers",
-  "/reports": "Reports",
-  "/reports/advance-analysis": "Advance Analysis",
-  "/reports/lead-volume": "Lead Volume",
-  "/reports/team-performance": "Team Performance",
-  "/reports/activity": "Activity Report",
-  "/requests": "Requests",
-  "/settings": "Settings",
-  "/settings/users": "Users",
-  "/settings/pipelines": "Pipelines & Stages",
-  "/settings/sources": "Sources",
-  "/settings/api-keys": "API Keys",
-};
+interface Notice {
+  _id: string;
+  title: string;
+  scheduleAt?: string;
+}
 
-export function Topbar({ onMobileNav }: { onMobileNav?: () => void }) {
-  const pathname = usePathname();
+export function Topbar({ onToggleNav }: { onToggleNav: () => void }) {
   const { user, workspace, signOut } = useAuth();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [due, setDue] = useState<Notice[]>([]);
+  const [requests, setRequests] = useState(0);
 
-  const title =
-    PATH_LABELS[pathname] ??
-    Object.entries(PATH_LABELS)
-      .filter(([k]) => pathname.startsWith(`${k}/`))
-      .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ??
-    "Tristar";
+  useEffect(() => {
+    fetch("/api/tasks?range=today&status=pending&limit=8", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setDue(d.tasks ?? []))
+      .catch(() => undefined);
+    fetch("/api/requests", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) =>
+        setRequests(((d.requests ?? []) as Array<{ status?: string }>).filter((x) => x.status === "pending").length),
+      )
+      .catch(() => undefined);
+  }, []);
+
+  const menu =
+    "z-50 min-w-64 overflow-hidden rounded-md bg-white p-1 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5";
 
   return (
     <>
-      <header className="z-30 flex h-14 shrink-0 items-center gap-3 border-b border-slate-200/70 bg-white px-4 lg:px-6">
-        {onMobileNav ? <MobileNavTrigger onClick={onMobileNav} /> : null}
+      <header className="z-30 flex h-[52px] shrink-0 items-center gap-3 border-b border-[#e3e6ef] bg-[#f8f9fd] px-4">
+        <MobileNavTrigger onClick={onToggleNav} />
 
-        <h1 className="min-w-0 shrink truncate text-[15px] font-semibold tracking-tight text-slate-900">
-          {title}
-        </h1>
-
-        <div className="ml-auto flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-2.5">
-          <button
-            type="button"
-            onClick={() => setPaletteOpen(true)}
-            aria-label="Search"
-            className={cn(
-              "group flex h-9 min-w-0 items-center gap-2.5 rounded-lg border border-slate-200 bg-slate-50/80 px-3 text-left transition-all",
-              "hover:border-emerald-300 hover:bg-white hover:shadow-sm",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/20",
-              "w-full max-w-[14rem] sm:max-w-[18rem] md:max-w-[22rem] lg:max-w-[26rem]",
-            )}
-          >
-            <Search
-              className="size-4 shrink-0 text-slate-400 transition-colors group-hover:text-emerald-600"
-              strokeWidth={1.75}
-            />
-            <span className="min-w-0 flex-1 truncate text-[13px] text-slate-400 group-hover:text-slate-500">
-              Search leads, pages, actions…
-            </span>
-            <kbd className="hidden shrink-0 items-center gap-0.5 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] font-semibold text-slate-500 sm:inline-flex">
-              ⌘K
-            </kbd>
-          </button>
+        <div className="ml-auto flex items-center gap-5">
+          <span className="hidden text-[16px] font-bold uppercase tracking-tight text-[#2b2f3a] sm:inline">
+            {workspace?.name ?? "Tristar Realtors"}
+          </span>
 
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <Button size="sm" className="h-9 shrink-0 gap-1 rounded-lg px-3">
-                <Plus className="size-4" strokeWidth={2} />
-                <span className="hidden sm:inline">New</span>
-                <ChevronDown className="size-3.5 opacity-70" />
-              </Button>
+              <button aria-label="Announcements" className="relative text-[#5a6072] hover:text-[#3a5dc2]">
+                <Megaphone className="size-6" strokeWidth={1.75} />
+                {requests > 0 ? (
+                  <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-[#3a5dc2]" />
+                ) : null}
+              </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                align="end"
-                sideOffset={8}
-                className="z-50 min-w-52 overflow-hidden rounded-lg bg-white p-1 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 animate-in fade-in-0 zoom-in-95"
-              >
-                <NewItem href="/leads?new=1" label="New lead" />
-                <NewItem href="/tasks?new=1" label="New task" />
-                <NewItem href="/visits?new=1" label="Schedule site visit" />
-                <NewItem href="/bookings?new=1" label="Add booking" />
-                <NewItem href="/projects?new=1" label="Add project" />
-                <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
-                <NewItem href="/leads/bulk-update" label="Bulk update leads" />
+              <DropdownMenu.Content align="end" sideOffset={10} className={menu}>
+                <p className="border-b border-slate-100 px-3 py-2 text-[13px] font-bold">Announcements</p>
+                <Link href="/requests" className="block px-3 py-2.5 text-[13px] hover:bg-slate-50">
+                  {requests > 0
+                    ? `${requests} pending request${requests === 1 ? "" : "s"}`
+                    : "No new announcements"}
+                </Link>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
           </DropdownMenu.Root>
 
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <button
-                className="flex shrink-0 items-center gap-2 rounded-lg p-1 transition-colors hover:bg-slate-100"
-                aria-label="Account menu"
-              >
-                <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 text-[11px] font-bold text-white">
-                  {initials(user?.name)}
-                </div>
-                <span className="hidden max-w-[120px] truncate text-[12.5px] font-medium text-slate-800 lg:inline">
-                  {user?.name?.split(" ")[0] ?? "Account"}
-                </span>
-                <ChevronDown className="hidden size-3.5 text-slate-400 sm:block" strokeWidth={2} />
+              <button aria-label="Notifications" className="relative text-[#5a6072] hover:text-[#3a5dc2]">
+                <Bell className="size-6 fill-current" strokeWidth={1.5} />
+                {due.length > 0 ? (
+                  <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-[#3a5dc2]" />
+                ) : null}
               </button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                align="end"
-                sideOffset={8}
-                className="z-50 min-w-60 overflow-hidden rounded-lg bg-white p-1 shadow-[0_10px_30px_-10px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 animate-in fade-in-0 zoom-in-95"
-              >
+              <DropdownMenu.Content align="end" sideOffset={10} className={menu}>
+                <p className="border-b border-slate-100 px-3 py-2 text-[13px] font-bold">Notifications</p>
+                {due.length === 0 ? (
+                  <p className="px-3 py-3 text-[13px] text-slate-500">You are all caught up.</p>
+                ) : (
+                  due.map((t) => (
+                    <Link
+                      key={t._id}
+                      href="/tasks"
+                      className="block border-b border-slate-50 px-3 py-2 text-[13px] hover:bg-slate-50"
+                    >
+                      <span className="block truncate font-medium">{t.title}</span>
+                      {t.scheduleAt ? (
+                        <span className="text-[11.5px] text-slate-500">
+                          {new Date(t.scheduleAt).toLocaleString()}
+                        </span>
+                      ) : null}
+                    </Link>
+                  ))
+                )}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+
+          <div className="h-[52px] w-px bg-[#e3e6ef]" />
+
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="flex items-center gap-2" aria-label="Account menu">
+                {user?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatarUrl} alt="" className="size-10 rounded-full object-cover" />
+                ) : (
+                  <span className="flex size-10 items-center justify-center rounded-full bg-[#e3e6ef] text-[13px] font-bold text-[#5a6072]">
+                    {initials(user?.name)}
+                  </span>
+                )}
+                <span className="hidden max-w-[140px] truncate text-[16px] text-[#5a6072] sm:inline">
+                  {user?.name?.split(" ")[0] ?? "Account"}
+                </span>
+                <span className="flex size-[18px] items-center justify-center rounded-full bg-[#2fbf9b] text-white">
+                  <ChevronDown className="size-3" strokeWidth={3} />
+                </span>
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content align="end" sideOffset={10} className={menu}>
                 <div className="border-b border-slate-100 p-3">
                   <p className="text-[13px] font-semibold text-slate-900">{user?.name}</p>
                   <p className="text-[11.5px] text-slate-500">{user?.email}</p>
-                  {workspace?.name ? (
-                    <p className="mt-1 text-[11px] font-medium text-emerald-700">
-                      {workspace.name}
-                      {workspace.plan === "trial" ? " · Trial" : ""}
-                    </p>
-                  ) : null}
                 </div>
                 <DropdownMenu.Item asChild>
                   <Link
                     href="/settings"
-                    className="flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] outline-none hover:bg-slate-50"
+                    className="flex cursor-pointer items-center gap-2.5 rounded px-2.5 py-2 text-[13px] outline-none hover:bg-slate-50"
                   >
-                    <SettingsIcon className="size-[15px] text-slate-500" strokeWidth={1.75} />{" "}
-                    Settings
+                    <SettingsIcon className="size-[15px] text-slate-500" /> Settings
                   </Link>
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  onSelect={() => setPaletteOpen(true)}
+                  className="flex cursor-pointer items-center gap-2.5 rounded px-2.5 py-2 text-[13px] outline-none hover:bg-slate-50"
+                >
+                  Search (Ctrl K)
                 </DropdownMenu.Item>
                 <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />
                 <DropdownMenu.Item
                   onSelect={() => signOut()}
-                  className="flex cursor-pointer items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] text-red-600 outline-none hover:bg-red-50"
+                  className="flex cursor-pointer items-center gap-2.5 rounded px-2.5 py-2 text-[13px] text-red-600 outline-none hover:bg-red-50"
                 >
-                  <LogOut className="size-[15px]" strokeWidth={1.75} /> Sign out
+                  <LogOut className="size-[15px]" /> Sign out
                 </DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Portal>
@@ -174,20 +158,5 @@ export function Topbar({ onMobileNav }: { onMobileNav?: () => void }) {
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </>
-  );
-}
-
-function NewItem({ href, label }: { href: string; label: string }) {
-  return (
-    <DropdownMenu.Item asChild>
-      <Link
-        href={href}
-        className={cn(
-          "flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-[13px] outline-none hover:bg-slate-50",
-        )}
-      >
-        {label}
-      </Link>
-    </DropdownMenu.Item>
   );
 }

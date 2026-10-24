@@ -1,95 +1,119 @@
 import mongoose from "mongoose";
 import Lead from "@/models/Lead";
+import Task from "@/models/Task";
 import Pipeline, { ensureDefaultPipeline } from "@/models/Pipeline";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok, bad } from "@/lib/api";
+import { buildLeadFilter } from "@/lib/lead-filters";
+import { loadStageCatalog } from "@/lib/lead-stages";
+
+const SORTS: Record<string, string> = {
+  createdAt: "createdAt",
+  assignedAt: "assignedAt",
+  name: "contact.name",
+  phone: "contact.primaryPhone",
+  stage: "stage",
+  source: "source.primary",
+  nextActionAt: "nextActionAt",
+  lastContactedAt: "lastContactedAt",
+  updatedAt: "updatedAt",
+};
+
+const DAY = 86_400_000;
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
-  const q = url.searchParams.get("q")?.trim().toLowerCase() ?? "";
-  const stage = url.searchParams.get("stage") ?? "";
-  const priority = url.searchParams.get("priority") ?? "";
-  const projectId = url.searchParams.get("projectId") ?? "";
-  const assignedTo = url.searchParams.get("assignedTo") ?? "";
-  const pipelineId = url.searchParams.get("pipelineId") ?? "";
-  const brokerId = url.searchParams.get("brokerId") ?? "";
-  const source = url.searchParams.get("source") ?? "";
-  const isHot = url.searchParams.get("isHot") ?? "";
-  const createdFrom = url.searchParams.get("createdFrom") ?? "";
-  const createdTo = url.searchParams.get("createdTo") ?? "";
-  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "100", 10), 500);
-  const skip = Math.max(parseInt(url.searchParams.get("skip") ?? "0", 10), 0);
+  const p = url.searchParams;
+  const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
-  const filter: Record<string, unknown> = {
-    workspaceId: new mongoose.Types.ObjectId(session.workspaceId),
-  };
+  /* Back-compat for other pages that still send assignedTo / projectId singles. */
+  const limit = Math.min(Math.max(parseInt(p.get("limit") ?? "20", 10) || 20, 1), 500);
+  const skip = Math.max(parseInt(p.get("skip") ?? "0", 10) || 0, 0);
+  const sortField = SORTS[p.get("sort") ?? "createdAt"] ?? "createdAt";
+  const dir = p.get("dir") === "asc" ? 1 : -1;
 
-  if (stage && stage !== "all") filter.stage = stage;
-  if (priority && priority !== "all") filter.priority = priority;
-  if (projectId && mongoose.isValidObjectId(projectId)) {
-    filter.primaryProjectId = new mongoose.Types.ObjectId(projectId);
-  }
-  if (assignedTo && mongoose.isValidObjectId(assignedTo)) {
-    filter.assignedTo = new mongoose.Types.ObjectId(assignedTo);
-  }
-  if (brokerId && mongoose.isValidObjectId(brokerId)) {
-    filter.brokerId = new mongoose.Types.ObjectId(brokerId);
-  }
-  if (pipelineId && mongoose.isValidObjectId(pipelineId)) {
-    filter.pipelineId = new mongoose.Types.ObjectId(pipelineId);
-  }
-  if (source && source !== "all") filter["source.primary"] = source;
-  if (isHot === "1" || isHot === "true") filter.isHot = true;
-
-  if (createdFrom || createdTo) {
-    const createdAt: Record<string, Date> = {};
-    if (createdFrom) {
-      const d = new Date(createdFrom);
-      d.setHours(0, 0, 0, 0);
-      createdAt.$gte = d;
-    }
-    if (createdTo) {
-      const d = new Date(createdTo);
-      d.setHours(23, 59, 59, 999);
-      createdAt.$lte = d;
-    }
-    filter.createdAt = createdAt;
-  }
-
-  if (q) {
-    filter.$or = [
-      { "contact.name": { $regex: q, $options: "i" } },
-      { "contact.primaryPhone": { $regex: q, $options: "i" } },
-      { "contact.email": { $regex: q, $options: "i" } },
-      { leadNumber: { $regex: q, $options: "i" } },
-      { tags: { $in: [q] } },
-    ];
-  }
+  const { filter, lost } = await buildLeadFilter(workspaceId, p, session.userId);
 
   const [items, total] = await Promise.all([
     Lead.find(filter)
-      .sort({ createdAt: -1 })
+      .select("-documents -score.factors -customFields")
+      .sort({ [sortField]: dir, _id: -1 })
       .skip(skip)
       .limit(limit)
       .populate({ path: "primaryProjectId", select: "name code" })
       .populate({ path: "assignedTo", select: "name email avatarUrl" })
+      .populate({ path: "brokerId", select: "name firmName" })
       .lean(),
     Lead.countDocuments(filter),
   ]);
 
-  return ok({ leads: items, total });
+  /* One extra query for the whole page: oldest overdue pending task per lead. */
+  const now = new Date();
+  const ids = items.map((l) => l._id);
+  const overdueTasks = ids.length
+    ? await Task.aggregate<{ _id: mongoose.Types.ObjectId; oldest: Date }>([
+        {
+          $match: {
+            workspaceId,
+            leadId: { $in: ids },
+            status: { $in: ["pending", "upcoming"] },
+            scheduleAt: { $lt: now },
+          },
+        },
+        { $group: { _id: "$leadId", oldest: { $min: "$scheduleAt" } } },
+      ])
+    : [];
+  const oldestByLead = new Map(overdueTasks.map((t) => [String(t._id), t.oldest]));
+
+  const leads = items.map((l) => {
+    const closed = l.isBooked || l.isInactive || l.stage === "booked" || lost.includes(l.stage);
+    let delayDays: number | null = null;
+    if (!closed) {
+      const cands: number[] = [];
+      if (l.nextActionAt && new Date(l.nextActionAt) < now) cands.push(new Date(l.nextActionAt).getTime());
+      const t = oldestByLead.get(String(l._id));
+      if (t) cands.push(new Date(t).getTime());
+      if (cands.length) delayDays = Math.max(1, Math.floor((now.getTime() - Math.min(...cands)) / DAY));
+    }
+    const returning = !!(l.isReturning || (l.tags ?? []).includes("returning"));
+    return { ...l, delayDays, returning };
+  });
+
+  return ok({ leads, total });
 });
+
+function str(v: unknown, max = 200) {
+  return typeof v === "string" && v.trim() ? v.trim().slice(0, max) : undefined;
+}
+function oidOrUndef(v: unknown) {
+  return typeof v === "string" && mongoose.isValidObjectId(v) ? new mongoose.Types.ObjectId(v) : undefined;
+}
+
+function dateOrUndef(v: unknown) {
+  if (typeof v !== "string" || !v) return undefined;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
 
 export const POST = withAuth(async ({ req, session }) => {
   const body = (await req.json()) as Record<string, unknown>;
 
   const contact = body.contact as
-    | { name?: string; primaryPhone?: string; email?: string; whatsappOptIn?: boolean }
+    | {
+        name?: string;
+        firstName?: string;
+        lastName?: string;
+        primaryPhone?: string;
+        altPhone?: string;
+        email?: string;
+        whatsappOptIn?: boolean;
+      }
     | undefined;
 
-  if (!contact?.name || !contact?.primaryPhone) {
-    return bad("Name and phone are required.");
-  }
+  const name =
+    str(contact?.name) ?? str([contact?.firstName, contact?.lastName].filter(Boolean).join(" "));
+  const phone = str(contact?.primaryPhone, 30);
+  if (!name || !phone) return bad("Name and phone are required.");
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const userId = new mongoose.Types.ObjectId(session.userId);
@@ -97,10 +121,7 @@ export const POST = withAuth(async ({ req, session }) => {
   /* Resolve which pipeline this lead lives in. Falls back to the default. */
   let pipelineDoc;
   if (body.pipelineId && mongoose.isValidObjectId(body.pipelineId as string)) {
-    pipelineDoc = await Pipeline.findOne({
-      _id: body.pipelineId as string,
-      workspaceId,
-    });
+    pipelineDoc = await Pipeline.findOne({ _id: body.pipelineId as string, workspaceId });
     if (!pipelineDoc) return bad("Pipeline not found.");
   } else {
     pipelineDoc =
@@ -108,51 +129,72 @@ export const POST = withAuth(async ({ req, session }) => {
       (await ensureDefaultPipeline(workspaceId, userId));
   }
 
-  /* Validate stage against the pipeline's defined stages. */
+  /* Validate stage against the pipeline (plus the extra Buildesk stage vocabulary). */
+  const catalog = await loadStageCatalog(workspaceId, session.userId);
   const stageInput = (body.stage as string) ?? pipelineDoc.stages?.[0]?.key ?? "new";
-  const validStageKeys = new Set((pipelineDoc.stages ?? []).map((s) => s.key));
-  if (!validStageKeys.has(stageInput)) {
-    return bad(
-      `Stage "${stageInput}" is not a valid stage of pipeline "${pipelineDoc.name}".`,
-    );
+  if (!catalog.some((s) => s.key === stageInput)) {
+    return bad(`Stage "${stageInput}" is not a valid stage of pipeline "${pipelineDoc.name}".`);
   }
 
-  /* Generate a friendly lead number */
+  const priority = ["low", "medium", "high", "vip"].includes(body.priority as string)
+    ? (body.priority as string)
+    : "medium";
+
   const yr = new Date().getFullYear();
   const count = await Lead.countDocuments({ workspaceId });
   const leadNumber = `TS-${yr}-${String(count + 1).padStart(5, "0")}`;
 
+  /* A known number coming back in is a "returning" lead. */
+  const existing = await Lead.exists({ workspaceId, "contact.primaryPhone": phone });
+
+  const projectId = oidOrUndef(body.primaryProjectId);
+  const brokerId = oidOrUndef(body.brokerId);
   const lead = await Lead.create({
     workspaceId,
     leadNumber,
     pipelineId: pipelineDoc._id,
     contact: {
-      name: contact.name,
-      firstName: contact.name?.split(" ")[0],
-      lastName: contact.name?.split(" ").slice(1).join(" "),
-      primaryPhone: contact.primaryPhone,
-      email: (contact.email as string | undefined)?.toLowerCase(),
-      whatsappOptIn: contact.whatsappOptIn ?? true,
+      name,
+      firstName: str(contact?.firstName) ?? name.split(" ")[0],
+      lastName: str(contact?.lastName) ?? name.split(" ").slice(1).join(" "),
+      primaryPhone: phone,
+      altPhone: str(contact?.altPhone, 30),
+      email: str(contact?.email)?.toLowerCase(),
+      whatsappOptIn: contact?.whatsappOptIn ?? true,
       emailOptIn: true,
       smsOptIn: true,
       language: "en",
     },
-    primaryProjectId: body.primaryProjectId
-      ? new mongoose.Types.ObjectId(body.primaryProjectId as string)
-      : undefined,
-    interestedProjects: body.primaryProjectId
-      ? [new mongoose.Types.ObjectId(body.primaryProjectId as string)]
-      : [],
-    preferences: body.preferences ?? {},
+    primaryProjectId: projectId,
+    interestedProjects: projectId ? [projectId] : [],
+    preferences: typeof body.preferences === "object" && body.preferences ? body.preferences : {},
     stage: stageInput,
-    priority: (body.priority as string) ?? "medium",
-    source: { primary: (body.source as string) ?? "other", capturedAt: new Date() },
-    description: body.description as string | undefined,
-    tags: (body.tags as string[]) ?? [],
+    priority,
+    source: { primary: str(body.source, 60) ?? "other", capturedAt: new Date() },
+    description: str(body.description, 2000),
+    category: str(body.category, 60),
+    tags: Array.isArray(body.tags) ? (body.tags as unknown[]).filter((t): t is string => typeof t === "string").slice(0, 30) : [],
     score: { value: 0, label: "cold", closeProbability: 0 },
-    assignedTo: body.assignedTo
-      ? new mongoose.Types.ObjectId(body.assignedTo as string)
-      : userId,
+    brokerId,
+    brokerName: undefined,
+    cpTaggedAt: brokerId ? new Date() : undefined,
+    preSalesAgentId: oidOrUndef(body.preSalesAgentId),
+    country: str(body.country, 60),
+    alternateNumbers: Array.isArray(body.alternateNumbers)
+      ? (body.alternateNumbers as unknown[]).filter((t): t is string => typeof t === "string" && !!t.trim()).map((t) => t.trim().slice(0, 30)).slice(0, 10)
+      : [],
+    visitorType: str(body.visitorType, 60),
+    address: str(body.address, 500),
+    dateOfBirth: dateOrUndef(body.dateOfBirth),
+    dateOfAnniversary: dateOrUndef(body.dateOfAnniversary),
+    isRelatedSource: body.isRelatedSource === true,
+    sourcingManagerId: oidOrUndef(body.sourcingManagerId),
+    coOwners: Array.isArray(body.coOwners)
+      ? (body.coOwners as unknown[]).map(oidOrUndef).filter((x): x is mongoose.Types.ObjectId => !!x)
+      : [],
+    createdAt: dateOrUndef(body.date),
+    isReturning: !!existing,
+    assignedTo: oidOrUndef(body.assignedTo) ?? userId,
     assignedAt: new Date(),
     createdBy: userId,
   });
@@ -163,7 +205,7 @@ export const POST = withAuth(async ({ req, session }) => {
     actorId: userId,
     actorType: "user",
     type: "lead_created",
-    description: `Lead ${leadNumber} created — ${lead.contact.name}.`,
+    description: `Lead ${leadNumber} created - ${lead.contact.name}.${existing ? " Returning enquiry (number already on file)." : ""}`,
     occurredAt: new Date(),
   });
 

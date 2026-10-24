@@ -11,8 +11,11 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
-import { ReportShell } from "@/components/reports/ReportShell";
+import { ReportShell, ReportTable } from "@/components/reports/ReportShell";
+import { BdCard, BdKpi } from "@/components/bd";
+import { Users, MapPin, Handshake } from "lucide-react";
 import { useReportFilters } from "@/hooks/useReportFilters";
+import { downloadCsv } from "@/lib/csv";
 import { formatNumber } from "@/lib/utils";
 
 interface DayPoint {
@@ -22,169 +25,94 @@ interface DayPoint {
   conversions: number;
 }
 
+const fmtDay = (d: string) =>
+  new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+
 export default function LeadVolumeReportPage() {
-  const { range, setRange, from, to, onDatesChange, query, ready } = useReportFilters("30d");
+  const f = useReportFilters("30d");
   const [days, setDays] = useState<DayPoint[]>([]);
   const [totals, setTotals] = useState({ leads: 0, visits: 0, conversions: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!f.ready) return;
     setLoading(true);
-    fetch(`/api/reports/lead-volume?${query}`, { cache: "no-store" })
+    let live = true;
+    fetch(`/api/reports/lead-volume?${f.query}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
+        if (!live) return;
         setDays(d.days ?? []);
         setTotals(d.totals ?? { leads: 0, visits: 0, conversions: 0 });
       })
-      .finally(() => setLoading(false));
-  }, [query, ready]);
-
-  const exportCsv = () => {
-    const csv = [
-      "Date,Leads Generated,Visits Done,Conversions",
-      ...days.map((d) => `${d.date},${d.leads},${d.visits},${d.conversions}`),
-    ].join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `lead-volume-${range}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+      .catch(() => undefined)
+      .finally(() => live && setLoading(false));
+    return () => {
+      live = false;
+    };
+  }, [f.query, f.ready]);
 
   return (
     <ReportShell
       title="Lead Volume Report"
       description="Leads generated, visits done and conversions over the selected window."
-      range={range}
-      onRangeChange={setRange}
-      from={from}
-      to={to}
-      onDatesChange={onDatesChange}
-      onExport={exportCsv}
+      range={f.range}
+      onRangeChange={f.setRange}
+      from={f.from}
+      to={f.to}
+      onDatesChange={f.onDatesChange}
+      scope={f.scope}
+      onScopeChange={f.setScope}
+      onReset={f.reset}
+      onExport={() =>
+        downloadCsv(`lead-volume-${f.range}`, [
+          ["Date", "Leads Generated", "Visits Done", "Conversions"],
+          ...days.map((d) => [d.date, d.leads, d.visits, d.conversions]),
+          ["Total", totals.leads, totals.visits, totals.conversions],
+        ])
+      }
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Tile label="Leads Generated" value={totals.leads} tone="emerald" />
-        <Tile label="Visits Done" value={totals.visits} tone="sky" />
-        <Tile label="Conversions" value={totals.conversions} tone="amber" />
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <BdKpi label="Leads Generated" value={formatNumber(totals.leads)} icon={Users} tone="violet" />
+        <BdKpi label="Visits Done" value={formatNumber(totals.visits)} icon={MapPin} tone="blue" />
+        <BdKpi label="Conversions" value={formatNumber(totals.conversions)} icon={Handshake} tone="green" />
       </div>
 
-      <div className="mt-6 rounded-xl border border-slate-200/70 bg-white p-4">
+      <BdCard title="Lead Volume">
         {loading ? (
-          <div className="h-72 animate-pulse rounded-lg bg-slate-100" />
+          <div className="h-72 animate-pulse rounded bg-[#f0f2f8]" />
         ) : days.length === 0 ? (
-          <div className="flex h-72 items-center justify-center text-[13px] text-slate-500">
-            No data for this window.
-          </div>
+          <div className="flex h-72 items-center justify-center text-[13px] text-[#8b90a0]">No data for this window.</div>
         ) : (
           <div className="h-72 w-full">
             <ResponsiveContainer>
               <AreaChart data={days} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="leads" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="visits" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="conv" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                  <linearGradient id="lv-leads" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#5471e4" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#5471e4" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(d) =>
-                    new Date(d).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                    })
-                  }
-                  fontSize={11}
-                  stroke="#64748b"
-                />
-                <YAxis fontSize={11} stroke="#64748b" allowDecimals={false} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0",
-                    fontSize: 12,
-                  }}
-                  labelFormatter={(d) =>
-                    new Date(d).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })
-                  }
-                />
+                <CartesianGrid strokeDasharray="2 3" stroke="#dfe3ee" />
+                <XAxis dataKey="date" tickFormatter={fmtDay} fontSize={11} stroke="#8b90a0" />
+                <YAxis fontSize={11} stroke="#8b90a0" allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 3, border: "1px solid #e6e9f2", fontSize: 12 }} labelFormatter={(d) => fmtDay(String(d))} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area
-                  type="monotone"
-                  dataKey="leads"
-                  name="Leads Generated"
-                  stroke="#10b981"
-                  fill="url(#leads)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="visits"
-                  name="Visits Done"
-                  stroke="#0ea5e9"
-                  fill="url(#visits)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="conversions"
-                  name="Conversions"
-                  stroke="#f59e0b"
-                  fill="url(#conv)"
-                  strokeWidth={2}
-                />
+                <Area type="monotone" dataKey="leads" name="Leads Generated" stroke="#5471e4" fill="url(#lv-leads)" strokeWidth={2} />
+                <Area type="monotone" dataKey="visits" name="Visits Done" stroke="#37b24d" fill="none" strokeWidth={2} />
+                <Area type="monotone" dataKey="conversions" name="Conversions" stroke="#f39a3d" fill="none" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         )}
-      </div>
-    </ReportShell>
-  );
-}
+      </BdCard>
 
-function Tile({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: number;
-  tone: "emerald" | "sky" | "amber";
-}) {
-  const text =
-    tone === "emerald"
-      ? "text-emerald-700"
-      : tone === "sky"
-        ? "text-sky-700"
-        : "text-amber-700";
-  const bg =
-    tone === "emerald"
-      ? "bg-emerald-50"
-      : tone === "sky"
-        ? "bg-sky-50"
-        : "bg-amber-50";
-  return (
-    <div className={`rounded-xl border border-slate-200/70 ${bg} px-5 py-4`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
-        {label}
-      </p>
-      <p className={`mt-1 text-[24px] font-bold tabular-nums ${text}`}>
-        {formatNumber(value)}
-      </p>
-    </div>
+      <ReportTable
+        loading={loading}
+        columns={["Date", "Leads Generated", "Visits Done", "Conversions"]}
+        rows={[...days].reverse().map((d) => [d.date, d.leads, d.visits, d.conversions])}
+        totalRow={["Total", totals.leads, totals.visits, totals.conversions]}
+      />
+    </ReportShell>
   );
 }

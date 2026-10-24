@@ -9,6 +9,17 @@ const BrokerSchema = new Schema(
     phone: { type: String, required: true, trim: true, index: true },
     altPhone: String,
 
+    /** Sequential numeric Channel Partner id (Buildesk "CP ID"). */
+    cpId: { type: Number, index: true },
+    /** Parent Channel Partner Company (see CpCompany). */
+    companyId: { type: Schema.Types.ObjectId, ref: "CpCompany", index: true },
+    /** Sourcing manager (internal user who owns this CP relationship). */
+    sourcingManagerId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    assignedAt: Date,
+    /** CRM stage of the partner, e.g. Open. */
+    stage: { type: String, default: "Open", trim: true, index: true },
+    lastContactedAt: Date,
+
     cpCode: { type: String, index: true },                    // Channel Partner code (your internal code)
     rmId: { type: Schema.Types.ObjectId, ref: "User" },       // Relationship Manager (internal)
     rmName: String,
@@ -70,6 +81,9 @@ BrokerSchema.index({ workspaceId: 1, phone: 1 }, { unique: true });
 BrokerSchema.index({ workspaceId: 1, name: "text", firmName: "text" });
 
 export type BrokerDoc = InferSchemaType<typeof BrokerSchema> & { _id: mongoose.Types.ObjectId };
+
+// Dev only: drop a stale cached model so schema edits apply after hot reload.
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Broker;
 
 const Broker = (mongoose.models.Broker as Model<BrokerDoc>) || mongoose.model<BrokerDoc>("Broker", BrokerSchema);
 

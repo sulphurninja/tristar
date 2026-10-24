@@ -1,5 +1,8 @@
 import mongoose from "mongoose";
-import Lead, { LEAD_STAGES } from "@/models/Lead";
+import Lead from "@/models/Lead";
+import User from "@/models/User";
+import Project from "@/models/Project";
+import { loadStageCatalog } from "@/lib/lead-stages";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok, bad } from "@/lib/api";
 
@@ -58,6 +61,12 @@ function parseCsv(text: string): Array<Record<string, string>> {
   return out;
 }
 
+/** Valid stage keys for the current request (loaded from the pipeline in POST). */
+const STAGE_MAP = new Map<string, string>();
+/** lower-cased id / e-mail / name -> user id, and id / code / name -> project id. */
+const USER_MAP = new Map<string, mongoose.Types.ObjectId>();
+const PROJECT_MAP = new Map<string, mongoose.Types.ObjectId>();
+
 /* Headers we know how to apply directly to a Lead document. */
 const APPLY_FIELDS: Array<{
   header: string;
@@ -66,10 +75,11 @@ const APPLY_FIELDS: Array<{
   {
     header: "stage",
     apply: (lead, v) => {
-      if ((LEAD_STAGES as readonly string[]).includes(v)) {
-        lead.stage = v;
-        if (v === "booked") lead.isBooked = true;
-        if (v === "hot") lead.isHot = true;
+      const key = STAGE_MAP.get(v.toLowerCase());
+      if (key) {
+        lead.stage = key;
+        lead.isBooked = key === "booked";
+        lead.isHot = key === "hot";
       }
     },
   },
@@ -80,6 +90,35 @@ const APPLY_FIELDS: Array<{
     },
   },
   { header: "description", apply: (lead, v) => (lead.description = v) },
+  { header: "category", apply: (lead, v) => (lead.category = v) },
+  { header: "stageReason", apply: (lead, v) => (lead.stageReason = v) },
+  {
+    header: "source",
+    apply: (lead, v) => {
+      lead.source = { ...((lead.source as object) ?? {}), primary: v.toLowerCase().replace(/[^a-z0-9]+/g, "_") };
+    },
+  },
+  {
+    header: "assignedTo",
+    apply: (lead, v) => {
+      const id = USER_MAP.get(v.toLowerCase());
+      if (id && String(lead.assignedTo ?? "") !== String(id)) {
+        lead.assignedTo = id;
+        lead.assignedAt = new Date();
+      }
+    },
+  },
+  {
+    header: "primaryProjectId",
+    apply: (lead, v) => {
+      const id = PROJECT_MAP.get(v.toLowerCase());
+      if (id) {
+        lead.primaryProjectId = id;
+        const list = ((lead.interestedProjects as mongoose.Types.ObjectId[]) ?? []).map(String);
+        if (!list.includes(String(id))) lead.interestedProjects = [...((lead.interestedProjects as mongoose.Types.ObjectId[]) ?? []), id];
+      }
+    },
+  },
   {
     header: "tags",
     apply: (lead, v) => {
@@ -143,7 +182,27 @@ export const POST = withAuth(async ({ req, session }) => {
     return bad("CSV body is required.");
   }
 
+  const catalog = await loadStageCatalog(new mongoose.Types.ObjectId(session.workspaceId), session.userId);
+  STAGE_MAP.clear();
+  for (const s of catalog) {
+    STAGE_MAP.set(s.key.toLowerCase(), s.key);
+    STAGE_MAP.set(s.label.toLowerCase(), s.key);
+  }
+  const wsId = new mongoose.Types.ObjectId(session.workspaceId);
+  USER_MAP.clear();
+  for (const u of await User.find({ workspaceId: wsId }).select("name email").lean()) {
+    USER_MAP.set(String(u._id).toLowerCase(), u._id);
+    USER_MAP.set(u.email.toLowerCase(), u._id);
+    USER_MAP.set(u.name.toLowerCase(), u._id);
+  }
+  PROJECT_MAP.clear();
+  for (const p of await Project.find({ workspaceId: wsId }).select("name code").lean()) {
+    PROJECT_MAP.set(String(p._id).toLowerCase(), p._id);
+    PROJECT_MAP.set(p.name.toLowerCase(), p._id);
+    PROJECT_MAP.set(p.code.toLowerCase(), p._id);
+  }
   const rows = parseCsv(body.csv);
+  if (rows.length > 5000) return bad("Maximum 5,000 rows per upload.");
   if (rows.length === 0) return bad("CSV is empty.");
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);

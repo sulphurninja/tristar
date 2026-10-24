@@ -4,7 +4,8 @@ const PaymentSchema = new Schema(
   {
     workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", required: true, index: true },
     bookingId: { type: Schema.Types.ObjectId, ref: "Booking", index: true },
-    type: { type: String, default: "receipt" },
+    receiptNumber: { type: String, index: true },
+    type: { type: String, enum: ["receipt", "refund"], default: "receipt" },
     paymentFor: String,
     date: { type: Date, default: Date.now, index: true },
     customerName: String,
@@ -30,6 +31,8 @@ PaymentSchema.index({ workspaceId: 1, date: -1 });
 export type PaymentDoc = InferSchemaType<typeof PaymentSchema> & {
   _id: mongoose.Types.ObjectId;
 };
+
+if (process.env.NODE_ENV !== "production") delete mongoose.models.Payment;
 
 const Payment =
   (mongoose.models.Payment as Model<PaymentDoc>) ||

@@ -52,11 +52,11 @@ export async function POST(req: Request) {
 
     workspace.compliance = {
       ...(workspace.compliance ?? {}),
-      reraNumber: d.reraNumber || workspace.compliance?.reraNumber,
-      gstNumber: d.gstNumber || workspace.compliance?.gstNumber,
-      companyName: d.companyName || workspace.compliance?.companyName,
-      city: d.city || workspace.compliance?.city,
-      state: d.state || workspace.compliance?.state,
+      reraNumber: d.reraNumber !== undefined ? d.reraNumber.trim() : workspace.compliance?.reraNumber,
+      gstNumber: d.gstNumber !== undefined ? d.gstNumber.trim() : workspace.compliance?.gstNumber,
+      companyName: d.companyName !== undefined ? d.companyName.trim() : workspace.compliance?.companyName,
+      city: d.city !== undefined ? d.city.trim() : workspace.compliance?.city,
+      state: d.state !== undefined ? d.state.trim() : workspace.compliance?.state,
     };
 
     workspace.onboardingCompleted = true;

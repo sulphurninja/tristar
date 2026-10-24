@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import { withAuth, ok } from "@/lib/api";
-import { boundsFromSearchParams } from "@/lib/report-utils";
+import { boundsFromSearchParams, scopeIds, scopeMatch } from "@/lib/report-utils";
 
 const SOURCE_LABEL: Record<string, string> = {
   walkin: "Walkin",
@@ -34,11 +34,13 @@ export const GET = withAuth(async ({ req, session }) => {
   cutoff.setDate(cutoff.getDate() - 30);
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
+  const scope = await scopeIds(url, workspaceId);
 
   const agg = await Lead.aggregate<{ _id: string; count: number }>([
     {
       $match: {
         workspaceId,
+          ...scopeMatch(scope),
         isBooked: { $ne: true },
         createdAt: { $lte: asOf },
         $or: [

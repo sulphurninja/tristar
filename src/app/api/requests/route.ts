@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import RequestModel, { REQUEST_TYPES, type RequestType } from "@/models/Request";
 import { withAuth, ok, bad } from "@/lib/api";
+import { hasRole, type Role } from "@/lib/auth";
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
@@ -8,6 +9,11 @@ export const GET = withAuth(async ({ req, session }) => {
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const filter: Record<string, unknown> = { workspaceId };
+  /* Only managers and above see everyone's requests. */
+  if (!hasRole(session.role as Role, "manager")) {
+    const me = new mongoose.Types.ObjectId(session.userId);
+    filter.$or = [{ raisedBy: me }, { assignedTo: me }];
+  }
   if (status !== "all") filter.status = status;
 
   const items = await RequestModel.find(filter)
@@ -29,6 +35,8 @@ export const POST = withAuth(async ({ req, session }) => {
 
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const userId = new mongoose.Types.ObjectId(session.userId);
+  const oid = (v: unknown) =>
+    typeof v === "string" && mongoose.isValidObjectId(v) ? new mongoose.Types.ObjectId(v) : undefined;
 
   const created = await RequestModel.create({
     workspaceId,
@@ -36,15 +44,9 @@ export const POST = withAuth(async ({ req, session }) => {
     title,
     description: typeof body.description === "string" ? body.description : undefined,
     raisedBy: userId,
-    assignedTo: typeof body.assignedTo === "string"
-      ? new mongoose.Types.ObjectId(body.assignedTo)
-      : undefined,
-    leadId: typeof body.leadId === "string"
-      ? new mongoose.Types.ObjectId(body.leadId)
-      : undefined,
-    projectId: typeof body.projectId === "string"
-      ? new mongoose.Types.ObjectId(body.projectId)
-      : undefined,
+    assignedTo: oid(body.assignedTo),
+    leadId: oid(body.leadId),
+    projectId: oid(body.projectId),
     payload: body.payload,
     status: "pending",
   });

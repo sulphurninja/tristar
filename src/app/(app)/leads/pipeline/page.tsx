@@ -33,7 +33,8 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { NewLeadSheet } from "@/components/leads/NewLeadSheet";
-import { LeadDetailSheet } from "@/components/leads/LeadDetailSheet";
+import { LeadDrawer } from "@/components/leads/drawer/LeadDrawer";
+import { BdButton, BdSelect } from "@/components/bd";
 import { cn, formatPhone } from "@/lib/utils";
 import { stageAccent, type StageColorKey } from "@/lib/stage-colors";
 
@@ -120,6 +121,7 @@ export default function PipelinePage() {
   const [pipelineLoading, setPipelineLoading] = useState(true);
 
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [totalAll, setTotalAll] = useState(0);
   const [projects, setProjects] = useState<ProjectLite[]>([]);
   const [users, setUsers] = useState<UserLite[]>([]);
   const [loading, setLoading] = useState(false);
@@ -174,6 +176,7 @@ export default function PipelinePage() {
     if (assignedTo !== "all") u.set("assignedTo", assignedTo);
     if (priority !== "all") u.set("priority", priority);
     u.set("limit", "500");
+    u.set("view", "all");
     return u.toString();
   }, [q, pipelineId, projectFilter, assignedTo, priority]);
 
@@ -182,7 +185,10 @@ export default function PipelinePage() {
     setLoading(true);
     fetch(`/api/leads?${params}`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setLeads(d.leads ?? []))
+      .then((d) => {
+        setLeads(d.leads ?? []);
+        setTotalAll(d.total ?? 0);
+      })
       .finally(() => setLoading(false));
   }, [params, pipelineId]);
 
@@ -286,143 +292,67 @@ export default function PipelinePage() {
   const winRate = total > 0 ? Math.round((wonLeads / total) * 100) : 0;
 
   return (
-    <div className="flex flex-1 flex-col bg-slate-50/40">
+    <div className="flex min-h-full flex-1 flex-col bg-[#f4f6fb]">
       {/* Toolbar */}
-      <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-slate-200/70 bg-white px-7 py-4 lg:px-10">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Pipeline picker */}
+      <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-[#e3e6ef] bg-white px-5 py-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
-            <Select
+            <BdSelect
+              className="w-[280px]"
+              clearable={false}
               value={pipelineId}
-              onValueChange={(v) => {
+              onChange={(v) => {
                 setPipelineId(v);
                 setLeads([]);
               }}
-            >
-              <SelectTrigger className="h-10 w-64 font-semibold">
-                <SelectValue placeholder="Select pipeline" />
-              </SelectTrigger>
-              <SelectContent>
-                {pipelines.map((p) => (
-                  <SelectItem key={p._id} value={p._id}>
-                    <span className="flex items-center gap-2">
-                      <span className={cn("size-2 rounded-full", `bg-${p.accent}-500`)} />
-                      {p.name}
-                      {p.isDefault ? (
-                        <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-700">
-                          Default
-                        </span>
-                      ) : null}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              asChild
-              variant="outline"
-              size="icon"
-              className="h-10 w-10"
+              options={pipelines.map((p) => ({ value: p._id, label: p.isDefault ? `${p.name} (Default)` : p.name }))}
+            />
+            <Link
+              href={`/settings/pipelines/${activePipeline._id}`}
               title="Manage pipelines"
+              aria-label="Manage pipelines"
+              className="bd-btn-light inline-flex size-[38px] items-center justify-center !p-0"
             >
-              <Link href={`/settings/pipelines/${activePipeline._id}`}>
-                <SettingsIcon className="size-4" strokeWidth={1.75} />
-              </Link>
-            </Button>
+              <SettingsIcon className="size-4" strokeWidth={1.75} />
+            </Link>
           </div>
 
-          <div className="hidden h-7 w-px bg-slate-200 lg:block" />
-
-          {/* KPIs */}
-          <div className="flex items-center gap-4 text-[12px]">
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-900 tabular-nums">{total}</span>
-              <span className="text-slate-500">leads</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-emerald-700 tabular-nums">
-                {wonLeads}
-              </span>
-              <span className="text-slate-500">won</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-rose-700 tabular-nums">{lostLeads}</span>
-              <span className="text-slate-500">lost</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-900 tabular-nums">
-                {winRate}%
-              </span>
-              <span className="text-slate-500">win rate</span>
-            </div>
+          <div className="flex items-center gap-5 text-[13px]">
+            <span><b className="text-[16px] tabular-nums">{total}</b> <span className="text-[#6b7186]">leads{totalAll > total ? ` (latest ${total} of ${totalAll.toLocaleString("en-IN")})` : ""}</span></span>
+            <span><b className="text-[16px] tabular-nums text-[#2f8f5f]">{wonLeads}</b> <span className="text-[#6b7186]">won</span></span>
+            <span><b className="text-[16px] tabular-nums text-[#d9453f]">{lostLeads}</b> <span className="text-[#6b7186]">lost</span></span>
+            <span><b className="text-[16px] tabular-nums">{winRate}%</b> <span className="text-[#6b7186]">win rate</span></span>
           </div>
         </div>
 
-        {/* Filters */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative w-full max-w-sm">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400"
-              strokeWidth={1.75}
-            />
-            <Input
+          <div className="flex">
+            <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by name, enquiry no., email or phone…"
-              className="h-10 rounded-lg pl-10"
+              placeholder="Search"
+              className="bd-input !w-[260px] rounded-r-none"
             />
+            <span className="flex w-10 items-center justify-center bg-[#8da3dc] text-white">
+              <Search className="size-4" />
+            </span>
           </div>
-
-          <Select value={projectFilter} onValueChange={setProjectFilter}>
-            <SelectTrigger className="h-10 w-44">
-              <SelectValue placeholder="Project" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projects.map((p) => (
-                <SelectItem key={p._id} value={p._id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={assignedTo} onValueChange={setAssignedTo}>
-            <SelectTrigger className="h-10 w-40">
-              <SelectValue placeholder="Assignee" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All users</SelectItem>
-              {users.map((u) => (
-                <SelectItem key={u._id} value={u._id}>
-                  {u.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={priority} onValueChange={setPriority}>
-            <SelectTrigger className="h-10 w-32">
-              <SelectValue placeholder="Priority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All priorities</SelectItem>
-              <SelectItem value="vip">VIP</SelectItem>
-              <SelectItem value="high">High</SelectItem>
-              <SelectItem value="medium">Medium</SelectItem>
-              <SelectItem value="low">Low</SelectItem>
-            </SelectContent>
-          </Select>
+          <BdSelect className="w-[200px]" value={projectFilter === "all" ? "" : projectFilter} onChange={(v) => setProjectFilter(v || "all")} placeholder="Select Project" options={projects.map((p) => ({ value: p._id, label: p.name }))} />
+          <BdSelect className="w-[200px]" value={assignedTo === "all" ? "" : assignedTo} onChange={(v) => setAssignedTo(v || "all")} placeholder="Select Sales Agent" options={users.map((u) => ({ value: u._id, label: u.name }))} />
+          <BdSelect
+            className="w-[160px]"
+            value={priority === "all" ? "" : priority}
+            onChange={(v) => setPriority(v || "all")}
+            placeholder="Priority"
+            options={[{ value: "vip", label: "VIP" }, { value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }]}
+          />
 
           <div className="ml-auto flex items-center gap-2">
-            <Button asChild variant="outline" className="h-10 gap-1.5 rounded-lg">
-              <Link href="/leads">
-                <ListChecks className="size-4" strokeWidth={1.75} /> List view
-              </Link>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-10 gap-1.5 rounded-lg"
+            <Link href="/leads" className="bd-btn-light inline-flex items-center gap-1.5">
+              <ListChecks className="size-4" strokeWidth={1.75} /> List view
+            </Link>
+            <BdButton
+              variant="light"
               onClick={() => {
                 setQ("");
                 setProjectFilter("all");
@@ -431,10 +361,10 @@ export default function PipelinePage() {
               }}
             >
               <Filter className="size-4" strokeWidth={1.75} /> Reset
-            </Button>
-            <Button onClick={() => setOpenNew(true)} className="h-10 gap-1.5 rounded-lg">
-              <Plus className="size-4" strokeWidth={2} /> New lead
-            </Button>
+            </BdButton>
+            <BdButton onClick={() => setOpenNew(true)}>
+              <Plus className="size-4" strokeWidth={2} /> Add Lead
+            </BdButton>
           </div>
         </div>
       </div>
@@ -448,7 +378,7 @@ export default function PipelinePage() {
 
       {/* Kanban board */}
       <div className="flex-1 overflow-x-auto">
-        <div className="inline-flex min-w-max items-start gap-3 px-7 py-5 lg:px-10">
+        <div className="inline-flex min-w-max items-start gap-3 px-5 py-5">
           {orderedStages.map((stage) => {
             const colLeads = byStage[stage.key] ?? [];
             const colorTokens = stageAccent(stage.color as StageColorKey);
@@ -506,12 +436,16 @@ export default function PipelinePage() {
         onCreated={load}
         defaultPipelineId={pipelineId}
       />
-      <LeadDetailSheet
+      <LeadDrawer
         leadId={activeId}
-        leadIds={leads.map((l) => l._id)}
-        onLeadChange={setActiveId}
-        onOpenChange={(v) => !v && setActiveId(null)}
+        ids={leads.map((l) => l._id)}
+        onNavigate={setActiveId}
+        onClose={() => setActiveId(null)}
         onChanged={load}
+        onDeleted={() => {
+          setActiveId(null);
+          load();
+        }}
       />
     </div>
   );
@@ -547,7 +481,7 @@ function ColumnCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={cn(
-        "flex w-[300px] shrink-0 flex-col rounded-2xl border bg-white/90 shadow-xs backdrop-blur transition-all duration-150",
+        "flex w-[300px] shrink-0 flex-col rounded-[3px] border bg-white shadow-[0_1px_4px_rgba(30,50,110,0.06)] transition-all duration-150",
         isHover
           ? "border-emerald-300 bg-emerald-50/40 shadow-[0_0_0_3px_rgba(16,185,129,0.08)]"
           : "border-slate-200/70 hover:border-slate-300/70",
@@ -612,7 +546,7 @@ function LeadCard({
   onDragEnd: React.DragEventHandler<HTMLDivElement>;
 }) {
   const sourceKey = lead.source?.primary ?? "other";
-  const sourceLabel = SOURCE_LABEL[sourceKey] ?? "Source";
+  const sourceLabel = SOURCE_LABEL[sourceKey] ?? sourceKey.replace(/[_-]/g, " ").replace(/^./, (c) => c.toUpperCase());
 
   return (
     <div

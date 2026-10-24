@@ -1,228 +1,230 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { PageShell, PageBody, Section } from "@/components/shared/PageShell";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
-import { StatusPill } from "@/components/shared/StatusPill";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { AddCampaignDialog } from "@/components/campaigns/AddCampaignDialog";
+  BdPage,
+  BdCard,
+  BdStatCard,
+  BdField,
+  BdSelect,
+  BdButton,
+  BdTable,
+  BdTh,
+  BdTd,
+  BdEmptyRow,
+  BdTableToolbar,
+  BdBadge,
+} from "@/components/bd";
+import { BdKebab, BdRowActions, BdConfirm } from "@/components/bd/BdOverlays";
+import { CampaignFormDialog, CHANNELS, CAMPAIGN_STATUSES, type CampaignEditable } from "@/components/campaigns/CampaignFormDialog";
+import { toCsv, downloadCsv } from "@/lib/bd-csv";
 import { formatCurrency } from "@/lib/utils";
 
-interface CampaignRow {
-  _id: string;
-  name?: string;
-  channel?: string;
-  status?: string;
-  utmSource?: string;
-  utmMedium?: string;
-  utmCampaign?: string;
-  budget?: number;
-  startDate?: string;
-  endDate?: string;
+interface CampaignRow extends CampaignEditable {
+  leads?: number;
+  bookings?: number;
 }
 
-export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
-  const [channel, setChannel] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [openAdd, setOpenAdd] = useState(false);
+const STATUS_COLOR: Record<string, string> = { draft: "#8b90a0", active: "#37a46b", paused: "#e9a13a", completed: "#3a5dc2" };
+const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-");
+const label = (list: Array<{ value: string; label: string }>, v?: string) => list.find((x) => x.value === v)?.label ?? v ?? "-";
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+function CampaignsInner() {
+  const sp = useSearchParams();
+  const [draft, setDraft] = useState({ channel: "", status: "", q: "" });
+  const [applied, setApplied] = useState({ channel: "", status: "", q: "" });
+  const [rows, setRows] = useState<CampaignRow[]>([]);
+  const [summary, setSummary] = useState({ active: 0, paused: 0, completed: 0, draft: 0, budget: 0 });
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [tableQ, setTableQ] = useState("");
+  const [formOpen, setFormOpen] = useState(sp.get("new") === "1");
+  const [editing, setEditing] = useState<CampaignRow | null>(null);
+  const [del, setDel] = useState<CampaignRow | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
     const u = new URLSearchParams();
+    if (applied.channel) u.set("channel", applied.channel);
+    if (applied.status) u.set("status", applied.status);
+    const q = [applied.q, tableQ].filter(Boolean).join(" ").trim();
     if (q) u.set("q", q);
-    if (status !== "all") u.set("status", status);
-    if (channel !== "all") u.set("channel", channel);
     fetch(`/api/campaigns?${u}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        setCampaigns(d.campaigns ?? []);
-        setTotal(d.total ?? (d.campaigns?.length ?? 0));
+        setRows(d.campaigns ?? []);
+        if (d.summary) setSummary(d.summary);
       })
+      .catch(() => toast.error("Could not load campaigns"))
       .finally(() => setLoading(false));
-  }, [q, status, channel]);
+  }, [applied, tableQ]);
 
   useEffect(() => {
-    const t = setTimeout(load, 200);
+    const t = setTimeout(load, 250);
     return () => clearTimeout(t);
   }, [load]);
+  useEffect(() => setPage(1), [applied, tableQ, pageSize]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, status, channel, pageSize]);
+  const setStatus = async (c: CampaignRow, status: string) => {
+    const res = await fetch(`/api/campaigns/${c._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) return toast.error("Could not change status");
+    toast.success(`Campaign marked ${status}`);
+    load();
+  };
 
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return campaigns.slice(start, start + pageSize);
-  }, [campaigns, page, pageSize]);
+  const remove = async () => {
+    if (!del) return;
+    const res = await fetch(`/api/campaigns/${del._id}`, { method: "DELETE" });
+    if (!res.ok) return toast.error("Could not delete campaign");
+    toast.success("Campaign deleted");
+    setDel(null);
+    load();
+  };
 
-  function formatUtm(c: CampaignRow) {
-    const parts = [c.utmSource, c.utmMedium, c.utmCampaign].filter(Boolean);
-    return parts.length ? parts.join(" / ") : "—";
-  }
+  const exportCsv = () => {
+    downloadCsv(
+      "campaigns.csv",
+      toCsv(
+        ["Campaign", "Channel", "Status", "UTM Source", "UTM Medium", "UTM Campaign", "Budget", "Start", "End", "Leads", "Bookings", "Cost Per Lead"],
+        rows.map((c) => [c.name, label(CHANNELS, c.channel), label(CAMPAIGN_STATUSES, c.status), c.utmSource ?? "", c.utmMedium ?? "", c.utmCampaign ?? "", c.budget ?? "", fmt(c.startDate), fmt(c.endDate), c.leads ?? 0, c.bookings ?? 0, c.budget && c.leads ? Math.round(c.budget / c.leads) : ""]),
+      ),
+    );
+    toast.success(`Exported ${rows.length} campaigns`);
+  };
 
-  function formatDates(c: CampaignRow) {
-    const start = c.startDate
-      ? new Date(c.startDate).toLocaleDateString("en-IN", { dateStyle: "medium" })
-      : null;
-    const end = c.endDate
-      ? new Date(c.endDate).toLocaleDateString("en-IN", { dateStyle: "medium" })
-      : null;
-    if (!start && !end) return "—";
-    return `${start ?? "…"} – ${end ?? "…"}`;
-  }
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const pageRows = rows.slice((page - 1) * pageSize, page * pageSize);
+  const toggleStat = (status: string) => {
+    const next = applied.status === status ? "" : status;
+    setDraft((d) => ({ ...d, status: next }));
+    setApplied((a) => ({ ...a, status: next }));
+  };
 
   return (
-    <PageShell>
-      <PageBody>
-        <Section>
-          <FilterBar
-            actions={
-              <>
-                <Button size="sm" variant="outline" onClick={load}>
-                  Search
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setQ("");
-                    setStatus("all");
-                    setChannel("all");
-                  }}
-                >
-                  Clear
-                </Button>
-                <Button size="sm" className="h-9 gap-1" onClick={() => setOpenAdd(true)}>
-                  <Plus className="size-3.5" />
-                  Add campaign
-                </Button>
-              </>
-            }
+    <BdPage>
+      <BdCard title="Campaigns">
+        <div className="grid gap-4 md:grid-cols-3">
+          <BdField label="Channel">
+            <BdSelect placeholder="Select Channel" value={draft.channel} onChange={(v) => setDraft((d) => ({ ...d, channel: v }))} options={CHANNELS} />
+          </BdField>
+          <BdField label="Status">
+            <BdSelect placeholder="Select Status" value={draft.status} onChange={(v) => setDraft((d) => ({ ...d, status: v }))} options={CAMPAIGN_STATUSES} />
+          </BdField>
+          <BdField label="Search">
+            <input className="bd-input" placeholder="Campaign name" value={draft.q} onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && setApplied(draft)} />
+          </BdField>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <BdButton onClick={() => setApplied(draft)}>Search</BdButton>
+          <BdButton
+            variant="light"
+            onClick={() => {
+              const e = { channel: "", status: "", q: "" };
+              setDraft(e);
+              setApplied(e);
+              setTableQ("");
+            }}
           >
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search campaigns…"
-              className="h-9 w-56"
-            />
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-9 w-36">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="paused">Paused</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={channel} onValueChange={setChannel}>
-              <SelectTrigger className="h-9 w-36">
-                <SelectValue placeholder="Channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All channels</SelectItem>
-                <SelectItem value="facebook">Facebook</SelectItem>
-                <SelectItem value="instagram">Instagram</SelectItem>
-                <SelectItem value="google">Google</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </FilterBar>
-        </Section>
+            Clear
+          </BdButton>
+          <BdButton
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="size-3.5" /> Add Campaign
+          </BdButton>
+        </div>
+      </BdCard>
 
-        <DataTableShell
-          title="Campaigns"
-          count={total}
-          search={q}
-          onSearchChange={setQ}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          {loading ? (
-            <div className="h-40 animate-pulse bg-slate-50" />
-          ) : pageRows.length === 0 ? (
-            <EmptyState
-              title="No campaigns found"
-              description="Create a campaign to get started."
-              action={
-                <Button onClick={() => setOpenAdd(true)} className="gap-1.5">
-                  <Plus className="size-4" />
-                  Add campaign
-                </Button>
-              }
-            />
-          ) : (
-            <TableRoot>
-              <thead>
-                <tr>
-                  <Th>Name</Th>
-                  <Th>Channel</Th>
-                  <Th>Status</Th>
-                  <Th>UTM</Th>
-                  <Th>Budget</Th>
-                  <Th>Dates</Th>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <BdStatCard title="Active" value={summary.active} caption="Campaigns running now" active={applied.status === "active"} onClick={() => toggleStat("active")} />
+        <BdStatCard title="Paused" value={summary.paused} caption="Campaigns on hold" active={applied.status === "paused"} onClick={() => toggleStat("paused")} />
+        <BdStatCard title="Completed" value={summary.completed} caption="Finished campaigns" active={applied.status === "completed"} onClick={() => toggleStat("completed")} />
+        <BdStatCard title="Total Budget" value={formatCurrency(summary.budget)} caption="Across all campaigns" />
+      </div>
+
+      <BdCard title={`Campaigns (${rows.length})`} actions={<BdKebab items={[{ label: "Export CSV", onSelect: exportCsv }, { label: "Refresh", onSelect: load }]} />}>
+        <BdTableToolbar page={page} totalPages={totalPages} onPage={setPage} search={tableQ} onSearch={setTableQ} pageSize={pageSize} onPageSize={setPageSize} />
+        <BdTable minWidth={1300}>
+          <thead>
+            <tr>
+              <BdTh>SR. NO.</BdTh>
+              <BdTh>CAMPAIGN</BdTh>
+              <BdTh>CHANNEL</BdTh>
+              <BdTh>STATUS</BdTh>
+              <BdTh>UTM SOURCE</BdTh>
+              <BdTh>UTM MEDIUM</BdTh>
+              <BdTh>UTM CAMPAIGN</BdTh>
+              <BdTh>BUDGET</BdTh>
+              <BdTh>START DATE</BdTh>
+              <BdTh>END DATE</BdTh>
+              <BdTh>LEADS</BdTh>
+              <BdTh>BOOKINGS</BdTh>
+              <BdTh>COST / LEAD</BdTh>
+              <BdTh>ACTION</BdTh>
+            </tr>
+          </thead>
+          <tbody>
+            {pageRows.length === 0 ? (
+              <BdEmptyRow colSpan={14} loading={loading} />
+            ) : (
+              pageRows.map((c, i) => (
+                <tr key={c._id}>
+                  <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
+                  <BdTd className="font-medium">{c.name}</BdTd>
+                  <BdTd>{label(CHANNELS, c.channel)}</BdTd>
+                  <BdTd>
+                    <BdBadge color={STATUS_COLOR[c.status ?? "draft"]}>{label(CAMPAIGN_STATUSES, c.status).toUpperCase()}</BdBadge>
+                  </BdTd>
+                  <BdTd>{c.utmSource ?? "-"}</BdTd>
+                  <BdTd>{c.utmMedium ?? "-"}</BdTd>
+                  <BdTd>{c.utmCampaign ?? "-"}</BdTd>
+                  <BdTd className="whitespace-nowrap">{c.budget != null ? formatCurrency(c.budget) : "-"}</BdTd>
+                  <BdTd className="whitespace-nowrap">{fmt(c.startDate)}</BdTd>
+                  <BdTd className="whitespace-nowrap">{fmt(c.endDate)}</BdTd>
+                  <BdTd>{c.leads ?? 0}</BdTd>
+                  <BdTd>{c.bookings ?? 0}</BdTd>
+                  <BdTd className="whitespace-nowrap">{c.budget && c.leads ? formatCurrency(Math.round(c.budget / c.leads)) : "-"}</BdTd>
+                  <BdTd>
+                    <BdRowActions
+                      items={[
+                        { label: "Edit", onSelect: () => { setEditing(c); setFormOpen(true); } },
+                        { label: "Mark Active", hidden: c.status === "active", onSelect: () => setStatus(c, "active") },
+                        { label: "Pause", hidden: c.status !== "active", onSelect: () => setStatus(c, "paused") },
+                        { label: "Mark Completed", hidden: c.status === "completed", onSelect: () => setStatus(c, "completed") },
+                        { label: "Delete", danger: true, onSelect: () => setDel(c) },
+                      ]}
+                    />
+                  </BdTd>
                 </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((c) => (
-                  <tr key={c._id} className="hover:bg-slate-50/80">
-                    <Td className="font-medium text-emerald-700">{c.name ?? "—"}</Td>
-                    <Td className="capitalize">{(c.channel ?? "—").replace(/_/g, " ")}</Td>
-                    <Td>
-                      <StatusPill
-                        tone={
-                          c.status === "active"
-                            ? "success"
-                            : c.status === "paused"
-                              ? "warning"
-                              : "neutral"
-                        }
-                      >
-                        {(c.status ?? "draft").replace(/_/g, " ")}
-                      </StatusPill>
-                    </Td>
-                    <Td className="max-w-[200px] truncate text-[12px] text-slate-500">
-                      {formatUtm(c)}
-                    </Td>
-                    <Td className="tabular-nums">
-                      {c.budget != null ? formatCurrency(c.budget) : "—"}
-                    </Td>
-                    <Td className="whitespace-nowrap text-[12px] text-slate-500">
-                      {formatDates(c)}
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </TableRoot>
-          )}
-        </DataTableShell>
-      </PageBody>
-      <AddCampaignDialog open={openAdd} onOpenChange={setOpenAdd} onCreated={load} />
-    </PageShell>
+              ))
+            )}
+          </tbody>
+        </BdTable>
+      </BdCard>
+
+      <CampaignFormDialog open={formOpen} campaign={editing} onClose={() => setFormOpen(false)} onSaved={load} />
+      <BdConfirm open={!!del} message={`Delete campaign "${del?.name}"?`} onClose={() => setDel(null)} onConfirm={remove} />
+    </BdPage>
+  );
+}
+
+export default function CampaignsPage() {
+  return (
+    <Suspense fallback={null}>
+      <CampaignsInner />
+    </Suspense>
   );
 }

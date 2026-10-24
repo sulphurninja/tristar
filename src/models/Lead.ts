@@ -68,26 +68,7 @@ const SourceSchema = new Schema(
   {
     primary: {
       type: String,
-      enum: [
-        "walkin",
-        "channel_partner",
-        "telecalling",
-        "website",
-        "whatsapp_bot",
-        "facebook",
-        "instagram",
-        "google_ads",
-        "magicbricks",
-        "99acres",
-        "housing",
-        "newspaper",
-        "hoarding",
-        "referral",
-        "exhibition",
-        "import",
-        "api",
-        "other",
-      ],
+      // Free-form so workspace-defined Sources (Source model) are valid keys.
       default: "other",
       index: true,
     },
@@ -162,6 +143,50 @@ const LeadSchema = new Schema(
     lastResponseAt: Date,
 
     description: String,
+    /** "Lead Category" select in the Lead Information drawer. */
+    category: String,
+    stageReason: String,
+    country: String,
+    /** "Lead Details (New)" form extras. */
+    alternateNumbers: [{ type: String }],
+    visitorType: String,
+    address: String,
+    dateOfBirth: Date,
+    dateOfAnniversary: Date,
+    isRelatedSource: { type: Boolean, default: false },
+    sourcingManagerId: { type: Schema.Types.ObjectId, ref: "User" },
+    /** Pre-sales agent (qualifies the lead before it reaches the sales owner). */
+    preSalesAgentId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    /** Additional owners besides `assignedTo` (Add Owner / Remove Lead Owner). */
+    coOwners: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    /** When the channel partner was tagged to this lead (drives "CP tag remaining days"). */
+    cpTaggedAt: Date,
+    interestedProperties: [{ type: Schema.Types.ObjectId, ref: "Property" }],
+    employment: {
+      company: String,
+      type: String,
+      designation: String,
+      income: Number,
+    },
+    otherDetails: {
+      ethnicity: String,
+      loan: { type: String, enum: ["Yes", "No"], default: "No" },
+    },
+    /** Requirements form on the Suggestion tab. */
+    requirement: {
+      budgetMin: Number,
+      budgetMax: Number,
+      areaMin: Number,
+      areaMax: Number,
+      requirementType: String,
+      propertyType: String,
+      subType: String,
+      unitTypes: [{ type: String }],
+      searchLocation: String,
+      streetAddress: String,
+      location: String,
+      subLocation: String,
+    },
     tags: [{ type: String, index: true }],
     documents: [
       {
@@ -179,6 +204,12 @@ const LeadSchema = new Schema(
     isBooked: { type: Boolean, default: false, index: true },
     isInactive: { type: Boolean, default: false, index: true },
     isDuplicate: { type: Boolean, default: false, index: true },
+    /** "Convert To Contact" — contact records live in CRM → Contacts rather than the lead pool. */
+    isContact: { type: Boolean, default: false, index: true },
+    contactStatus: { type: String, enum: ["lead", "unqualified"], default: "lead" },
+    convertedToContactAt: Date,
+    /** Re-enquiry flag — set when a known number comes back in. */
+    isReturning: { type: Boolean, default: false, index: true },
     duplicateOf: { type: Schema.Types.ObjectId, ref: "Lead" },
 
     convertedAt: Date,
@@ -195,8 +226,13 @@ LeadSchema.index({ workspaceId: 1, stage: 1, assignedTo: 1 });
 LeadSchema.index({ workspaceId: 1, pipelineId: 1, stage: 1 });
 LeadSchema.index({ workspaceId: 1, createdAt: -1 });
 LeadSchema.index({ workspaceId: 1, nextActionAt: 1 });
+LeadSchema.index({ workspaceId: 1, isContact: 1, createdAt: -1 });
+LeadSchema.index({ workspaceId: 1, assignedAt: -1 });
 
 export type LeadDoc = InferSchemaType<typeof LeadSchema> & { _id: mongoose.Types.ObjectId };
+
+// Dev hot-reload keeps the first compiled model; recompile if the schema grew.
+if (mongoose.models.Lead && !mongoose.models.Lead.schema.path("visitorType")) mongoose.deleteModel("Lead");
 
 const Lead = (mongoose.models.Lead as Model<LeadDoc>) || mongoose.model<LeadDoc>("Lead", LeadSchema);
 

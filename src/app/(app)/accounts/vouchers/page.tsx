@@ -1,227 +1,251 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+export const dynamic = "force-dynamic";
+
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { PageShell, PageBody, Section } from "@/components/shared/PageShell";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { FilterField } from "@/components/shared/FilterField";
-import { DatePicker } from "@/components/ui/date-picker";
-import { format } from "date-fns";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
-import { StatusPill } from "@/components/shared/StatusPill";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { AddVoucherDialog } from "@/components/accounts/AddVoucherDialog";
+  BdPage,
+  BdCard,
+  BdStatCard,
+  BdField,
+  BdSelect,
+  BdButton,
+  BdTable,
+  BdTh,
+  BdTd,
+  BdEmptyRow,
+  BdTableToolbar,
+  BdBadge,
+} from "@/components/bd";
+import { BdKebab, BdRowActions, BdConfirm } from "@/components/bd/BdOverlays";
+import { VoucherFormDialog, VOUCHER_TYPES, type VoucherEditable } from "@/components/accounts/VoucherFormDialog";
+import { PAYMENT_MODES } from "@/components/bookings/PaymentFormDialog";
+import { toCsv, downloadCsv } from "@/lib/bd-csv";
 import { formatCurrency } from "@/lib/utils";
 
-interface VoucherRow {
-  _id: string;
-  voucherNumber?: string;
-  type?: string;
-  paymentMode?: string;
-  date?: string;
-  amount?: number;
-  narration?: string;
-  ledgerId?: { name?: string } | null;
-  fromLedgerId?: { name?: string } | null;
-  toLedgerId?: { name?: string } | null;
+interface VoucherRow extends VoucherEditable {
+  totalAmount?: number;
+  tdsAmount?: number;
+  taxAmount?: number;
+  fromLedgerId?: { _id: string; name?: string } | null;
+  toLedgerId?: { _id: string; name?: string } | null;
 }
 
-export default function VouchersPage() {
-  const [vouchers, setVouchers] = useState<VoucherRow[]>([]);
-  const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [type, setType] = useState("all");
-  const [paymentMode, setPaymentMode] = useState("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>();
-  const [dateTo, setDateTo] = useState<Date | undefined>();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [openAdd, setOpenAdd] = useState(false);
+interface Filters {
+  type: string;
+  paymentMode: string;
+  from: string;
+  to: string;
+  q: string;
+}
+const EMPTY: Filters = { type: "", paymentMode: "", from: "", to: "", q: "" };
+const TYPE_COLOR: Record<string, string> = { receipt: "#37a46b", payment: "#e5484d", journal: "#3a5dc2", contra: "#8a6de0" };
+const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-");
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+function VouchersInner() {
+  const sp = useSearchParams();
+  const [draft, setDraft] = useState<Filters>(EMPTY);
+  const [applied, setApplied] = useState<Filters>(EMPTY);
+  const [rows, setRows] = useState<VoucherRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [summary, setSummary] = useState<Array<{ _id: string; n: number; total: number }>>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [tableQ, setTableQ] = useState("");
+  const [tableQd, setTableQd] = useState("");
+  const [formOpen, setFormOpen] = useState(sp.get("new") === "1");
+  const [editing, setEditing] = useState<VoucherRow | null>(null);
+  const [del, setDel] = useState<VoucherRow | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setTableQd(tableQ), 300);
+    return () => clearTimeout(t);
+  }, [tableQ]);
+
+  const query = useCallback(
+    (extra?: Record<string, string>) => {
+      const u = new URLSearchParams();
+      if (applied.type) u.set("type", applied.type);
+      if (applied.paymentMode) u.set("paymentMode", applied.paymentMode);
+      if (applied.from) u.set("dateFrom", applied.from);
+      if (applied.to) u.set("dateTo", applied.to);
+      const q = [applied.q, tableQd].filter(Boolean).join(" ").trim();
+      if (q) u.set("q", q);
+      for (const [k, v] of Object.entries(extra ?? {})) u.set(k, v);
+      return u;
+    },
+    [applied, tableQd],
+  );
 
   const load = useCallback(() => {
     setLoading(true);
-    const u = new URLSearchParams();
-    if (q) u.set("q", q);
-    if (type !== "all") u.set("type", type);
-    if (paymentMode !== "all") u.set("paymentMode", paymentMode);
-    if (dateFrom) u.set("dateFrom", format(dateFrom, "yyyy-MM-dd"));
-    if (dateTo) u.set("dateTo", format(dateTo, "yyyy-MM-dd"));
-    fetch(`/api/vouchers?${u}`, { cache: "no-store" })
+    fetch(`/api/vouchers?${query({ limit: String(pageSize), skip: String((page - 1) * pageSize) })}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        setVouchers(d.vouchers ?? []);
-        setTotal(d.total ?? (d.vouchers?.length ?? 0));
+        setRows(d.vouchers ?? []);
+        setTotal(d.total ?? 0);
+        setSummary(d.summary ?? []);
       })
+      .catch(() => toast.error("Could not load vouchers"))
       .finally(() => setLoading(false));
-  }, [q, type, paymentMode, dateFrom, dateTo]);
+  }, [query, page, pageSize]);
 
-  useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
-  }, [load]);
+  useEffect(load, [load]);
+  useEffect(() => setPage(1), [applied, tableQd, pageSize]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, type, paymentMode, dateFrom, dateTo, pageSize]);
+  const remove = async () => {
+    if (!del) return;
+    const res = await fetch(`/api/vouchers/${del._id}`, { method: "DELETE" });
+    if (!res.ok) return toast.error("Could not delete voucher");
+    toast.success("Voucher deleted");
+    setDel(null);
+    load();
+  };
 
-  const pageRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return vouchers.slice(start, start + pageSize);
-  }, [vouchers, page, pageSize]);
+  const exportCsv = async () => {
+    const t = toast.loading("Preparing export…");
+    try {
+      const d = await fetch(`/api/vouchers?${query({ export: "1" })}`, { cache: "no-store" }).then((r) => r.json());
+      const list: VoucherRow[] = d.vouchers ?? [];
+      downloadCsv(
+        "vouchers.csv",
+        toCsv(
+          ["Voucher No", "Date", "Type", "Payment Mode", "From (Cr)", "To (Dr)", "Amount", "TDS", "Tax", "Total", "Narration"],
+          list.map((v) => [v.voucherNumber ?? "", fmt(v.date), v.type ?? "", v.paymentMode ?? "", v.fromLedgerId?.name ?? "", v.toLedgerId?.name ?? "", v.amount ?? 0, v.tdsAmount ?? 0, v.taxAmount ?? 0, v.totalAmount ?? v.amount ?? 0, v.narration ?? ""]),
+        ),
+      );
+      toast.success(`Exported ${list.length} vouchers`, { id: t });
+    } catch {
+      toast.error("Export failed", { id: t });
+    }
+  };
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const sum = (t: string) => summary.find((s) => s._id === t);
+  const toggle = (t: string) => {
+    const next = applied.type === t ? "" : t;
+    setDraft((d) => ({ ...d, type: next }));
+    setApplied((a) => ({ ...a, type: next }));
+  };
 
   return (
-    <PageShell>
-      <PageBody>
-        <Section>
-          <FilterBar
-            advancedTitle="Voucher date range"
-            advanced={
-              <div className="grid grid-cols-2 gap-3">
-                <FilterField label="From">
-                  <DatePicker value={dateFrom} onChange={setDateFrom} placeholder="From" />
-                </FilterField>
-                <FilterField label="To">
-                  <DatePicker value={dateTo} onChange={setDateTo} placeholder="To" />
-                </FilterField>
-              </div>
-            }
-            actions={
-              <>
-                <Button size="sm" variant="outline" onClick={load}>
-                  Search
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setQ("");
-                    setType("all");
-                    setPaymentMode("all");
-                    setDateFrom(undefined);
-                    setDateTo(undefined);
-                  }}
-                >
-                  Clear
-                </Button>
-                <Button size="sm" className="h-9 gap-1" onClick={() => setOpenAdd(true)}>
-                  <Plus className="size-3.5" />
-                  Add voucher
-                </Button>
-              </>
-            }
+    <BdPage>
+      <BdCard title="Vouchers">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <BdField label="Voucher Details">
+            <BdSelect placeholder="Select Voucher Type" value={draft.type} onChange={(v) => setDraft((d) => ({ ...d, type: v }))} options={VOUCHER_TYPES} />
+          </BdField>
+          <BdField label="Payment Mode">
+            <BdSelect placeholder="Select Payment Mode" value={draft.paymentMode} onChange={(v) => setDraft((d) => ({ ...d, paymentMode: v }))} options={PAYMENT_MODES} />
+          </BdField>
+          <BdField label="From">
+            <input type="date" className="bd-input" value={draft.from} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} />
+          </BdField>
+          <BdField label="To">
+            <input type="date" className="bd-input" value={draft.to} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} />
+          </BdField>
+          <BdField label="Search">
+            <input className="bd-input" placeholder="Voucher no., narration" value={draft.q} onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && setApplied(draft)} />
+          </BdField>
+        </div>
+        <div className="mt-5 flex flex-wrap gap-3">
+          <BdButton onClick={() => setApplied(draft)}>Search</BdButton>
+          <BdButton
+            variant="light"
+            onClick={() => {
+              setDraft(EMPTY);
+              setApplied(EMPTY);
+              setTableQ("");
+            }}
           >
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search vouchers…"
-              className="h-9 w-56"
-            />
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger className="h-9 w-36">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="receipt">Receipt</SelectItem>
-                <SelectItem value="payment">Payment</SelectItem>
-                <SelectItem value="journal">Journal</SelectItem>
-                <SelectItem value="contra">Contra</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={paymentMode} onValueChange={setPaymentMode}>
-              <SelectTrigger className="h-9 w-36">
-                <SelectValue placeholder="Mode" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All modes</SelectItem>
-                <SelectItem value="cash">Cash</SelectItem>
-                <SelectItem value="cheque">Cheque</SelectItem>
-                <SelectItem value="neft">NEFT</SelectItem>
-                <SelectItem value="rtgs">RTGS</SelectItem>
-                <SelectItem value="upi">UPI</SelectItem>
-                <SelectItem value="card">Card</SelectItem>
-              </SelectContent>
-            </Select>
-          </FilterBar>
-        </Section>
+            Clear
+          </BdButton>
+          <BdButton
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="size-3.5" /> Create Voucher
+          </BdButton>
+        </div>
+      </BdCard>
 
-        <DataTableShell
-          title="Vouchers"
-          count={total}
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          {loading ? (
-            <div className="h-40 animate-pulse bg-slate-50" />
-          ) : pageRows.length === 0 ? (
-            <EmptyState
-              title="No vouchers found"
-              description="Create a voucher linked to a ledger."
-              action={
-                <Button onClick={() => setOpenAdd(true)} className="gap-1.5">
-                  <Plus className="size-4" />
-                  Add voucher
-                </Button>
-              }
-            />
-          ) : (
-            <TableRoot>
-              <thead>
-                <tr>
-                  <Th>Voucher #</Th>
-                  <Th>Type</Th>
-                  <Th>Date</Th>
-                  <Th>Mode</Th>
-                  <Th>From → To</Th>
-                  <Th>Amount</Th>
-                  <Th>Narration</Th>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {VOUCHER_TYPES.map((t) => (
+          <BdStatCard key={t.value} title={`${t.label} Vouchers`} value={formatCurrency(sum(t.value)?.total ?? 0)} caption={`${sum(t.value)?.n ?? 0} voucher${sum(t.value)?.n === 1 ? "" : "s"}`} active={applied.type === t.value} onClick={() => toggle(t.value)} />
+        ))}
+      </div>
+
+      <BdCard title={`Vouchers (${total})`} actions={<BdKebab items={[{ label: "Export CSV", onSelect: exportCsv }, { label: "Refresh", onSelect: load }]} />}>
+        <BdTableToolbar page={page} totalPages={totalPages} onPage={setPage} search={tableQ} onSearch={setTableQ} pageSize={pageSize} onPageSize={setPageSize} />
+        <BdTable minWidth={1200}>
+          <thead>
+            <tr>
+              <BdTh>SR. NO.</BdTh>
+              <BdTh>VOUCHER NO.</BdTh>
+              <BdTh>DATE</BdTh>
+              <BdTh>TYPE</BdTh>
+              <BdTh>FROM (CR)</BdTh>
+              <BdTh>TO (DR)</BdTh>
+              <BdTh>MODE</BdTh>
+              <BdTh className="text-right">AMOUNT</BdTh>
+              <BdTh className="text-right">TDS</BdTh>
+              <BdTh className="text-right">TAX</BdTh>
+              <BdTh className="text-right">TOTAL</BdTh>
+              <BdTh>NARRATION</BdTh>
+              <BdTh>ACTION</BdTh>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <BdEmptyRow colSpan={13} loading={loading} />
+            ) : (
+              rows.map((v, i) => (
+                <tr key={v._id}>
+                  <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
+                  <BdTd>{v.voucherNumber ?? "-"}</BdTd>
+                  <BdTd className="whitespace-nowrap">{fmt(v.date)}</BdTd>
+                  <BdTd>
+                    <BdBadge color={TYPE_COLOR[v.type ?? "receipt"]}>{(v.type ?? "").toUpperCase()}</BdBadge>
+                  </BdTd>
+                  <BdTd>{v.fromLedgerId?.name ?? "-"}</BdTd>
+                  <BdTd>{v.toLedgerId?.name ?? "-"}</BdTd>
+                  <BdTd className="uppercase">{v.paymentMode}</BdTd>
+                  <BdTd className="whitespace-nowrap text-right">{formatCurrency(v.amount ?? 0)}</BdTd>
+                  <BdTd className="whitespace-nowrap text-right">{formatCurrency(v.tdsAmount ?? 0)}</BdTd>
+                  <BdTd className="whitespace-nowrap text-right">{formatCurrency(v.taxAmount ?? 0)}</BdTd>
+                  <BdTd className="whitespace-nowrap text-right font-medium">{formatCurrency(v.totalAmount ?? v.amount ?? 0)}</BdTd>
+                  <BdTd className="max-w-[260px] truncate" >{v.narration ?? "-"}</BdTd>
+                  <BdTd>
+                    <BdRowActions
+                      items={[
+                        { label: "Edit", onSelect: () => { setEditing(v); setFormOpen(true); } },
+                        { label: "Delete", danger: true, onSelect: () => setDel(v) },
+                      ]}
+                    />
+                  </BdTd>
                 </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((v) => (
-                  <tr key={v._id} className="hover:bg-slate-50/80">
-                    <Td className="font-mono text-[12px]">{v.voucherNumber ?? "—"}</Td>
-                    <Td>
-                      <StatusPill tone="info">{(v.type ?? "—").replace(/_/g, " ")}</StatusPill>
-                    </Td>
-                    <Td className="text-[12px] text-slate-500">
-                      {v.date ? new Date(v.date).toLocaleDateString("en-IN") : "—"}
-                    </Td>
-                    <Td className="capitalize text-[12px] text-slate-600">
-                      {(v.paymentMode ?? "—").replace(/_/g, " ")}
-                    </Td>
-                    <Td className="text-[12.5px]">
-                      {v.fromLedgerId?.name ?? v.ledgerId?.name ?? "—"}
-                      <span className="text-slate-400"> → </span>
-                      {v.toLedgerId?.name ?? "—"}
-                    </Td>
-                    <Td className="tabular-nums font-medium">
-                      {formatCurrency(v.amount ?? 0)}
-                    </Td>
-                    <Td className="max-w-xs truncate">{v.narration ?? "—"}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </TableRoot>
-          )}
-        </DataTableShell>
-      </PageBody>
-      <AddVoucherDialog open={openAdd} onOpenChange={setOpenAdd} onCreated={load} />
-    </PageShell>
+              ))
+            )}
+          </tbody>
+        </BdTable>
+      </BdCard>
+
+      <VoucherFormDialog open={formOpen} voucher={editing} onClose={() => setFormOpen(false)} onSaved={load} />
+      <BdConfirm open={!!del} message={`Delete voucher ${del?.voucherNumber ?? ""}? Ledger balances will be recalculated.`} onClose={() => setDel(null)} onConfirm={remove} />
+    </BdPage>
+  );
+}
+
+export default function VouchersPage() {
+  return (
+    <Suspense fallback={null}>
+      <VouchersInner />
+    </Suspense>
   );
 }

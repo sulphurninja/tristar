@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
+import {
+  BdBadge,
+  BdButton,
+  BdCard,
+  BdEmptyRow,
+  BdPage,
+  BdTable,
+  BdTableToolbar,
+  BdTd,
+  BdTh,
+} from "@/components/bd";
+import { downloadCsv } from "@/lib/csv";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Tags } from "lucide-react";
+import { Plus, Pencil, Trash2, Tags, Download } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +27,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { StatusPill } from "@/components/shared/StatusPill";
 
 interface Src {
   _id: string;
@@ -35,16 +45,18 @@ export default function SourcesPage() {
   const [newOpen, setNewOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [search, setSearch] = useState("");
 
-  const totalPages = Math.max(1, Math.ceil(sources.length / pageSize));
-  const pagedSources = useMemo(
-    () => sources.slice((page - 1) * pageSize, page * pageSize),
-    [sources, page, pageSize],
-  );
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q
+      ? sources.filter((s) => [s.label, s.key, s.description].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))
+      : sources;
+  }, [sources, search]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paged = filtered.slice((page - 1) * pageSize, page * pageSize);
 
-  useEffect(() => {
-    setPage(1);
-  }, [pageSize]);
+  useEffect(() => setPage(1), [pageSize, search]);
 
   const load = () => {
     setLoading(true);
@@ -65,102 +77,88 @@ export default function SourcesPage() {
       toast.success("Source deleted");
       load();
     } else {
-      toast.error("Couldn't delete source");
+      const d = await res.json().catch(() => ({}));
+      toast.error(d.error || "Couldn't delete source");
     }
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5 p-6 lg:p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-[20px] font-bold tracking-tight text-slate-900">
-            Manage Sources
-          </h1>
-          <p className="mt-1 text-[12.5px] text-slate-500">
-            Define the lead sources your team can pick from across the CRM.
-          </p>
+    <BdPage>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Sources</h1>
+        <div className="flex gap-2">
+          <BdButton
+            variant="light"
+            onClick={() =>
+              downloadCsv("sources", [
+                ["Source", "Key", "Description", "Status"],
+                ...filtered.map((s) => [s.label, s.key, s.description ?? "", s.isActive ? "Active" : "Inactive"]),
+              ])
+            }
+          >
+            <Download className="size-3.5" /> Export CSV
+          </BdButton>
+          <BdButton onClick={() => setNewOpen(true)}>
+            <Plus className="size-3.5" /> Add Source
+          </BdButton>
         </div>
-        <Button onClick={() => setNewOpen(true)} className="gap-1.5">
-          <Plus className="size-4" strokeWidth={2} />
-          New source
-        </Button>
       </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-12 animate-pulse rounded-md bg-slate-100" />
-          ))}
-        </div>
-      ) : sources.length === 0 ? (
-        <div className="rounded-xl bg-slate-50/60 px-6 py-12 text-center text-[13px] text-slate-500">
-          No sources defined. Add Walk-in, Tele-calling, Channel Partner, Hoarding, etc.
-        </div>
-      ) : (
-        <DataTableShell
-          title="Sources"
-          count={sources.length}
+      <BdCard>
+        <BdTableToolbar
           page={page}
           totalPages={totalPages}
-          onPageChange={setPage}
+          onPage={setPage}
+          search={search}
+          onSearch={setSearch}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          <TableRoot>
-            <thead>
-              <tr>
-                <Th>Source</Th>
-                <Th>Key</Th>
-                <Th>Description</Th>
-                <Th>Status</Th>
-                <Th className="text-right">Action</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {pagedSources.map((s) => (
-                <tr key={s._id} className="transition-colors hover:bg-slate-50/80">
-                  <Td>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="size-2.5 rounded-full"
-                        style={{ background: s.color ?? "#0F8F60" }}
-                      />
-                      <span className="font-semibold text-slate-900">{s.label}</span>
+          onPageSize={setPageSize}
+        />
+        <BdTable minWidth={720}>
+          <thead>
+            <tr>
+              <BdTh>#</BdTh>
+              <BdTh>Source</BdTh>
+              <BdTh>Key</BdTh>
+              <BdTh>Description</BdTh>
+              <BdTh>Status</BdTh>
+              <BdTh className="text-right">Action</BdTh>
+            </tr>
+          </thead>
+          <tbody>
+            {paged.length === 0 ? (
+              <BdEmptyRow colSpan={6} loading={loading} />
+            ) : (
+              paged.map((s, i) => (
+                <tr key={s._id}>
+                  <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
+                  <BdTd>
+                    <span className="inline-flex items-center gap-2 font-medium">
+                      <span className="size-2.5 rounded-full" style={{ background: s.color ?? "#3a5dc2" }} />
+                      {s.label}
+                    </span>
+                  </BdTd>
+                  <BdTd className="font-mono text-[12px] text-[#5a6072]">{s.key}</BdTd>
+                  <BdTd>{s.description || "-"}</BdTd>
+                  <BdTd>
+                    <BdBadge color={s.isActive ? "#37b24d" : "#9a9ca6"}>{s.isActive ? "Active" : "Inactive"}</BdBadge>
+                  </BdTd>
+                  <BdTd className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <button type="button" title="Edit" onClick={() => setEditing(s)} className="rounded p-1.5 text-[#3a5dc2] hover:bg-[#eef1fa]">
+                        <Pencil className="size-4" />
+                      </button>
+                      <button type="button" title="Delete" onClick={() => onDelete(s._id)} className="rounded p-1.5 text-[#e5484d] hover:bg-[#fdecec]">
+                        <Trash2 className="size-4" />
+                      </button>
                     </div>
-                  </Td>
-                  <Td className="font-mono text-[11.5px] text-slate-500">{s.key}</Td>
-                  <Td>{s.description ?? <span className="text-slate-400">—</span>}</Td>
-                  <Td>
-                    <StatusPill tone={s.isActive ? "success" : "neutral"} dot>
-                      {s.isActive ? "Active" : "Inactive"}
-                    </StatusPill>
-                  </Td>
-                  <Td className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7"
-                        onClick={() => setEditing(s)}
-                      >
-                        <Pencil className="size-3.5" strokeWidth={1.75} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() => onDelete(s._id)}
-                      >
-                        <Trash2 className="size-3.5" strokeWidth={1.75} />
-                      </Button>
-                    </div>
-                  </Td>
+                  </BdTd>
                 </tr>
-              ))}
-            </tbody>
-          </TableRoot>
-        </DataTableShell>
-      )}
+              ))
+            )}
+          </tbody>
+        </BdTable>
+      </BdCard>
 
       <SourceDialog
         open={newOpen}
@@ -178,7 +176,7 @@ export default function SourcesPage() {
           setEditing(null);
         }}
       />
-    </div>
+    </BdPage>
   );
 }
 

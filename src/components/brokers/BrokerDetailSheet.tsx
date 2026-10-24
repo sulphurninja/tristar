@@ -10,6 +10,7 @@ import {
   ChevronsRight,
   X,
 } from "lucide-react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Sheet, SheetContent, SheetClose } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,6 +24,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
 import { StatusPill } from "@/components/shared/StatusPill";
+import { CP_STAGES, CpFormDialog, type CpEditable } from "@/components/brokers/CpFormDialog";
 import { AddTaskDialog } from "@/components/tasks/AddTaskDialog";
 import { cn, formatPhone, initials } from "@/lib/utils";
 
@@ -38,13 +40,21 @@ interface Broker {
   notes?: string;
   rera?: { number?: string };
   location?: {
-    address?: string;
+    addressLine?: string;
     locality?: string;
     city?: string;
     state?: string;
     pincode?: string;
   };
   rmName?: string;
+  cpId?: number;
+  stage?: string;
+  companyId?: { _id: string; companyId: number; name: string; category?: string } | string | null;
+  sourcingManagerId?: { _id: string; name: string } | string | null;
+  panNumber?: string;
+  gstNumber?: string;
+  totalCommissionEarned?: number;
+  totalCommissionPaid?: number;
   totalLeadsReferred?: number;
   totalDealsBooked?: number;
 }
@@ -101,12 +111,6 @@ interface Props {
   onChanged: () => void;
 }
 
-const STATUSES = [
-  { value: "active", label: "Open" },
-  { value: "pending_kyc", label: "Pending KYC" },
-  { value: "inactive", label: "Inactive" },
-  { value: "blacklisted", label: "Blacklisted" },
-];
 
 const TABS = [
   ["notes", "Notes"],
@@ -118,6 +122,7 @@ const TABS = [
   ["lead", "Lead"],
   ["project", "Project"],
   ["booking", "Booking"],
+  ["commission", "Commission"],
   ["locations", "Locations"],
 ] as const;
 
@@ -143,6 +148,8 @@ export function BrokerDetailSheet({
   const [taskOpen, setTaskOpen] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [reload, setReload] = useState(0);
 
   const open = !!brokerId;
   const index = brokerId ? brokerIds.indexOf(brokerId) : -1;
@@ -180,14 +187,14 @@ export function BrokerDetailSheet({
         setProjectNames(map);
       })
       .finally(() => setLoading(false));
-  }, [brokerId]);
+  }, [brokerId, reload]);
 
-  const updateStatus = async (status: string) => {
+  const updateStatus = async (stage: string) => {
     if (!brokerId) return;
     const res = await fetch(`/api/brokers/${brokerId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ stage }),
     });
     if (res.ok) {
       const d = await res.json();
@@ -224,6 +231,7 @@ export function BrokerDetailSheet({
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent width="full" hideClose className="bg-slate-50 p-0">
+        <DialogPrimitive.Title className="sr-only">Channel Partner Information</DialogPrimitive.Title>
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-5">
           <div>
             <h2 className="text-[16px] font-semibold text-slate-900">
@@ -254,6 +262,9 @@ export function BrokerDetailSheet({
             >
               <ChevronsRight className="size-4" />
             </Button>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setEditOpen(true)} disabled={!broker}>
+              Edit
+            </Button>
             <SheetClose asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 px-0">
                 <X className="size-4" />
@@ -270,7 +281,7 @@ export function BrokerDetailSheet({
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_1fr]">
             <aside className="scrollbar-hide overflow-y-auto border-r border-slate-200 bg-white p-5">
               <div className="flex flex-col items-center text-center">
-                <div className="flex size-16 items-center justify-center rounded-full bg-sky-600 text-[18px] font-bold text-white">
+                <div className="flex size-16 items-center justify-center rounded-full bg-[#3a5dc2] text-[18px] font-bold text-white">
                   {initials(broker?.name)}
                 </div>
                 <h3 className="mt-3 text-[15px] font-bold uppercase tracking-wide text-slate-900">
@@ -293,7 +304,14 @@ export function BrokerDetailSheet({
                   label="Call"
                   color="bg-green-600"
                   onClick={() => {
-                    if (broker?.phone) window.location.href = `tel:${broker.phone}`;
+                    if (broker?.phone) {
+                      fetch(`/api/brokers/${broker._id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ touch: true }),
+                      }).then(onChanged);
+                      window.location.href = `tel:${broker.phone}`;
+                    }
                     setTab("call_log");
                   }}
                 />
@@ -309,14 +327,14 @@ export function BrokerDetailSheet({
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   Stage
                 </p>
-                <Select value={broker?.status} onValueChange={updateStatus}>
+                <Select value={broker?.stage || "Open"} onValueChange={updateStatus}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
+                    {CP_STAGES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -330,8 +348,25 @@ export function BrokerDetailSheet({
                   label="Alternate Number"
                   value={broker?.altPhone ? formatPhone(broker.altPhone) : "Not Available"}
                 />
-                <Row label="Company Name" value={broker?.firmName || "—"} />
-                <Row label="Sales Agent" value={broker?.rmName || "Not Available"} />
+                <Row label="CP ID" value={broker?.cpId != null ? String(broker.cpId) : "Not Available"} />
+                <Row
+                  label="Company Name"
+                  value={
+                    broker && typeof broker.companyId === "object" && broker.companyId
+                      ? `${broker.companyId.name} (${broker.companyId.companyId})`
+                      : broker?.firmName || "—"
+                  }
+                />
+                <Row
+                  label="Sourcing Manager"
+                  value={
+                    broker && typeof broker.sourcingManagerId === "object" && broker.sourcingManagerId
+                      ? broker.sourcingManagerId.name
+                      : "Not Available"
+                  }
+                />
+                <Row label="PAN" value={broker?.panNumber || "Not Available"} />
+                <Row label="GST" value={broker?.gstNumber || "Not Available"} />
                 <Row label="RERA" value={broker?.rera?.number || "Not Available"} />
                 <Row label="Leads referred" value={String(broker?.totalLeadsReferred ?? leads.length)} />
                 <Row label="Deals booked" value={String(broker?.totalDealsBooked ?? bookings.length)} />
@@ -346,7 +381,7 @@ export function BrokerDetailSheet({
                       <TabsTrigger
                         key={value}
                         value={value}
-                        className="rounded-t-md rounded-b-none px-3 py-2 text-[12.5px] data-[state=active]:bg-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-none"
+                        className="rounded-t-md rounded-b-none px-3 py-2 text-[12.5px] data-[state=active]:bg-[#3a5dc2] data-[state=active]:text-white data-[state=active]:shadow-none"
                       >
                         {label}
                       </TabsTrigger>
@@ -436,7 +471,7 @@ export function BrokerDetailSheet({
                                     ? new Date(l.createdAt).toLocaleDateString("en-IN")
                                     : "—"}
                                 </Td>
-                                <Td className="font-medium text-emerald-700">
+                                <Td className="font-medium text-[#2d5bd6]">
                                   {l.contact?.name ?? "—"}
                                 </Td>
                                 <Td className="max-w-[200px] truncate">{l.description || "—"}</Td>
@@ -505,6 +540,32 @@ export function BrokerDetailSheet({
                     )}
                   </TabsContent>
 
+                  <TabsContent value="commission" className="mt-0">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        ["Commission earned", broker?.totalCommissionEarned ?? 0],
+                        ["Commission paid", broker?.totalCommissionPaid ?? 0],
+                        [
+                          "Commission pending",
+                          Math.max((broker?.totalCommissionEarned ?? 0) - (broker?.totalCommissionPaid ?? 0), 0),
+                        ],
+                      ].map(([label, v]) => (
+                        <div key={String(label)} className="rounded-[3px] border border-slate-200 bg-white p-4">
+                          <p className="text-[12px] text-slate-500">{label}</p>
+                          <p className="mt-1 text-[20px] font-medium text-slate-900">
+                            {"₹"}
+                            {Number(v).toLocaleString("en-IN")}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[12px] text-slate-500">
+                      Booking value referred: {"₹"}
+                      {bookings.reduce((a, b) => a + (b.amount ?? 0), 0).toLocaleString("en-IN")} across {bookings.length} booking
+                      {bookings.length === 1 ? "" : "s"}.
+                    </p>
+                  </TabsContent>
+
                   <TabsContent value="locations" className="mt-0">
                     <div className="rounded-xl border border-slate-200 bg-white p-4 text-[13px]">
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
@@ -512,7 +573,7 @@ export function BrokerDetailSheet({
                       </p>
                       <p className="mt-2 font-medium text-slate-900">
                         {[
-                          broker?.location?.address,
+                          broker?.location?.addressLine,
                           broker?.location?.locality,
                           broker?.location?.city,
                           broker?.location?.state,
@@ -530,6 +591,15 @@ export function BrokerDetailSheet({
         )}
       </SheetContent>
     </Sheet>
+    <CpFormDialog
+      open={editOpen}
+      broker={broker as unknown as CpEditable}
+      onClose={() => setEditOpen(false)}
+      onSaved={() => {
+        setReload((n) => n + 1);
+        onChanged();
+      }}
+    />
     <AddTaskDialog
       open={taskOpen}
       onOpenChange={setTaskOpen}

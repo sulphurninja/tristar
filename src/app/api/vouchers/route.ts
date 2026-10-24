@@ -1,24 +1,25 @@
 import mongoose from "mongoose";
 import Voucher from "@/models/Voucher";
 import { withAuth, ok, bad } from "@/lib/api";
-
-function oid(v: unknown) {
-  return typeof v === "string" && mongoose.isValidObjectId(v)
-    ? new mongoose.Types.ObjectId(v)
-    : undefined;
-}
+import { escapeRegex, oid } from "@/lib/cp";
+import { buildVoucherFields } from "@/lib/vouchers";
 
 export const GET = withAuth(async ({ req, session }) => {
-  const url = new URL(req.url);
-  const q = url.searchParams.get("q")?.trim() ?? "";
-  const type = url.searchParams.get("type") ?? "";
-  const paymentMode = url.searchParams.get("paymentMode") ?? "";
-  const dateFrom = url.searchParams.get("dateFrom") ?? "";
-  const dateTo = url.searchParams.get("dateTo") ?? "";
+  const sp = new URL(req.url).searchParams;
+  const q = sp.get("q")?.trim() ?? "";
+  const exportAll = sp.get("export") === "1";
+  const limit = exportAll ? 10000 : Math.min(parseInt(sp.get("limit") ?? "50", 10) || 50, 500);
+  const skip = Math.max(parseInt(sp.get("skip") ?? "0", 10) || 0, 0);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const filter: Record<string, unknown> = { workspaceId };
+  const type = sp.get("type");
   if (type && type !== "all") filter.type = type;
+  const paymentMode = sp.get("paymentMode");
   if (paymentMode && paymentMode !== "all") filter.paymentMode = paymentMode;
+  const ledger = oid(sp.get("ledgerId"));
+  if (ledger) filter.$or = [{ fromLedgerId: ledger }, { toLedgerId: ledger }, { ledgerId: ledger }];
+  const dateFrom = sp.get("dateFrom");
+  const dateTo = sp.get("dateTo");
   if (dateFrom || dateTo) {
     const date: Record<string, Date> = {};
     if (dateFrom) {
@@ -34,59 +35,42 @@ export const GET = withAuth(async ({ req, session }) => {
     filter.date = date;
   }
   if (q) {
-    filter.$or = [
-      { voucherNumber: { $regex: q, $options: "i" } },
-      { narration: { $regex: q, $options: "i" } },
-    ];
+    const rx = { $regex: escapeRegex(q), $options: "i" };
+    filter.$and = [{ $or: [{ voucherNumber: rx }, { narration: rx }] }];
   }
-  const vouchers = await Voucher.find(filter)
-    .sort({ date: -1 })
-    .limit(200)
-    .populate({ path: "ledgerId", select: "name" })
-    .populate({ path: "fromLedgerId", select: "name" })
-    .populate({ path: "toLedgerId", select: "name" })
-    .lean();
-  return ok({ vouchers, total: vouchers.length });
+  const [vouchers, total, sums] = await Promise.all([
+    Voucher.find(filter)
+      .sort({ date: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({ path: "fromLedgerId", select: "name" })
+      .populate({ path: "toLedgerId", select: "name" })
+      .lean(),
+    Voucher.countDocuments(filter),
+    Voucher.aggregate<{ _id: string; n: number; total: number }>([
+      { $match: filter },
+      { $group: { _id: "$type", n: { $sum: 1 }, total: { $sum: { $ifNull: ["$totalAmount", "$amount"] } } } },
+    ]),
+  ]);
+  return ok({ vouchers, total, summary: sums });
 });
 
 export const POST = withAuth(async ({ req, session }) => {
   const body = (await req.json()) as Record<string, unknown>;
-  const amount = Number(body.amount ?? 0);
-  if (!(amount > 0)) return bad("Amount must be greater than 0.");
-  if (!body.narration || typeof body.narration !== "string" || !body.narration.trim()) {
-    return bad("Narration is required.");
-  }
-
-  const fromLedgerId = oid(body.fromLedgerId) ?? oid(body.ledgerId);
-  const toLedgerId = oid(body.toLedgerId);
-  if (!fromLedgerId) return bad("Select From account.");
-  if (!toLedgerId) return bad("Select To account.");
-
-  const tdsPercent = Number(body.tdsPercent ?? 0);
-  const tdsAmount = Number(body.tdsAmount ?? (amount * tdsPercent) / 100);
-  const taxAmount = Number(body.taxAmount ?? 0);
-
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
-  const count = await Voucher.countDocuments({ workspaceId });
-  const voucherNumber = `VCH-${String(count + 1).padStart(5, "0")}`;
+  const built = await buildVoucherFields(workspaceId, body);
+  if ("error" in built) return bad(built.error as string);
 
-  const voucher = await Voucher.create({
-    workspaceId,
-    voucherNumber,
-    type: body.type ?? "receipt",
-    date: body.date ? new Date(body.date as string) : new Date(),
-    paymentMode: body.paymentMode ?? "neft",
-    ledgerId: fromLedgerId,
-    fromLedgerId,
-    toLedgerId,
-    amount,
-    tdsPercent,
-    tdsAmount,
-    taxType: body.taxType ?? "none",
-    taxAmount,
-    narration: (body.narration as string).trim(),
-    createdBy: new mongoose.Types.ObjectId(session.userId),
-  });
-
-  return ok({ voucher }, { status: 201 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const last = await Voucher.findOne({ workspaceId, voucherNumber: /^VCH-/ }).sort({ voucherNumber: -1 }).select("voucherNumber").lean();
+    const seq = last?.voucherNumber ? parseInt(last.voucherNumber.slice(4), 10) || 0 : 0;
+    const voucher = await Voucher.create({
+      ...built.fields,
+      workspaceId,
+      voucherNumber: `VCH-${String(seq + 1).padStart(5, "0")}`,
+      createdBy: new mongoose.Types.ObjectId(session.userId),
+    });
+    return ok({ voucher }, { status: 201 });
+  }
+  return bad("Could not create voucher", 500);
 });

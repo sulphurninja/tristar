@@ -5,6 +5,7 @@ import ApiKey from "@/models/ApiKey";
 import Project from "@/models/Project";
 import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
+import { hasRole, type Role } from "@/lib/auth";
 
 const generateKey = customAlphabet("abcdef0123456789", 24);
 const generateSecret = customAlphabet(
@@ -13,8 +14,10 @@ const generateSecret = customAlphabet(
 );
 
 export const GET = withAuth(async ({ session }) => {
+  if (!hasRole(session.role as Role, "admin")) return bad("You need admin access to view API keys.", 403);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const keys = await ApiKey.find({ workspaceId })
+    .select("-secretHash")
     .sort({ createdAt: -1 })
     .populate({ path: "userId", select: "name email" })
     .populate({ path: "projectId", select: "name code" })
@@ -23,6 +26,7 @@ export const GET = withAuth(async ({ session }) => {
 });
 
 export const POST = withAuth(async ({ req, session }) => {
+  if (!hasRole(session.role as Role, "admin")) return bad("You need admin access to create API keys.", 403);
   const body = (await req.json()) as Record<string, unknown>;
   const sourceKey = typeof body.sourceKey === "string" ? body.sourceKey : "";
   const sourceLabel = typeof body.sourceLabel === "string" ? body.sourceLabel : "";
@@ -33,6 +37,7 @@ export const POST = withAuth(async ({ req, session }) => {
     return bad("Source, user and project are required.");
   }
 
+  if (!mongoose.isValidObjectId(userId) || !mongoose.isValidObjectId(projectId)) return bad("Invalid user or project.");
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const [user, project] = await Promise.all([

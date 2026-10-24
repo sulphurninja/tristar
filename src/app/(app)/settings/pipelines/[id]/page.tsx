@@ -221,7 +221,7 @@ export default function PipelineDetailPage() {
   }
 
   return (
-    <div className="px-7 py-6 lg:px-10 lg:py-8">
+    <div className="p-4 lg:p-5">
       <Link
         href="/settings/pipelines"
         className="inline-flex items-center gap-1 text-[12.5px] font-medium text-slate-500 hover:text-slate-900"
@@ -233,7 +233,7 @@ export default function PipelineDetailPage() {
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-[20px] font-semibold tracking-tight text-slate-900">
+            <h1 className="text-[20px] font-semibold text-[#2b2f3a]">
               {pipeline.name}
             </h1>
             {pipeline.isDefault ? (

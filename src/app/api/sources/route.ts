@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Source from "@/models/Source";
 import { withAuth, ok, bad } from "@/lib/api";
+import { hasRole, type Role } from "@/lib/auth";
 import { slugify } from "@/lib/utils";
 
 export const GET = withAuth(async ({ session }) => {
@@ -12,6 +13,7 @@ export const GET = withAuth(async ({ session }) => {
 });
 
 export const POST = withAuth(async ({ req, session }) => {
+  if (!hasRole(session.role as Role, "admin")) return bad("You need admin access to create sources.", 403);
   const body = (await req.json()) as Record<string, unknown>;
   const label = typeof body.label === "string" ? body.label.trim() : "";
   if (!label) return bad("Label is required.");

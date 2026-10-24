@@ -2,280 +2,267 @@
 
 export const dynamic = "force-dynamic";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Building2, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { StatusPill } from "@/components/shared/StatusPill";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { NewProjectSheet } from "@/components/projects/NewProjectSheet";
-import { PageShell, PageBody } from "@/components/shared/PageShell";
-import { FilterBar } from "@/components/shared/FilterBar";
-import { DataTableShell, TableRoot, Th, Td } from "@/components/shared/DataTableShell";
+  BdBadge,
+  BdButton,
+  BdCard,
+  BdEmptyRow,
+  BdField,
+  BdPage,
+  BdSelect,
+  BdTable,
+  BdTableToolbar,
+  BdTd,
+  BdTh,
+} from "@/components/bd";
+import { ColumnPicker, type ColumnDef } from "@/components/crm/ColumnPicker";
+import { RowMenu } from "@/components/crm/RowMenu";
+import { downloadCsv } from "@/components/crm/csv";
+import { ProjectModal, PROPERTY_TYPES, SALE_STAGES, type ProjectRecord } from "@/components/projects/ProjectModal";
 import { formatCurrency } from "@/lib/utils";
 
-interface Project {
-  _id: string;
-  name: string;
-  code: string;
-  builderName?: string;
-  propertyType: string;
-  configurations?: string[];
-  saleStage: string;
-  rera?: { number?: string };
-  location?: { city?: string; locality?: string };
-  priceRange?: { min?: number; max?: number; perSqFt?: number };
-  totalUnits?: number;
-  availableUnits?: number;
-  createdAt?: string;
-  createdBy?: { name?: string };
-}
-
-const SALE_STAGE_LABEL: Record<
-  string,
-  { label: string; tone: "neutral" | "info" | "warning" | "primary" | "success" | "danger" }
-> = {
-  pre_launch: { label: "Pre-launch", tone: "info" },
-  launching_soon: { label: "Launching soon", tone: "info" },
-  under_construction: { label: "Under construction", tone: "warning" },
-  ready_to_move: { label: "Ready to move", tone: "success" },
-  resale: { label: "Resale", tone: "neutral" },
-  sold_out: { label: "Sold out", tone: "danger" },
+const STAGE_COLOR: Record<string, string> = {
+  pre_launch: "#3ec1d3",
+  launching_soon: "#3ec1d3",
+  under_construction: "#e9b72a",
+  ready_to_move: "#37c47f",
+  resale: "#9a9ca6",
+  sold_out: "#ef6a6a",
 };
+const lbl = (opts: Array<{ value: string; label: string }>, v?: string) => opts.find((o) => o.value === v)?.label ?? v ?? "-";
 
-const PROPERTY_TYPE_LABEL: Record<string, string> = {
-  residential_apartment: "Apartment",
-  residential_villa: "Villa",
-  residential_plot: "Plot",
-  residential_independent_house: "Independent house",
-  commercial_office: "Office",
-  commercial_retail: "Retail",
-  commercial_warehouse: "Warehouse",
-  industrial: "Industrial",
-  mixed_use: "Mixed use",
-  farmland: "Farmland",
-  other: "Other",
-};
+const COLUMNS: ColumnDef[] = [
+  { key: "name", label: "Project" },
+  { key: "code", label: "Code" },
+  { key: "builder", label: "Builder" },
+  { key: "address", label: "Address" },
+  { key: "type", label: "Type" },
+  { key: "unit", label: "Unit Type" },
+  { key: "stage", label: "Stage" },
+  { key: "price", label: "Price" },
+  { key: "units", label: "Total Units" },
+  { key: "available", label: "Available Units" },
+  { key: "rera", label: "RERA" },
+];
 
-export default function ProjectsPage() {
+function ProjectsInner() {
   const searchParams = useSearchParams();
-  const [items, setItems] = useState<Project[]>([]);
+  const [items, setItems] = useState<ProjectRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [openNew, setOpenNew] = useState(searchParams.get("new") === "1");
+  const [modal, setModal] = useState<{ open: boolean; project: ProjectRecord | null }>({
+    open: searchParams.get("new") === "1",
+    project: null,
+  });
+  const [draft, setDraft] = useState({ propertyType: "", saleStage: "", archived: "" });
+  const [applied, setApplied] = useState(draft);
+  const [search, setSearch] = useState("");
   const [q, setQ] = useState("");
-  const [propertyType, setPropertyType] = useState("all");
-  const [saleStage, setSaleStage] = useState("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [cols, setCols] = useState<string[]>(COLUMNS.map((c) => c.key).filter((k) => !["code", "builder", "rera"].includes(k)));
 
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  useEffect(() => {
+    const t = setTimeout(() => setQ(search.trim()), 300);
+    return () => clearTimeout(t);
+  }, [search]);
+  useEffect(() => setPage(1), [q, applied, pageSize]);
 
-  const params = useMemo(() => {
-    const u = new URLSearchParams();
-    if (q) u.set("q", q);
-    if (propertyType !== "all") u.set("propertyType", propertyType);
-    if (saleStage !== "all") u.set("saleStage", saleStage);
-    u.set("limit", String(pageSize));
-    u.set("skip", String((page - 1) * pageSize));
-    return u.toString();
-  }, [q, propertyType, saleStage, page, pageSize]);
+  const query = useCallback(
+    (limit: number, skip: number) => {
+      const u = new URLSearchParams({ limit: String(limit), skip: String(skip) });
+      if (q) u.set("q", q);
+      if (applied.propertyType) u.set("propertyType", applied.propertyType);
+      if (applied.saleStage) u.set("saleStage", applied.saleStage);
+      if (applied.archived === "1") u.set("archived", "1");
+      return u;
+    },
+    [q, applied],
+  );
 
   const load = useCallback(() => {
     setLoading(true);
-    fetch(`/api/projects?${params}`, { cache: "no-store" })
+    fetch(`/api/projects?${query(pageSize, (page - 1) * pageSize)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
         setItems(d.projects ?? []);
         setTotal(d.total ?? 0);
       })
       .finally(() => setLoading(false));
-  }, [params]);
+  }, [query, page, pageSize]);
+  useEffect(load, [load]);
 
-  useEffect(() => {
-    const t = setTimeout(load, 200);
-    return () => clearTimeout(t);
-  }, [load]);
+  const setArchived = async (p: ProjectRecord, archived: boolean) => {
+    if (archived && !window.confirm(`Archive project "${p.name}"? It will be hidden from the list and project pickers.`)) return;
+    const res = archived
+      ? await fetch(`/api/projects/${p._id}`, { method: "DELETE" })
+      : await fetch(`/api/projects/${p._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archived: false }),
+        });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) toast.error(j.error || "Action failed.");
+    else {
+      toast.success(archived ? "Project archived" : "Project restored");
+      load();
+    }
+  };
 
-  useEffect(() => {
-    setPage(1);
-  }, [q, propertyType, saleStage, pageSize]);
+  const exportCsv = async () => {
+    const d = await fetch(`/api/projects?${query(500, 0)}`, { cache: "no-store" }).then((r) => r.json());
+    const list: ProjectRecord[] = d.projects ?? [];
+    downloadCsv(
+      "projects.csv",
+      ["Project", "Code", "Builder", "City", "Locality", "Type", "Configurations", "Stage", "Min Price", "Max Price", "Total Units", "Available Units", "RERA"],
+      list.map((p) => [
+        p.name,
+        p.code,
+        p.builderName,
+        p.location?.city,
+        p.location?.locality,
+        lbl(PROPERTY_TYPES, p.propertyType),
+        (p.configurations ?? []).join(" / "),
+        lbl(SALE_STAGES, p.saleStage),
+        p.priceRange?.min,
+        p.priceRange?.max,
+        p.totalUnits,
+        p.availableUnits,
+        p.rera?.number,
+      ]),
+    );
+  };
+
+  const show = (k: string) => cols.includes(k);
+  const isArchivedView = applied.archived === "1";
 
   return (
-    <PageShell>
-      <PageBody>
-        <FilterBar
-          actions={
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={() => {
-                  setQ("");
-                  setPropertyType("all");
-                  setSaleStage("all");
-                }}
-              >
-                Reset
-              </Button>
-              <Button size="sm" className="h-9 gap-1.5" onClick={() => setOpenNew(true)}>
-                <Plus className="size-3.5" />
-                Add project
-              </Button>
-            </>
-          }
-        >
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search projects…"
-            className="h-9 w-56"
-          />
-          <Select value={propertyType} onValueChange={setPropertyType}>
-            <SelectTrigger className="h-9 w-40">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              {Object.entries(PROPERTY_TYPE_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={saleStage} onValueChange={setSaleStage}>
-            <SelectTrigger className="h-9 w-44">
-              <SelectValue placeholder="Sale stage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All stages</SelectItem>
-              {Object.entries(SALE_STAGE_LABEL).map(([k, v]) => (
-                <SelectItem key={k} value={k}>
-                  {v.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FilterBar>
+    <BdPage>
+      <BdCard bodyClassName="!p-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <BdField label="Property Type">
+            <BdSelect value={draft.propertyType} onChange={(propertyType) => setDraft((d) => ({ ...d, propertyType }))} placeholder="Select Property Type" options={PROPERTY_TYPES} />
+          </BdField>
+          <BdField label="Sale Stage">
+            <BdSelect value={draft.saleStage} onChange={(saleStage) => setDraft((d) => ({ ...d, saleStage }))} placeholder="Select Sale Stage" options={SALE_STAGES} />
+          </BdField>
+          <BdField label="Status">
+            <BdSelect
+              value={draft.archived}
+              onChange={(archived) => setDraft((d) => ({ ...d, archived }))}
+              placeholder="Active"
+              options={[{ value: "1", label: "Archived" }]}
+            />
+          </BdField>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <BdButton onClick={() => setApplied(draft)}>Search</BdButton>
+          <BdButton
+            variant="light"
+            onClick={() => {
+              const e = { propertyType: "", saleStage: "", archived: "" };
+              setDraft(e);
+              setApplied(e);
+              setSearch("");
+            }}
+          >
+            Clear
+          </BdButton>
+          <BdButton variant="light" onClick={exportCsv}>
+            Export CSV
+          </BdButton>
+          <BdButton onClick={() => setModal({ open: true, project: null })}>Add Project</BdButton>
+        </div>
+      </BdCard>
 
-        <DataTableShell
-          title="Projects"
-          count={total}
+      <BdCard title={isArchivedView ? "Archived Projects" : "Projects"}>
+        <BdTableToolbar
           page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
+          totalPages={Math.ceil(total / pageSize)}
+          onPage={setPage}
+          search={search}
+          onSearch={setSearch}
           pageSize={pageSize}
-          onPageSizeChange={setPageSize}
-        >
-          {loading ? (
-            <div className="space-y-2 p-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-12 animate-pulse rounded-md bg-slate-100" />
+          onPageSize={setPageSize}
+          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          right={<ColumnPicker columns={COLUMNS} visible={cols} onChange={setCols} />}
+        />
+        <BdTable minWidth={960}>
+          <thead>
+            <tr>
+              <BdTh>#</BdTh>
+              {COLUMNS.filter((c) => show(c.key)).map((c) => (
+                <BdTh key={c.key}>{c.label}</BdTh>
               ))}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="p-8">
-              <EmptyState
-                icon={<Building2 className="size-5 text-emerald-600" />}
-                title="No projects"
-                description="Add your first project so the team has inventory to sell."
-                action={
-                  <Button onClick={() => setOpenNew(true)} className="gap-1.5">
-                    <Plus className="size-4" />
-                    Add project
-                  </Button>
-                }
-              />
-            </div>
-          ) : (
-            <TableRoot>
-              <thead>
-                <tr>
-                  <Th>#</Th>
-                  <Th>Project</Th>
-                  <Th>Address</Th>
-                  <Th>Type</Th>
-                  <Th>Unit type</Th>
-                  <Th>Stage</Th>
-                  <Th>Price</Th>
-                  <Th>Inventory</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((p, i) => {
-                  const stageMeta =
-                    SALE_STAGE_LABEL[p.saleStage] ?? SALE_STAGE_LABEL.under_construction;
-                  const cityLine = [p.location?.locality, p.location?.city]
-                    .filter(Boolean)
-                    .join(", ");
-                  return (
-                    <tr key={p._id} className="hover:bg-slate-50/80">
-                      <Td className="text-slate-400">{(page - 1) * pageSize + i + 1}</Td>
-                      <Td>
-                        <p className="font-semibold text-slate-900">{p.name}</p>
-                        <p className="font-mono text-[11px] text-slate-400">{p.code}</p>
-                        {p.builderName ? (
-                          <p className="text-[11px] text-slate-500">{p.builderName}</p>
-                        ) : null}
-                      </Td>
-                      <Td>
-                        {cityLine ? (
-                          <span className="inline-flex items-center gap-1 text-slate-600">
-                            <MapPin className="size-3.5 text-slate-400" />
-                            {cityLine}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
-                      </Td>
-                      <Td>{PROPERTY_TYPE_LABEL[p.propertyType] ?? p.propertyType}</Td>
-                      <Td>
-                        <div className="flex flex-wrap gap-1">
-                          {(p.configurations ?? []).slice(0, 3).map((c) => (
-                            <span
-                              key={c}
-                              className="rounded border border-slate-200 px-1.5 py-0.5 text-[11px] text-slate-600"
-                            >
-                              {c}
-                            </span>
-                          ))}
-                          {(p.configurations ?? []).length === 0 ? "—" : null}
-                        </div>
-                      </Td>
-                      <Td>
-                        <StatusPill tone={stageMeta.tone} dot>
-                          {stageMeta.label}
-                        </StatusPill>
-                      </Td>
-                      <Td className="whitespace-nowrap text-[12.5px]">
+              <BdTh>Action</BdTh>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 ? (
+              <BdEmptyRow colSpan={cols.length + 2} loading={loading} />
+            ) : (
+              items.map((p, i) => {
+                const addr = [p.location?.locality, p.location?.city].filter(Boolean).join(", ");
+                return (
+                  <tr key={p._id}>
+                    <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                    {show("name") ? (
+                      <BdTd>
+                        <button type="button" onClick={() => setModal({ open: true, project: p })} className="text-left font-medium text-[#3a5dc2] hover:underline">
+                          {p.name}
+                        </button>
+                      </BdTd>
+                    ) : null}
+                    {show("code") ? <BdTd>{p.code}</BdTd> : null}
+                    {show("builder") ? <BdTd>{p.builderName ?? "-"}</BdTd> : null}
+                    {show("address") ? <BdTd>{addr || "-"}</BdTd> : null}
+                    {show("type") ? <BdTd>{lbl(PROPERTY_TYPES, p.propertyType)}</BdTd> : null}
+                    {show("unit") ? <BdTd>{(p.configurations ?? []).join(", ") || "-"}</BdTd> : null}
+                    {show("stage") ? (
+                      <BdTd>
+                        <BdBadge color={STAGE_COLOR[p.saleStage] ?? "#9a9ca6"}>{lbl(SALE_STAGES, p.saleStage).toUpperCase()}</BdBadge>
+                      </BdTd>
+                    ) : null}
+                    {show("price") ? (
+                      <BdTd className="whitespace-nowrap">
                         {p.priceRange?.min || p.priceRange?.max
                           ? `${formatCurrency(p.priceRange?.min ?? 0)} – ${formatCurrency(p.priceRange?.max ?? 0)}`
-                          : "—"}
-                      </Td>
-                      <Td className="tabular-nums text-[12.5px]">
-                        {p.totalUnits != null
-                          ? `${p.availableUnits ?? 0} / ${p.totalUnits}`
-                          : "—"}
-                      </Td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </TableRoot>
-          )}
-        </DataTableShell>
-      </PageBody>
-      <NewProjectSheet open={openNew} onOpenChange={setOpenNew} onCreated={load} />
-    </PageShell>
+                          : "-"}
+                      </BdTd>
+                    ) : null}
+                    {show("units") ? <BdTd>{p.totalUnits ?? "-"}</BdTd> : null}
+                    {show("available") ? <BdTd>{p.availableUnits ?? "-"}</BdTd> : null}
+                    {show("rera") ? <BdTd>{p.rera?.number ?? "-"}</BdTd> : null}
+                    <BdTd>
+                      <RowMenu
+                        items={[
+                          { label: "Edit", onClick: () => setModal({ open: true, project: p }) },
+                          p.archived
+                            ? { label: "Restore", onClick: () => setArchived(p, false) }
+                            : { label: "Archive", danger: true, onClick: () => setArchived(p, true) },
+                        ]}
+                      />
+                    </BdTd>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </BdTable>
+      </BdCard>
+
+      <ProjectModal open={modal.open} project={modal.project} onClose={() => setModal((m) => ({ ...m, open: false }))} onSaved={load} />
+    </BdPage>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense>
+      <ProjectsInner />
+    </Suspense>
   );
 }
