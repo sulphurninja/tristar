@@ -1,16 +1,16 @@
-import { Outfit, Fraunces } from "next/font/google";
+import localFont from "next/font/local";
 
 /** Loaded only on landing / auth — never applied to the CRM app shell. */
-export const marketingSans = Outfit({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+export const marketingSans = localFont({
+  src: "../../../node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2",
+  weight: "100 900",
   variable: "--font-outfit",
   display: "swap",
 });
 
-export const marketingDisplay = Fraunces({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
+export const marketingDisplay = localFont({
+  src: "../../../node_modules/@fontsource-variable/fraunces/files/fraunces-latin-wght-normal.woff2",
+  weight: "100 900",
   variable: "--font-fraunces",
   display: "swap",
 });

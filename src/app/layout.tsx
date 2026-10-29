@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
-import { Inter, Roboto } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+// Self-hosted (via @fontsource-variable) so builds never depend on fetching Google Fonts.
+const inter = localFont({
+  src: "../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
+  weight: "100 900",
   variable: "--font-sans",
   display: "swap",
 });
 
-const roboto = Roboto({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
+const roboto = localFont({
+  src: "../../node_modules/@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2",
+  weight: "100 900",
   variable: "--font-roboto",
   display: "swap",
 });
