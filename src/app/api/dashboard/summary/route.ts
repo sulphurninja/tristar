@@ -6,7 +6,7 @@ import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok } from "@/lib/api";
 import { currentVisibleUserIds } from "@/lib/access";
 import { loadStageCatalog, lostKeys } from "@/lib/lead-stages";
-import { resolveAgentScope, rangeBounds, scopeParams, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
+import { leadScopeClause, resolveAgentScope, rangeBounds, scopeParams, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
 
 /**
  * Dashboard counters. Each dashboard card group asks for one `section`
@@ -20,7 +20,9 @@ export const GET = withAuth(async ({ req, session }) => {
   const scope = await resolveAgentScope(workspaceId, team, agent);
   const [start, end] = rangeBounds("today")!;
 
-  const leadScope = scope ? { assignedTo: { $in: scope } } : {};
+  /* $and so it can't collide with the $or inside RETURNING_FILTER. */
+  const leadClause = await leadScopeClause(workspaceId, team, agent);
+  const leadScope = leadClause ? { $and: [leadClause] } : {};
   const taskScope = scope ? { assignedTo: { $in: scope } } : {};
   const visitScope = scope ? { assignedTo: { $in: scope } } : {};
   const actScope = scope ? { actorId: { $in: scope } } : {};

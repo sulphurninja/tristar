@@ -3,7 +3,7 @@ import Lead from "@/models/Lead";
 import Pipeline, { ensureDefaultPipeline } from "@/models/Pipeline";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok, bad } from "@/lib/api";
-import { resolveAgentScope, scopeParams } from "@/lib/scope";
+import { leadScopeClause, scopeParams } from "@/lib/scope";
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -17,10 +17,10 @@ export const GET = withAuth(async ({ req, session }) => {
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
 
   const { team, agent } = scopeParams(url);
-  const scope = await resolveAgentScope(workspaceId, team, agent);
+  const scope = await leadScopeClause(workspaceId, team, agent);
 
   const base: Record<string, unknown> = { workspaceId, isContact: true };
-  if (scope) base.assignedTo = { $in: scope };
+  if (scope) base.$and = [scope];
 
   const filter: Record<string, unknown> = { ...base };
   if (status === "lead" || status === "unqualified") filter.contactStatus = status;

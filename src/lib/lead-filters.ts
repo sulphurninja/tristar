@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Task from "@/models/Task";
-import { resolveAgentScope, rangeBounds, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
+import { leadScopeClause, resolveAgentScope, rangeBounds, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
 import { loadStageCatalog, lostKeys } from "@/lib/lead-stages";
 
 type Filter = Record<string, unknown>;
@@ -124,8 +124,8 @@ export async function buildLeadFilter(
   }
 
   /* Select Team / Select Sales Agent */
-  const scope = await resolveAgentScope(workspaceId, p.get("team"), p.get("agent"));
-  if (scope) baseAnd.push({ assignedTo: { $in: scope } });
+  const scope = await leadScopeClause(workspaceId, p.get("team"), p.get("agent"));
+  if (scope) baseAnd.push(scope);
 
   const and: Filter[] = [];
 

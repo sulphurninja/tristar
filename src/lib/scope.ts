@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import User from "@/models/User";
-import { clampToVisible } from "@/lib/access";
+import { clampToVisible, currentVisibleUserIds } from "@/lib/access";
 
 /**
  * Resolve the Buildesk "Select Team" / "Select Sales Agent" pair into the list
@@ -34,6 +34,30 @@ async function requestedAgents(
     return users.map((u) => u._id);
   }
   return null;
+}
+
+/** Leads someone works on: they own it, are its pre-sales agent, or a co-owner. */
+export function leadWorkedBy(ids: mongoose.Types.ObjectId[]) {
+  return { $or: [{ assignedTo: { $in: ids } }, { preSalesAgentId: { $in: ids } }, { coOwners: { $in: ids } }] };
+}
+
+/**
+ * Lead-list restriction as an `$and`-able clause (null = no restriction).
+ * - Team / agent picked in the UI → leads owned by those agents (clamped to access).
+ * - Nothing picked → for own/team-scoped users, every lead they work on in any
+ *   capacity (owner, pre-sales or co-owner), not just the ones they own.
+ */
+export async function leadScopeClause(
+  workspaceId: mongoose.Types.ObjectId,
+  team?: string | null,
+  agent?: string | null,
+): Promise<Record<string, unknown> | null> {
+  if (team || agent) {
+    const ids = await resolveAgentScope(workspaceId, team, agent);
+    return ids ? { assignedTo: { $in: ids } } : null;
+  }
+  const visible = await currentVisibleUserIds();
+  return visible ? leadWorkedBy(visible) : null;
 }
 
 /** Read `team` / `agent` from a request URL. */
