@@ -3,7 +3,6 @@ import { z } from "zod";
 import Pipeline, { ensureDefaultPipeline, STAGE_TYPES } from "@/models/Pipeline";
 import Lead from "@/models/Lead";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 /* ---------- GET /api/pipelines — list workspace pipelines ---------- */
 
@@ -61,9 +60,6 @@ const CreatePipeline = z.object({
 });
 
 export const POST = withAuth(async ({ req, session }) => {
-  if (!hasRole(session.role as Role, "admin")) {
-    return bad("Only admins can create pipelines.", 403);
-  }
 
   const parsed = CreatePipeline.safeParse(await req.json());
   if (!parsed.success) {

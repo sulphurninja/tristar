@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Task from "@/models/Task";
 import User from "@/models/User";
 import LeadActivity from "@/models/LeadActivity";
+import { canSeeAssignee } from "@/lib/access";
 import { withAuth, ok, bad } from "@/lib/api";
 import { mustSeeOwnOnly } from "@/lib/task-filters";
 import { recordTaskCompleted } from "@/lib/task-actions";
@@ -18,8 +19,8 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 
   const task = await Task.findOne({ _id: params.id, workspaceId });
   if (!task) return bad("Task not found.", 404);
-  if (mustSeeOwnOnly(session.role) && String(task.assignedTo) !== session.userId) {
-    return bad("You can only change your own tasks.", 403);
+  if (!(await canSeeAssignee(task.assignedTo))) {
+    return bad("You can only change tasks assigned to you or your team.", 403);
   }
 
   const wasCompleted = task.status === "completed";

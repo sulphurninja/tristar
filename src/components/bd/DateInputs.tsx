@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+import { format, isValid, parse } from "date-fns";
 import { ArrowRight, Calendar } from "lucide-react";
+import { Calendar as DayCalendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 /** yyyy-MM-dd in local time. */
@@ -9,10 +13,7 @@ export function ymd(d: Date = new Date()) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-/**
- * One date cell that always *displays* yyyy-MM-dd (Buildesk style, independent of
- * browser locale) while a transparent native date input on top handles picking.
- */
+/** One date cell: shows a friendly date, opens a calendar popover to pick. */
 function DateCell({
   value,
   onChange,
@@ -26,27 +27,41 @@ function DateCell({
   max?: string;
   className?: string;
 }) {
+  const [open, setOpen] = useState(false);
+  const d = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
+  const ok = d && isValid(d) ? d : undefined;
+  const lo = min ? parse(min, "yyyy-MM-dd", new Date()) : undefined;
+  const hi = max ? parse(max, "yyyy-MM-dd", new Date()) : undefined;
   return (
-    <span className={cn("relative flex h-full flex-1 items-center gap-2 px-3 text-[13px] text-[#2b2f3a]", className)}>
-      <span className="flex-1 whitespace-nowrap">{value || "yyyy-mm-dd"}</span>
-      <Calendar className="size-3.5 shrink-0 text-[#7c8296]" />
-      <input
-        type="date"
-        value={value}
-        min={min}
-        max={max}
-        aria-label="Select date"
-        onChange={(e) => e.target.value && onChange(e.target.value)}
-        onClick={(e) => {
-          try {
-            e.currentTarget.showPicker();
-          } catch {
-            /* older browsers: native segment editing still works */
-          }
-        }}
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-      />
-    </span>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Select date"
+          className={cn(
+            "flex h-full flex-1 items-center gap-2 rounded-[7px] px-3 text-left text-[13px] text-foreground transition-colors hover:bg-muted/60",
+            className,
+          )}
+        >
+          <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className={cn("flex-1 whitespace-nowrap", !ok && "text-muted-foreground")}>
+            {ok ? format(ok, "dd MMM yyyy") : "Pick date"}
+          </span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-2">
+        <DayCalendar
+          mode="single"
+          selected={ok}
+          defaultMonth={ok}
+          disabled={[...(lo && isValid(lo) ? [{ before: lo }] : []), ...(hi && isValid(hi) ? [{ after: hi }] : [])]}
+          onSelect={(x) => {
+            if (x) onChange(format(x, "yyyy-MM-dd"));
+            setOpen(false);
+          }}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -65,7 +80,7 @@ export function BdDateInput({
   max?: string;
 }) {
   return (
-    <div className={cn("flex h-[38px] min-w-[150px] rounded-[3px] border border-[#dfe3ee] bg-white", className)}>
+    <div className={cn("flex h-[38px] min-w-[150px] rounded-lg border border-input bg-white", className)}>
       <DateCell value={value} onChange={onChange} min={min} max={max} />
     </div>
   );
@@ -84,18 +99,18 @@ export function BdDateRange({
   className?: string;
 }) {
   return (
-    <div className={cn("flex h-[38px] items-center rounded-[3px] border border-[#dfe3ee] bg-white", className)}>
+    <div className={cn("flex h-[38px] items-center rounded-lg border border-input bg-white", className)}>
       <DateCell
         value={from}
         max={to || undefined}
-        className="w-[150px] flex-none"
+        className="w-[140px] flex-none"
         onChange={(v) => onChange({ from: v, to: to && v > to ? v : to })}
       />
-      <ArrowRight className="size-3 shrink-0 text-[#9aa1b5]" />
+      <ArrowRight className="size-3 shrink-0 text-muted-foreground/80" />
       <DateCell
         value={to}
         min={from || undefined}
-        className="w-[150px] flex-none"
+        className="w-[140px] flex-none"
         onChange={(v) => onChange({ from: from && v < from ? v : from, to: v })}
       />
     </div>

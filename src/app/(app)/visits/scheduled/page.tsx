@@ -97,7 +97,7 @@ export default function SVPDashboardPage() {
 
   return (
     <div>
-      <div className="border-b border-[#e6e9f2] bg-white pt-2">
+      <div className="border-b border-border bg-white pt-2">
         <BdTabs tabs={RANGES} value={range} onChange={setRange} />
       </div>
       <BdPage>
@@ -158,7 +158,7 @@ export default function SVPDashboardPage() {
                     <tr key={v._id}>
                       <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
                       <BdTd>
-                        <Link href={leadHref(v.leadId?._id)} className="text-[#1a0dab] underline underline-offset-2">
+                        <Link href={leadHref(v.leadId?._id)} className="text-primary underline underline-offset-2">
                           {v.leadId?.contact?.name ?? "Unknown lead"}
                         </Link>
                       </BdTd>
@@ -171,7 +171,7 @@ export default function SVPDashboardPage() {
                         <span className="line-clamp-2">{v.remark ?? v.description ?? v.leadId?.description ?? "-"}</span>
                       </BdTd>
                       <BdTd>
-                        <BdBadge color={v.status === "confirmed" ? "#3a5dc2" : "#e9a52a"}>
+                        <BdBadge color={v.status === "confirmed" ? "#2563eb" : "#e9a52a"}>
                           {v.status === "confirmed" ? "Confirmed" : "Scheduled"}
                         </BdBadge>
                       </BdTd>

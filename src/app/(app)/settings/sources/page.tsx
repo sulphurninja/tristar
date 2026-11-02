@@ -85,7 +85,7 @@ export default function SourcesPage() {
   return (
     <BdPage>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Sources</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">Sources</h1>
         <div className="flex gap-2">
           <BdButton
             variant="light"
@@ -134,21 +134,21 @@ export default function SourcesPage() {
                   <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
                   <BdTd>
                     <span className="inline-flex items-center gap-2 font-medium">
-                      <span className="size-2.5 rounded-full" style={{ background: s.color ?? "#3a5dc2" }} />
+                      <span className="size-2.5 rounded-full" style={{ background: s.color ?? "#2563eb" }} />
                       {s.label}
                     </span>
                   </BdTd>
-                  <BdTd className="font-mono text-[12px] text-[#5a6072]">{s.key}</BdTd>
+                  <BdTd className="font-mono text-[12px] text-foreground/70">{s.key}</BdTd>
                   <BdTd>{s.description || "-"}</BdTd>
                   <BdTd>
                     <BdBadge color={s.isActive ? "#37b24d" : "#9a9ca6"}>{s.isActive ? "Active" : "Inactive"}</BdBadge>
                   </BdTd>
                   <BdTd className="text-right">
                     <div className="flex justify-end gap-1">
-                      <button type="button" title="Edit" onClick={() => setEditing(s)} className="rounded p-1.5 text-[#3a5dc2] hover:bg-[#eef1fa]">
+                      <button type="button" title="Edit" onClick={() => setEditing(s)} className="rounded p-1.5 text-primary hover:bg-primary-50">
                         <Pencil className="size-4" />
                       </button>
-                      <button type="button" title="Delete" onClick={() => onDelete(s._id)} className="rounded p-1.5 text-[#e5484d] hover:bg-[#fdecec]">
+                      <button type="button" title="Delete" onClick={() => onDelete(s._id)} className="rounded p-1.5 text-destructive hover:bg-destructive/10">
                         <Trash2 className="size-4" />
                       </button>
                     </div>

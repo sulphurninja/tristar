@@ -48,8 +48,8 @@ export default function CompliancePage() {
   return (
     <BdPage>
       <div>
-        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Compliance</h1>
-        <p className="mt-0.5 text-[12.5px] text-[#8b90a0]">These details appear on lead exports, brochures and contracts.</p>
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">Compliance</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">These details appear on lead exports, brochures and contracts.</p>
       </div>
       <BdCard className="max-w-3xl">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

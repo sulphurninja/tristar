@@ -35,6 +35,7 @@ import { BrokerDetailSheet } from "@/components/brokers/BrokerDetailSheet";
 import { CpFormDialog, CP_STAGES, type CpEditable } from "@/components/brokers/CpFormDialog";
 import { CP_CATEGORIES } from "@/components/brokers/CompanyDialog";
 import { toCsv, downloadCsv } from "@/lib/bd-csv";
+import { DateField } from "@/components/ui/date-field";
 
 interface Row extends CpEditable {
   cpId?: number;
@@ -365,7 +366,7 @@ function BrokersInner() {
         title={
           <span>
             Channel Partner ({total})
-            {companyName ? <span className="ml-3 text-[13px] text-[#8b90a0]">Company: {companyName}</span> : null}
+            {companyName ? <span className="ml-3 text-[13px] text-muted-foreground">Company: {companyName}</span> : null}
           </span>
         }
         actions={
@@ -380,7 +381,7 @@ function BrokersInner() {
                 options={saved.map((s) => ({ value: s._id, label: s.name }))}
               />
               {savedId ? (
-                <button type="button" onClick={removeSaved} className="px-1 text-[12px] text-[#e5484d] hover:underline">
+                <button type="button" onClick={removeSaved} className="px-1 text-[12px] text-destructive hover:underline">
                   Delete
                 </button>
               ) : null}
@@ -403,7 +404,7 @@ function BrokersInner() {
         }
       >
         {selected.length > 0 ? (
-          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-[3px] bg-[#eef1fa] px-3 py-2 text-[13px]">
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg bg-primary-50 px-3 py-2 text-[13px]">
             <span className="font-medium">{selected.length} selected</span>
             <BdSelect
               className="w-[220px]"
@@ -470,7 +471,7 @@ function BrokersInner() {
                   {show("assigned") && <BdTd className="whitespace-nowrap">{fmtDate(b.assignedAt)}</BdTd>}
                   {show("contact") && (
                     <BdTd>
-                      <button type="button" onClick={() => setActiveId(b._id)} className="text-left text-[#2d5bd6] underline">
+                      <button type="button" onClick={() => setActiveId(b._id)} className="text-left text-primary underline">
                         {b.name}
                       </button>
                       <p className="mt-1 whitespace-nowrap text-[12px] font-bold">
@@ -539,10 +540,10 @@ function BrokersInner() {
           />
         </BdField>
         <BdField label="Created From">
-          <input type="date" className={fieldSel} value={panelFilters.dateFrom ?? ""} onChange={(e) => setPanelFilters((p) => ({ ...p, dateFrom: e.target.value }))} />
+          <DateField value={panelFilters.dateFrom ?? ""} onChange={(v) => setPanelFilters((p) => ({ ...p, dateFrom: v }))} clearable />
         </BdField>
         <BdField label="Created To">
-          <input type="date" className={fieldSel} value={panelFilters.dateTo ?? ""} onChange={(e) => setPanelFilters((p) => ({ ...p, dateTo: e.target.value }))} />
+          <DateField value={panelFilters.dateTo ?? ""} onChange={(v) => setPanelFilters((p) => ({ ...p, dateTo: v }))} clearable />
         </BdField>
       </BdSidePanel>
 

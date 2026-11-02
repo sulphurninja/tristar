@@ -7,14 +7,7 @@ import "./globals.css";
 const inter = localFont({
   src: "../../node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2",
   weight: "100 900",
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const roboto = localFont({
-  src: "../../node_modules/@fontsource-variable/roboto/files/roboto-latin-wght-normal.woff2",
-  weight: "100 900",
-  variable: "--font-roboto",
+  variable: "--font-sans-inter",
   display: "swap",
 });
 
@@ -62,7 +55,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${roboto.variable} antialiased bg-background text-foreground`}>
+      <body className={`${inter.variable} antialiased bg-background text-foreground`}>
         {children}
         <Toaster position="top-right" richColors closeButton />
       </body>

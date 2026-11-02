@@ -25,7 +25,7 @@ const TONE: Record<string, string> = {
   whatsapp_sent: "#2fb67c",
   sms_sent: "#ec8a2c",
   email_sent: "#e0566a",
-  stage_changed: "#3a5dc2",
+  stage_changed: "#2563eb",
   lead_assigned: "#7a66e0",
   site_visit_scheduled: "#8a5cd6",
   followup_set: "#e9b72a",
@@ -50,16 +50,16 @@ export function useActivities(leadId: string, channel?: string) {
 }
 
 export function ActivityList({ rows, empty }: { rows: ActivityRow[] | null; empty: string }) {
-  if (rows === null) return <p className="py-8 text-center text-[13px] text-[#8b90a0]">Loading…</p>;
-  if (rows.length === 0) return <p className="py-8 text-center text-[13px] text-[#8b90a0]">{empty}</p>;
+  if (rows === null) return <p className="py-8 text-center text-[13px] text-muted-foreground">Loading…</p>;
+  if (rows.length === 0) return <p className="py-8 text-center text-[13px] text-muted-foreground">{empty}</p>;
   return (
-    <ol className="relative ml-2 border-l border-[#e3e6ef]">
+    <ol className="relative ml-2 border-l border-border">
       {rows.map((a) => (
         <li key={a._id} className="relative pb-5 pl-6">
           <span className="absolute -left-[6px] top-1 size-3 rounded-full border-2 border-white" style={{ background: TONE[a.type] ?? "#9a9ca6" }} />
-          <p className="text-[14px] font-medium text-[#2b2f3a]">{titleOf(a.type)}</p>
-          {a.description ? <p className="mt-0.5 whitespace-pre-wrap text-[13.5px] text-[#4a4f5f]">{a.description}</p> : null}
-          <p className="mt-0.5 text-[12px] text-[#8b90a0]">
+          <p className="text-[14px] font-medium text-foreground">{titleOf(a.type)}</p>
+          {a.description ? <p className="mt-0.5 whitespace-pre-wrap text-[13.5px] text-foreground/80">{a.description}</p> : null}
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
             {fmtDT(a.occurredAt)}
             {a.actorId?.name ? ` · ${a.actorId.name}` : ""}
             {a.durationSec ? ` · ${Math.round(a.durationSec / 60 * 10) / 10} min` : ""}
@@ -90,7 +90,7 @@ export function TimelineTab({ ctx }: { ctx: TabCtx }) {
     }
   };
   return (
-    <div className="rounded-[3px] border border-[#e6e9f2] bg-white p-5">
+    <div className="rounded-lg border border-border bg-white p-5">
       <div className="mb-5 flex gap-2">
         <input
           value={note}

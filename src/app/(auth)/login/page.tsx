@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const Schema = z.object({
-  email: z.string().email("Please enter a valid email"),
+  email: z.string().trim().min(1, "Enter your email or username"),
   password: z.string().min(1, "Enter your password"),
 });
 
@@ -25,6 +25,7 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const next = params.get("next") || "/dashboard";
+  const inactive = params.get("reason") === "inactive";
 
   const [showPassword, setShowPassword] = useState(false);
   const {
@@ -61,13 +62,20 @@ function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-4">
+      {inactive ? (
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3.5 py-3 text-[13px] text-destructive">
+          You were signed out because your account is no longer active. Contact your administrator if this is a
+          mistake.
+        </div>
+      ) : null}
       <div className="space-y-1.5">
-        <Label htmlFor="email">Work email</Label>
+        <Label htmlFor="email">Email or username</Label>
         <Input
           id="email"
-          type="email"
-          autoComplete="email"
-          placeholder="you@tristarrealtors.in"
+          type="text"
+          autoCapitalize="none"
+          autoComplete="username"
+          placeholder="you@tristarrealtors.in or your username"
           leadingIcon={<Mail className="size-4" />}
           {...register("email")}
           aria-invalid={!!errors.email}
@@ -113,7 +121,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <div>
-      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-primary">
         Tristar CRM
       </p>
       <h1 className="font-display mt-2 text-[1.85rem] font-semibold tracking-tight text-slate-900">
@@ -129,7 +137,7 @@ export default function LoginPage() {
 
       <p className="mt-8 text-center text-[13.5px] text-slate-500">
         First-time setup?{" "}
-        <Link href="/signup" className="font-semibold text-emerald-700 hover:underline">
+        <Link href="/signup" className="font-semibold text-primary hover:underline">
           Create the Tristar workspace
         </Link>
       </p>

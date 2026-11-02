@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, User } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -125,7 +125,7 @@ function visitStatus(v: VisitRow) {
     case "no_show":
       return <BdBadge color="#e5484d">No Show</BdBadge>;
     case "confirmed":
-      return <BdBadge color="#3a5dc2">Confirmed</BdBadge>;
+      return <BdBadge color="#2563eb">Confirmed</BdBadge>;
     case "in_progress":
       return <BdBadge color="#7a66e0">In Progress</BdBadge>;
     default:
@@ -138,9 +138,29 @@ export function SiteVisitTab({ openAdd, onAddClosed }: { openAdd: boolean; onAdd
   const { users, teams } = useDirectory();
   const { projects, brokers, sources } = useLookups();
 
-  const [draft, setDraft] = useState<Filters>(EMPTY);
-  const [applied, setApplied] = useState<Filters>(EMPTY);
-  const [kpi, setKpi] = useState<"" | "today" | "upcoming" | "pending" | "completed">("today");
+
+  /* Deep links (e.g. dashboard cards) can preset: ?range=&from=&to=&team=&agent=&status= */
+  const sp = useSearchParams();
+  const fromUrl = useRef(
+    (() => {
+      const f: Filters = {
+        ...EMPTY,
+        team: sp.get("team") ?? "",
+        assignedTo: sp.get("agent") ?? "",
+        status: sp.get("status") ?? "",
+      };
+      const range = sp.get("range");
+      if (range) f.date = { range, from: sp.get("from") ?? "", to: sp.get("to") ?? "" };
+      return f;
+    })(),
+  ).current;
+  const linked = JSON.stringify(fromUrl) !== JSON.stringify(EMPTY);
+
+  const [draft, setDraft] = useState<Filters>(fromUrl);
+  const [applied, setApplied] = useState<Filters>(fromUrl);
+  const [kpi, setKpi] = useState<"" | "today" | "upcoming" | "pending" | "completed">(
+    linked ? (fromUrl.status === "completed" ? "completed" : fromUrl.status ? "" : "today") : "today",
+  );
   const [kpiRange, setKpiRange] = useState("");
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -323,7 +343,7 @@ export function SiteVisitTab({ openAdd, onAddClosed }: { openAdd: boolean; onAdd
         <BdKpi label="Completed Site Visit" value={stats.completed} icon={User} active={kpi === "completed"} onClick={() => pickKpi("completed")} />
       </div>
 
-      <section className="bd-card rounded-[3px] p-5">
+      <section className="bd-card rounded-lg p-5">
         <div className="mb-4">
           <BdCountChip>
             {total} <User className="size-3" />
@@ -401,10 +421,10 @@ export function SiteVisitTab({ openAdd, onAddClosed }: { openAdd: boolean; onAdd
         </form>
       </section>
 
-      <section className="bd-card rounded-[3px] p-5">
+      <section className="bd-card rounded-lg p-5">
         {selectedRows.length ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[3px] bg-[#eef1fa] px-3 py-2 text-[13px]">
-            <span className="font-medium text-[#2b2f3a]">{selectedRows.length} selected</span>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-primary-50 px-3 py-2 text-[13px]">
+            <span className="font-medium text-foreground">{selectedRows.length} selected</span>
             <BdButton onClick={() => setAction({ mode: "complete", visits: selectedRows })}>Mark Completed</BdButton>
             <BdButton onClick={() => setAction({ mode: "reassign", visits: selectedRows })}>Reassign</BdButton>
             <BdButton variant="danger" onClick={() => setAction({ mode: "cancel", visits: selectedRows })}>
@@ -467,7 +487,7 @@ export function SiteVisitTab({ openAdd, onAddClosed }: { openAdd: boolean; onAdd
               <BdEmptyRow colSpan={colCount + 1} loading={loading} />
             ) : (
               rows.map((v, i) => (
-                <tr key={v._id} className={cn(selected.has(v._id) && "bg-[#f1f4fc]")}>
+                <tr key={v._id} className={cn(selected.has(v._id) && "bg-muted/60")}>
                   <BdTd>
                     <BdCheck
                       checked={selected.has(v._id)}
@@ -533,7 +553,7 @@ export function SiteVisitTab({ openAdd, onAddClosed }: { openAdd: boolean; onAdd
             )}
           </tbody>
         </BdTable>
-        <div className="pt-3 text-[12.5px] text-[#8b90a0]">
+        <div className="pt-3 text-[12.5px] text-muted-foreground">
           {total === 0 ? "No entries" : `Showing ${(page - 1) * pageSize + 1} to ${Math.min(page * pageSize, total)} of ${total} entries`}
         </div>
       </section>

@@ -65,10 +65,10 @@ export function ChannelTab({ ctx, channel }: { ctx: TabCtx; channel: Channel }) 
   };
 
   return (
-    <div className="rounded-[3px] border border-[#e6e9f2] bg-white">
-      <header className="border-b border-[#eef0f6] px-5 py-3.5">
-        <h3 className="text-[16px] font-semibold text-[#2b2f3a]">{m.title}</h3>
-        <p className="text-[11.5px] font-semibold uppercase tracking-wide text-[#6b7186]">
+    <div className="rounded-lg border border-border bg-white">
+      <header className="border-b border-border/70 px-5 py-3.5">
+        <h3 className="text-[16px] font-semibold text-foreground">{m.title}</h3>
+        <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">
           {channel === "call" ? `${phone}` : channel === "email" ? (email ?? "No e-mail on file") : phone}
         </p>
       </header>
@@ -83,7 +83,7 @@ export function ChannelTab({ ctx, channel }: { ctx: TabCtx; channel: Channel }) 
             </BdButton>
           </div>
         ) : (
-          <div className="space-y-3 rounded-[3px] bg-[#f6f8fd] p-4">
+          <div className="space-y-3 rounded-lg bg-muted/50 p-4">
             {channel === "email" ? (
               <BdField label="Subject">
                 <BdInput value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" />

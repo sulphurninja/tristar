@@ -224,7 +224,7 @@ export default function PropertyPage() {
           onSearch={setSearch}
           pageSize={pageSize}
           onPageSize={setPageSize}
-          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          left={<span className="text-[12.5px] text-muted-foreground">{total} total</span>}
           right={<ColumnPicker columns={COLUMNS} visible={cols} onChange={setCols} />}
         />
         <BdTable minWidth={980}>
@@ -243,11 +243,11 @@ export default function PropertyPage() {
             ) : (
               rows.map((p, i) => (
                 <tr key={p._id}>
-                  <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                  <BdTd className="text-muted-foreground">{(page - 1) * pageSize + i + 1}</BdTd>
                   {show("number") ? <BdTd>{p.propertyNumber ?? "-"}</BdTd> : null}
                   {show("title") ? (
                     <BdTd className="max-w-[240px]">
-                      <button type="button" onClick={() => setActiveId(p._id)} className="truncate text-left font-medium text-[#3a5dc2] hover:underline">
+                      <button type="button" onClick={() => setActiveId(p._id)} className="truncate text-left font-medium text-primary hover:underline">
                         {p.title ?? "-"}
                       </button>
                     </BdTd>
@@ -266,7 +266,7 @@ export default function PropertyPage() {
                   {show("owner") ? (
                     <BdTd>
                       {p.ownerName ?? "-"}
-                      {p.ownerMobile ? <div className="text-[11.5px] text-[#8b90a0]">{p.ownerMobile}</div> : null}
+                      {p.ownerMobile ? <div className="text-[11.5px] text-muted-foreground">{p.ownerMobile}</div> : null}
                     </BdTd>
                   ) : null}
                   {show("project") ? <BdTd>{p.projectId?.name ?? "-"}</BdTd> : null}

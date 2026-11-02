@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import Property from "@/models/Property";
 import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole } from "@/lib/auth";
 import { sanitizeProperty } from "@/lib/property-input";
 
 export const GET = withAuth<{ id: string }>(async ({ session, params }) => {
@@ -75,7 +74,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
-  if (!hasRole(session.role, "manager")) return bad("Only managers and above can delete properties.", 403);
   const r = await Property.findOneAndDelete({ _id: params.id, workspaceId: session.workspaceId });
   if (!r) return bad("Property not found", 404);
   return ok({ ok: true });

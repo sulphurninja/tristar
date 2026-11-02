@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDown, ArrowUp, User } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -98,9 +98,30 @@ export function TasksTab({ openAdd, onAddClosed }: { openAdd: boolean; onAddClos
   const { users, teams } = useDirectory();
   const { projects } = useLookups();
 
-  const [draft, setDraft] = useState<Filters>(EMPTY);
-  const [applied, setApplied] = useState<Filters>(EMPTY);
-  const [kpi, setKpi] = useState<"" | "today" | "upcoming" | "pending" | "completed">("today");
+
+  /* Deep links (e.g. dashboard cards) can preset: ?range=&from=&to=&team=&agent=&status=&activityType= */
+  const sp = useSearchParams();
+  const fromUrl = useRef(
+    (() => {
+      const f: Filters = {
+        ...EMPTY,
+        team: sp.get("team") ?? "",
+        assignedTo: sp.get("agent") ?? "",
+        status: sp.get("status") ?? "",
+        activityType: sp.get("activityType") ?? "",
+      };
+      const range = sp.get("range");
+      if (range) f.date = { range, from: sp.get("from") ?? "", to: sp.get("to") ?? "" };
+      return f;
+    })(),
+  ).current;
+  const linked = JSON.stringify(fromUrl) !== JSON.stringify(EMPTY);
+
+  const [draft, setDraft] = useState<Filters>(fromUrl);
+  const [applied, setApplied] = useState<Filters>(fromUrl);
+  const [kpi, setKpi] = useState<"" | "today" | "upcoming" | "pending" | "completed">(
+    linked ? (fromUrl.status === "completed" ? "completed" : fromUrl.status ? "" : "today") : "today",
+  );
   const [kpiRange, setKpiRange] = useState<string>("");
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -273,7 +294,7 @@ export function TasksTab({ openAdd, onAddClosed }: { openAdd: boolean; onAddClos
         <BdKpi label="Completed Task" value={stats.completed} icon={User} active={kpi === "completed"} onClick={() => pickKpi("completed")} />
       </div>
 
-      <section className="bd-card rounded-[3px] p-5">
+      <section className="bd-card rounded-lg p-5">
         <div className="mb-4">
           <BdCountChip>
             {total} <User className="size-3" />
@@ -333,10 +354,10 @@ export function TasksTab({ openAdd, onAddClosed }: { openAdd: boolean; onAddClos
         </form>
       </section>
 
-      <section className="bd-card rounded-[3px] p-5">
+      <section className="bd-card rounded-lg p-5">
         {selectedRows.length ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[3px] bg-[#eef1fa] px-3 py-2 text-[13px]">
-            <span className="font-medium text-[#2b2f3a]">{selectedRows.length} selected</span>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-primary-50 px-3 py-2 text-[13px]">
+            <span className="font-medium text-foreground">{selectedRows.length} selected</span>
             <BdButton onClick={() => setAction({ mode: "complete", tasks: selectedRows })}>Mark as Completed</BdButton>
             <BdButton onClick={() => setAction({ mode: "reassign", tasks: selectedRows })}>Reassign</BdButton>
             <BdButton variant="danger" onClick={() => setAction({ mode: "delete", tasks: selectedRows })}>
@@ -402,7 +423,7 @@ export function TasksTab({ openAdd, onAddClosed }: { openAdd: boolean; onAddClos
               <BdEmptyRow colSpan={colCount} loading={loading} />
             ) : (
               rows.map((t, i) => (
-                <tr key={t._id} className={cn(selected.has(t._id) && "bg-[#f1f4fc]")}>
+                <tr key={t._id} className={cn(selected.has(t._id) && "bg-muted/60")}>
                   <BdTd>
                     <BdCheck
                       checked={selected.has(t._id)}
@@ -465,7 +486,7 @@ export function TasksTab({ openAdd, onAddClosed }: { openAdd: boolean; onAddClos
             )}
           </tbody>
         </BdTable>
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-[12.5px] text-[#8b90a0]">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-[12.5px] text-muted-foreground">
           <span>
             {total === 0 ? "No entries" : `Showing ${(page - 1) * pageSize + 1} to ${Math.min(page * pageSize, total)} of ${total} entries`}
           </span>

@@ -27,7 +27,6 @@ import {
   formatBdDate,
 } from "@/components/bd";
 import { useAuth } from "@/contexts/AuthContext";
-import { hasRole, type Role } from "@/lib/roles";
 import { downloadCsv } from "@/lib/csv";
 
 interface RequestRow {
@@ -59,7 +58,7 @@ const STATUS_COLOR = { pending: "#e9b72a", approved: "#37b24d", rejected: "#e548
 type Tab = "pending" | "approved" | "rejected" | "all";
 
 export default function RequestsPage() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const [tab, setTab] = useState<Tab>("pending");
   const [items, setItems] = useState<RequestRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,7 +83,7 @@ export default function RequestsPage() {
   }, [load]);
   useEffect(() => setPage(1), [tab, search, pageSize]);
 
-  const canApprove = user ? hasRole(user.role as Role, "manager") : false;
+  const canApprove = can("requests.approve");
 
   const act = async (r: RequestRow, status: "approved" | "rejected" | "cancelled") => {
     let decision: string | undefined;
@@ -120,7 +119,7 @@ export default function RequestsPage() {
   return (
     <BdPage>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Requests</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">Requests</h1>
         <div className="flex gap-2">
           <BdButton
             variant="light"
@@ -193,8 +192,8 @@ export default function RequestsPage() {
                     <BdTd>{TYPE_LABEL[r.type] ?? r.type}</BdTd>
                     <BdTd className="max-w-[320px]">
                       <p className="font-medium">{r.title}</p>
-                      {r.description ? <p className="text-[11.5px] text-[#8b90a0]">{r.description}</p> : null}
-                      {r.decision ? <p className="text-[11.5px] italic text-[#5a6072]">Note: {r.decision}</p> : null}
+                      {r.description ? <p className="text-[11.5px] text-muted-foreground">{r.description}</p> : null}
+                      {r.decision ? <p className="text-[11.5px] italic text-foreground/70">Note: {r.decision}</p> : null}
                     </BdTd>
                     <BdTd>{r.raisedBy?.name ?? "-"}</BdTd>
                     <BdTd>{r.assignedTo?.name ?? "-"}</BdTd>
@@ -295,7 +294,7 @@ function NewRequestDialog({
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Why this needs approval."
-              className="w-full rounded-[3px] border border-[#dfe3ee] p-2.5 text-[13px]"
+              className="w-full rounded-lg border border-input p-2.5 text-[13px]"
             />
           </BdField>
         </div>

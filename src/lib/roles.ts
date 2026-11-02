@@ -43,3 +43,9 @@ export const ROLE_LABELS: Record<Role, string> = {
 export function hasRole(userRole: Role, minimum: Role) {
   return (ROLE_HIERARCHY[userRole] ?? 0) >= (ROLE_HIERARCHY[minimum] ?? 0);
 }
+
+/** True when `a` sits strictly above `b` in the hierarchy (owner trumps everything). */
+export function outranks(a: string, b: string) {
+  if (b === "owner") return false;
+  return (ROLE_HIERARCHY[a as Role] ?? 0) > (ROLE_HIERARCHY[b as Role] ?? 0);
+}

@@ -28,18 +28,18 @@ export function BdModal({
           aria-describedby={undefined}
           style={{ maxWidth: width }}
           className={cn(
-            "fixed left-1/2 top-1/2 z-[61] flex max-h-[92vh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-[3px] bg-white shadow-xl",
+            "fixed left-1/2 top-1/2 z-[61] flex max-h-[92vh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-lg bg-white shadow-xl",
           )}
         >
-          <div className="flex items-center justify-between border-b border-[#eef0f6] px-5 py-3.5">
-            <DialogPrimitive.Title className="text-[16px] font-medium text-[#2b2f3a]">{title}</DialogPrimitive.Title>
-            <DialogPrimitive.Close className="text-[#7c8296] hover:text-[#2b2f3a]" aria-label="Close">
+          <div className="flex items-center justify-between border-b border-border/70 px-5 py-3.5">
+            <DialogPrimitive.Title className="text-[16px] font-medium text-foreground">{title}</DialogPrimitive.Title>
+            <DialogPrimitive.Close className="text-muted-foreground hover:text-foreground" aria-label="Close">
               <X className="size-4" />
             </DialogPrimitive.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
           {footer ? (
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#eef0f6] px-5 py-3">{footer}</div>
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border/70 px-5 py-3">{footer}</div>
           ) : null}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

@@ -136,6 +136,21 @@ export function ActivityFeedPage({ mode }: { mode: "activities" | "logs" }) {
   const [report, setReport] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
+  /* Deep links (e.g. dashboard cards) can preset ?team=&agent=&type=&range=. */
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    if (!["team", "agent", "type", "range"].some((k) => sp.get(k))) return;
+    const f: Filters = {
+      range: sp.get("range")
+        ? { range: sp.get("range")!, from: sp.get("from") ?? "", to: sp.get("to") ?? "" }
+        : DEFAULT.range,
+      scope: { team: sp.get("team") ?? "", agent: sp.get("agent") ?? "" },
+      type: sp.get("type") ?? "",
+    };
+    setDraft(f);
+    setApplied(f);
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => setQ(search.trim()), 300);
     return () => clearTimeout(t);
@@ -247,9 +262,9 @@ export function ActivityFeedPage({ mode }: { mode: "activities" | "logs" }) {
         <BdCard title="Logs Report">
           <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
             {LOG_REPORT.map(([k, label]) => (
-              <div key={k} className="flex items-center justify-between border-l-[3px] border-[#3a5dc2] pl-3 text-[13.5px]">
-                <span className="text-[#2b2f3a]">{label}</span>
-                <span className="font-medium tabular-nums text-[#2b2f3a]">{r[k] ?? 0}</span>
+              <div key={k} className="flex items-center justify-between border-l-[3px] border-primary pl-3 text-[13.5px]">
+                <span className="text-foreground">{label}</span>
+                <span className="font-medium tabular-nums text-foreground">{r[k] ?? 0}</span>
               </div>
             ))}
           </div>
@@ -278,7 +293,7 @@ export function ActivityFeedPage({ mode }: { mode: "activities" | "logs" }) {
           onSearch={setSearch}
           pageSize={pageSize}
           onPageSize={setPageSize}
-          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          left={<span className="text-[12.5px] text-muted-foreground">{total} total</span>}
           right={<ColumnPicker columns={COLS} visible={cols} onChange={setCols} />}
         />
         <BdTable minWidth={860}>
@@ -300,7 +315,7 @@ export function ActivityFeedPage({ mode }: { mode: "activities" | "logs" }) {
                   <button
                     type="button"
                     onClick={() => router.push(`/leads?open=${a.leadId!._id}`)}
-                    className="text-left font-medium text-[#3a5dc2] hover:underline"
+                    className="text-left font-medium text-primary hover:underline"
                   >
                     {leadName ?? a.leadId.leadNumber ?? "Lead"}
                   </button>
@@ -309,7 +324,7 @@ export function ActivityFeedPage({ mode }: { mode: "activities" | "logs" }) {
                 );
                 return (
                   <tr key={a._id}>
-                    <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                    <BdTd className="text-muted-foreground">{(page - 1) * pageSize + i + 1}</BdTd>
                     {show("date") ? <BdTd className="whitespace-nowrap">{formatBdDate(a.occurredAt)}</BdTd> : null}
                     {!isLogs && show("lead") ? <BdTd>{leadLink}</BdTd> : null}
                     {!isLogs && show("mobile") ? <BdTd className="whitespace-nowrap">{a.leadId?.contact?.primaryPhone ?? "-"}</BdTd> : null}
@@ -318,7 +333,7 @@ export function ActivityFeedPage({ mode }: { mode: "activities" | "logs" }) {
                       isLogs ? (
                         <BdTd className="max-w-[420px]">
                           <div className="font-medium">{leadLink}</div>
-                          <div className="text-[12px] text-[#8b90a0]">{a.description ?? cap(a.type)}</div>
+                          <div className="text-[12px] text-muted-foreground">{a.description ?? cap(a.type)}</div>
                         </BdTd>
                       ) : (
                         <BdTd className="max-w-[360px]">{a.description ?? "-"}</BdTd>

@@ -32,24 +32,24 @@ function SectionCard({
   return (
     <div className="mb-4">
       <div className="mb-2 flex items-center justify-between px-1">
-        <h4 className="text-[12.5px] font-bold uppercase tracking-wide text-[#4a4f5f]">{title}</h4>
+        <h4 className="text-[12.5px] font-bold uppercase tracking-wide text-foreground/80">{title}</h4>
         {onEdit && !editing ? (
-          <button type="button" onClick={onEdit} aria-label={`Edit ${title}`} className="rounded p-1 text-[#7c8296] hover:bg-[#eef1fa] hover:text-[#3a5dc2]">
+          <button type="button" onClick={onEdit} aria-label={`Edit ${title}`} className="rounded p-1 text-muted-foreground hover:bg-primary-50 hover:text-primary">
             <Pencil className="size-3.5" />
           </button>
         ) : null}
         {actions}
       </div>
-      <div className="rounded-[3px] border border-[#e6e9f2] bg-white">{children}</div>
+      <div className="rounded-lg border border-border bg-white">{children}</div>
     </div>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[120px_1fr] items-center gap-3 border-b border-[#eef0f6] px-3 py-2.5 last:border-0">
-      <p className="text-[11.5px] font-bold uppercase leading-tight tracking-wide text-[#4a4f5f]">{label}</p>
-      <div className="min-w-0 break-words text-[14px] text-[#2b2f3a]">{children}</div>
+    <div className="grid grid-cols-[120px_1fr] items-center gap-3 border-b border-border/70 px-3 py-2.5 last:border-0">
+      <p className="text-[11.5px] font-bold uppercase leading-tight tracking-wide text-foreground/80">{label}</p>
+      <div className="min-w-0 break-words text-[14px] text-foreground">{children}</div>
     </div>
   );
 }
@@ -148,20 +148,20 @@ export function RightPanel({
   const { lead } = ctx;
   const cp = lead.brokerId;
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-[3px] bg-white shadow-[0_1px_4px_rgba(30,50,110,0.06)]">
-      <div className="flex items-center gap-3 border-b border-[#eef0f6] px-4 py-3.5">
-        <span className="flex size-10 items-center justify-center rounded-[6px] bg-[#3a5dc2] text-white">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-lg bg-white shadow-[0_1px_4px_rgba(30,50,110,0.06)]">
+      <div className="flex items-center gap-3 border-b border-border/70 px-4 py-3.5">
+        <span className="flex size-10 items-center justify-center rounded-[6px] bg-primary text-white">
           <FileText className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[16px] font-semibold uppercase leading-tight text-[#2b2f3a]">Details</h3>
-          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-[#6b7186]">Information Management</p>
+          <h3 className="text-[16px] font-semibold uppercase leading-tight text-foreground">Details</h3>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Information Management</p>
         </div>
         <button
           type="button"
           onClick={onRefresh}
           aria-label="Refresh details"
-          className="flex size-8 items-center justify-center rounded-full bg-[#eef1fa] text-[#3a5dc2] hover:bg-[#dfe6f8]"
+          className="flex size-8 items-center justify-center rounded-full bg-primary-50 text-primary hover:bg-primary-100"
         >
           <RefreshCw className={cn("size-4", refreshing && "animate-spin")} />
         </button>
@@ -186,7 +186,7 @@ export function RightPanel({
           <Row label="Company Name">{cp?.firmName || "-"}</Row>
           <Row label="Mobile">
             {cp?.phone ? (
-              <a href={`tel:${cp.phone}`} className="text-[#3a5dc2] hover:underline">
+              <a href={`tel:${cp.phone}`} className="text-primary hover:underline">
                 {cp.phone}
               </a>
             ) : (
@@ -213,7 +213,7 @@ export function RightPanel({
             {detail.lastActivity ? (
               <>
                 {detail.lastActivity.description || detail.lastActivity.type.replace(/_/g, " ")}
-                <span className="mt-0.5 block text-[12px] text-[#8b90a0]">{fmtDT(detail.lastActivity.occurredAt)}</span>
+                <span className="mt-0.5 block text-[12px] text-muted-foreground">{fmtDT(detail.lastActivity.occurredAt)}</span>
               </>
             ) : (
               "-"

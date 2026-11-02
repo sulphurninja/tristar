@@ -47,33 +47,33 @@ export function FollowupTab({ ctx, kind }: { ctx: TabCtx; kind: "followup" | "me
   const now = Date.now();
   const label = kind === "meeting" ? "Meeting" : "Followup";
   return (
-    <div className="rounded-[3px] border border-[#e6e9f2] bg-white">
-      <header className="flex items-center justify-between border-b border-[#eef0f6] px-5 py-3.5">
-        <h3 className="text-[16px] font-semibold text-[#2b2f3a]">{kind === "meeting" ? "Meetings" : "Followups"}</h3>
+    <div className="rounded-lg border border-border bg-white">
+      <header className="flex items-center justify-between border-b border-border/70 px-5 py-3.5">
+        <h3 className="text-[16px] font-semibold text-foreground">{kind === "meeting" ? "Meetings" : "Followups"}</h3>
         <BdButton onClick={() => setOpen(true)}>
           <Plus className="size-3.5" /> {kind === "meeting" ? "Schedule Meeting" : "Add Followup"}
         </BdButton>
       </header>
       <div className="p-5">
         {tasks === null ? (
-          <p className="py-6 text-center text-[13px] text-[#8b90a0]">Loading…</p>
+          <p className="py-6 text-center text-[13px] text-muted-foreground">Loading…</p>
         ) : tasks.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-[#8b90a0]">No {label.toLowerCase()}s yet.</p>
+          <p className="py-6 text-center text-[13px] text-muted-foreground">No {label.toLowerCase()}s yet.</p>
         ) : (
-          <div className="divide-y divide-[#eef0f6]">
+          <div className="divide-y divide-border/70">
             {tasks.map((t) => {
               const done = t.status === "completed" || t.status === "cancelled";
               const overdue = !done && t.scheduleAt && new Date(t.scheduleAt).getTime() < now;
               return (
                 <div key={t._id} className="flex items-start justify-between gap-3 py-3">
                   <div className="min-w-0">
-                    <p className={`text-[14px] font-medium ${done ? "text-[#8b90a0] line-through" : "text-[#2b2f3a]"}`}>{t.title}</p>
-                    <p className="mt-0.5 text-[12.5px] text-[#6b7186]">
+                    <p className={`text-[14px] font-medium ${done ? "text-muted-foreground line-through" : "text-foreground"}`}>{t.title}</p>
+                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
                       {fmtDT(t.scheduleAt)}
                       {t.assignedTo?.name ? ` · ${t.assignedTo.name}` : ""}
                       {` · ${t.type.replace(/_/g, " ")}`}
                     </p>
-                    {t.remark ? <p className="mt-0.5 text-[13px] text-[#4a4f5f]">{t.remark}</p> : null}
+                    {t.remark ? <p className="mt-0.5 text-[13px] text-foreground/80">{t.remark}</p> : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {overdue ? <BdBadge color="#d9453f">Overdue</BdBadge> : null}

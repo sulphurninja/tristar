@@ -67,7 +67,7 @@ export function BdSearchSelect({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={cn("bd-input flex items-center pr-12 text-left", !label && "text-[#9aa1b5]")}
+        className={cn("bd-input flex items-center pr-12 text-left", !label && "text-muted-foreground/80")}
       >
         <span className="truncate">{label || placeholder}</span>
       </button>
@@ -76,24 +76,24 @@ export function BdSearchSelect({
           type="button"
           aria-label="Clear"
           onClick={() => onChange("")}
-          className="absolute right-7 top-1/2 -translate-y-1/2 text-[#7c8296] hover:text-[#2b2f3a]"
+          className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
         >
           <X className="size-3.5" />
         </button>
       ) : null}
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#7c8296]" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
       {open ? (
-        <div className="absolute left-0 right-0 top-full z-40 mt-1 rounded-[3px] border border-[#dfe3ee] bg-white shadow-lg">
+        <div className="absolute left-0 right-0 top-full z-40 mt-1 rounded-lg border border-input bg-white shadow-lg">
           <input
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search…"
-            className="w-full border-b border-[#eef0f6] px-3 py-2 text-[13px] outline-none"
+            className="w-full border-b border-border/70 px-3 py-2 text-[13px] outline-none"
           />
           <ul className="max-h-56 overflow-y-auto py-1">
             {list.length === 0 ? (
-              <li className="px-3 py-2 text-[13px] text-[#8b90a0]">No results found</li>
+              <li className="px-3 py-2 text-[13px] text-muted-foreground">No results found</li>
             ) : (
               list.map((o) => (
                 <li key={o.value}>
@@ -105,8 +105,8 @@ export function BdSearchSelect({
                       setQ("");
                     }}
                     className={cn(
-                      "block w-full px-3 py-2 text-left text-[13px] hover:bg-[#3a5dc2] hover:text-white",
-                      o.value === value && "bg-[#eef1fa]",
+                      "block w-full px-3 py-2 text-left text-[13px] hover:bg-primary hover:text-white",
+                      o.value === value && "bg-primary-50",
                     )}
                   >
                     {o.label}

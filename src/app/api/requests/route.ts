@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import RequestModel, { REQUEST_TYPES, type RequestType } from "@/models/Request";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
+import { can } from "@/lib/access";
 
 export const GET = withAuth(async ({ req, session }) => {
   const url = new URL(req.url);
@@ -10,7 +10,7 @@ export const GET = withAuth(async ({ req, session }) => {
 
   const filter: Record<string, unknown> = { workspaceId };
   /* Only managers and above see everyone's requests. */
-  if (!hasRole(session.role as Role, "manager")) {
+  if (!can(session, "requests.approve")) {
     const me = new mongoose.Types.ObjectId(session.userId);
     filter.$or = [{ raisedBy: me }, { assignedTo: me }];
   }

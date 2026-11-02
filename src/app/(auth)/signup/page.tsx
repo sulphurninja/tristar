@@ -57,7 +57,7 @@ export default function SignupPage() {
 
   return (
     <div>
-      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
+      <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-primary-700">
         First-time setup
       </p>
       <h1 className="font-display mt-2 text-[1.85rem] font-semibold tracking-tight text-slate-900">

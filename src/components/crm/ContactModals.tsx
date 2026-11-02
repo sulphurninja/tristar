@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { BdModal } from "./BdModal";
+import { DateTimeField } from "@/components/ui/date-field";
 
 export const SOURCE_OPTIONS = [
   "walkin",
@@ -277,7 +278,7 @@ export function AddTaskModal({
             <BdSelect value={type} clearable={false} onChange={(v) => setType(v || "call")} options={TASK_TYPES} />
           </BdField>
           <BdField label="Schedule At *">
-            <BdInput type="datetime-local" value={scheduleAt} onChange={(e) => setScheduleAt(e.target.value)} />
+            <DateTimeField value={scheduleAt} onChange={(v) => setScheduleAt(v)} />
           </BdField>
         </div>
         <BdField label="Remark">

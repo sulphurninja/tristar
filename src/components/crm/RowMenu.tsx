@@ -40,14 +40,14 @@ export function RowMenu({ items }: { items: RowMenuItem[] }) {
           const r = e.currentTarget.getBoundingClientRect();
           setPos(pos ? null : { x: Math.max(8, Math.min(r.right - 190, window.innerWidth - 198)), y: r.bottom + 2 });
         }}
-        className="rounded p-1 text-[#5a6072] hover:bg-[#e9edf8]"
+        className="rounded p-1 text-foreground/70 hover:bg-muted"
       >
         <MoreVertical className="size-4" />
       </button>
       {pos ? (
         <div
           style={{ left: pos.x, top: Math.min(pos.y, window.innerHeight - visible.length * 34 - 16) }}
-          className="fixed z-50 w-[190px] rounded-[3px] border border-[#dfe3ee] bg-white py-1 shadow-lg"
+          className="fixed z-50 w-[190px] rounded-lg border border-input bg-white py-1 shadow-lg"
         >
           {visible.map((i) => (
             <button
@@ -58,8 +58,8 @@ export function RowMenu({ items }: { items: RowMenuItem[] }) {
                 i.onClick();
               }}
               className={cn(
-                "block w-full px-3 py-1.5 text-left text-[13px] hover:bg-[#f6f8fd]",
-                i.danger ? "text-[#e5484d]" : "text-[#2b2f3a]",
+                "block w-full px-3 py-1.5 text-left text-[13px] hover:bg-muted/50",
+                i.danger ? "text-destructive" : "text-foreground",
               )}
             >
               {i.label}

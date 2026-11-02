@@ -25,6 +25,7 @@ import { VoucherFormDialog, VOUCHER_TYPES, type VoucherEditable } from "@/compon
 import { PAYMENT_MODES } from "@/components/bookings/PaymentFormDialog";
 import { toCsv, downloadCsv } from "@/lib/bd-csv";
 import { formatCurrency } from "@/lib/utils";
+import { DateField } from "@/components/ui/date-field";
 
 interface VoucherRow extends VoucherEditable {
   totalAmount?: number;
@@ -42,7 +43,7 @@ interface Filters {
   q: string;
 }
 const EMPTY: Filters = { type: "", paymentMode: "", from: "", to: "", q: "" };
-const TYPE_COLOR: Record<string, string> = { receipt: "#37a46b", payment: "#e5484d", journal: "#3a5dc2", contra: "#8a6de0" };
+const TYPE_COLOR: Record<string, string> = { receipt: "#37a46b", payment: "#e5484d", journal: "#2563eb", contra: "#8a6de0" };
 const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-");
 
 function VouchersInner() {
@@ -143,10 +144,10 @@ function VouchersInner() {
             <BdSelect placeholder="Select Payment Mode" value={draft.paymentMode} onChange={(v) => setDraft((d) => ({ ...d, paymentMode: v }))} options={PAYMENT_MODES} />
           </BdField>
           <BdField label="From">
-            <input type="date" className="bd-input" value={draft.from} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} />
+            <DateField value={draft.from} onChange={(v) => setDraft((d) => ({ ...d, from: v }))} clearable />
           </BdField>
           <BdField label="To">
-            <input type="date" className="bd-input" value={draft.to} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} />
+            <DateField value={draft.to} onChange={(v) => setDraft((d) => ({ ...d, to: v }))} clearable />
           </BdField>
           <BdField label="Search">
             <input className="bd-input" placeholder="Voucher no., narration" value={draft.q} onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && setApplied(draft)} />

@@ -4,6 +4,8 @@ import SiteVisit from "@/models/SiteVisit";
 import Task from "@/models/Task";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok } from "@/lib/api";
+import { currentVisibleUserIds } from "@/lib/access";
+import { loadStageCatalog, lostKeys } from "@/lib/lead-stages";
 import { resolveAgentScope, rangeBounds, scopeParams, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
 
 /**
@@ -25,6 +27,8 @@ export const GET = withAuth(async ({ req, session }) => {
   const base = { workspaceId, isContact: { $ne: true } };
 
   if (section === "leads") {
+    /* Same definition as the Leads list "untouched" card, so the drill-down matches. */
+    const lost = lostKeys(await loadStageCatalog(workspaceId, session.userId));
     const [total, returning, untouched, unassigned] = await Promise.all([
       Lead.countDocuments({ ...base, ...leadScope }),
       Lead.countDocuments({ ...base, ...leadScope, ...RETURNING_FILTER }),
@@ -32,9 +36,12 @@ export const GET = withAuth(async ({ req, session }) => {
         ...base,
         ...leadScope,
         lastContactedAt: null,
-        stage: { $in: ["new", "attempted_1", "attempted_2"] },
+        isBooked: { $ne: true },
+        isInactive: { $ne: true },
+        stage: { $nin: ["booked", ...lost] },
       }),
-      Lead.countDocuments({ ...base, assignedTo: null }),
+      /* Unassigned leads are outside any own/team scope, so restricted users see 0. */
+      (await currentVisibleUserIds()) ? Promise.resolve(0) : Lead.countDocuments({ ...base, assignedTo: null }),
     ]);
     return ok({ total, fresh: Math.max(total - returning, 0), returning, untouched, unassigned });
   }

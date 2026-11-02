@@ -259,7 +259,7 @@ export default function ReceptionPage() {
           onSearch={setSearch}
           pageSize={pageSize}
           onPageSize={setPageSize}
-          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          left={<span className="text-[12.5px] text-muted-foreground">{total} total</span>}
           right={<ColumnPicker columns={COLUMNS} visible={cols} onChange={setCols} />}
         />
         <BdTable minWidth={1000}>
@@ -280,11 +280,11 @@ export default function ReceptionPage() {
                 const open = v.visitStatus === "waiting" || v.visitStatus === "met";
                 return (
                   <tr key={v._id}>
-                    <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                    <BdTd className="text-muted-foreground">{(page - 1) * pageSize + i + 1}</BdTd>
                     {show("visitor") ? (
                       <BdTd className="font-medium">
                         {v.visitorName}
-                        {(v.visitorCount ?? 1) > 1 ? <span className="ml-1 text-[11.5px] font-normal text-[#8b90a0]">+{(v.visitorCount ?? 1) - 1}</span> : null}
+                        {(v.visitorCount ?? 1) > 1 ? <span className="ml-1 text-[11.5px] font-normal text-muted-foreground">+{(v.visitorCount ?? 1) - 1}</span> : null}
                       </BdTd>
                     ) : null}
                     {show("mobile") ? <BdTd className="whitespace-nowrap">{v.visitorPhone}</BdTd> : null}
@@ -304,7 +304,7 @@ export default function ReceptionPage() {
                     {show("lead") ? (
                       <BdTd>
                         {v.leadId ? (
-                          <button type="button" className="text-[#3a5dc2] hover:underline" onClick={() => router.push(`/leads?open=${v.leadId!._id}`)}>
+                          <button type="button" className="text-primary hover:underline" onClick={() => router.push(`/leads?open=${v.leadId!._id}`)}>
                             {v.leadId.leadNumber ?? "Lead"}
                           </button>
                         ) : (
@@ -429,7 +429,7 @@ function AddVisitorModal({ open, onClose, onSaved }: { open: boolean; onClose: (
           <BdInput value={f.visitorPhone} onChange={(e) => set({ visitorPhone: e.target.value })} placeholder="Mobile" />
         </BdField>
         {existing ? (
-          <div className="rounded-[3px] border border-[#cfd8f1] bg-[#eef3ff] px-3 py-2 text-[12.5px] text-[#2b2f3a] sm:col-span-2">
+          <div className="rounded-lg border border-input bg-primary-50 px-3 py-2 text-[12.5px] text-foreground sm:col-span-2">
             Existing {existing.leadNumber ? `${existing.leadNumber} — ` : ""}
             <b>{existing.contact?.name}</b> found with this mobile ({(existing.stage ?? "").replace(/_/g, " ")}). The visit will be linked to it.
           </div>

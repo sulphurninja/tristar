@@ -292,9 +292,9 @@ export default function PipelinePage() {
   const winRate = total > 0 ? Math.round((wonLeads / total) * 100) : 0;
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-[#f4f6fb]">
+    <div className="flex min-h-full flex-1 flex-col bg-background">
       {/* Toolbar */}
-      <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-[#e3e6ef] bg-white px-5 py-4">
+      <div className="sticky top-0 z-20 flex flex-col gap-3 border-b border-border bg-white px-5 py-4">
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2">
             <BdSelect
@@ -318,10 +318,10 @@ export default function PipelinePage() {
           </div>
 
           <div className="flex items-center gap-5 text-[13px]">
-            <span><b className="text-[16px] tabular-nums">{total}</b> <span className="text-[#6b7186]">leads{totalAll > total ? ` (latest ${total} of ${totalAll.toLocaleString("en-IN")})` : ""}</span></span>
-            <span><b className="text-[16px] tabular-nums text-[#2f8f5f]">{wonLeads}</b> <span className="text-[#6b7186]">won</span></span>
-            <span><b className="text-[16px] tabular-nums text-[#d9453f]">{lostLeads}</b> <span className="text-[#6b7186]">lost</span></span>
-            <span><b className="text-[16px] tabular-nums">{winRate}%</b> <span className="text-[#6b7186]">win rate</span></span>
+            <span><b className="text-[16px] tabular-nums">{total}</b> <span className="text-muted-foreground">leads{totalAll > total ? ` (latest ${total} of ${totalAll.toLocaleString("en-IN")})` : ""}</span></span>
+            <span><b className="text-[16px] tabular-nums text-success">{wonLeads}</b> <span className="text-muted-foreground">won</span></span>
+            <span><b className="text-[16px] tabular-nums text-destructive">{lostLeads}</b> <span className="text-muted-foreground">lost</span></span>
+            <span><b className="text-[16px] tabular-nums">{winRate}%</b> <span className="text-muted-foreground">win rate</span></span>
           </div>
         </div>
 
@@ -333,7 +333,7 @@ export default function PipelinePage() {
               placeholder="Search"
               className="bd-input !w-[260px] rounded-r-none"
             />
-            <span className="flex w-10 items-center justify-center bg-[#8da3dc] text-white">
+            <span className="flex w-10 items-center justify-center bg-primary/60 text-white">
               <Search className="size-4" />
             </span>
           </div>
@@ -481,7 +481,7 @@ function ColumnCard({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       className={cn(
-        "flex w-[300px] shrink-0 flex-col rounded-[3px] border bg-white shadow-[0_1px_4px_rgba(30,50,110,0.06)] transition-all duration-150",
+        "flex w-[300px] shrink-0 flex-col rounded-lg border bg-white shadow-[0_1px_4px_rgba(30,50,110,0.06)] transition-all duration-150",
         isHover
           ? "border-emerald-300 bg-emerald-50/40 shadow-[0_0_0_3px_rgba(16,185,129,0.08)]"
           : "border-slate-200/70 hover:border-slate-300/70",

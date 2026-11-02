@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import type { DataScope, Permission } from "@/lib/permissions";
 
 export interface SessionUser {
   id: string;
@@ -9,6 +10,9 @@ export interface SessionUser {
   role: string;
   avatarUrl?: string;
   title?: string;
+  teamId?: string | null;
+  permissions: Permission[];
+  dataScope: DataScope;
 }
 
 export interface SessionWorkspace {
@@ -33,6 +37,9 @@ interface AuthContextValue {
   loading: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** True when the signed-in user holds `perm` (the owner holds everything). */
+  can: (perm: Permission) => boolean;
+  isOwner: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -67,8 +74,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, [refresh]);
 
+  const isOwner = user?.role === "owner";
+  const can = useCallback(
+    (perm: Permission) => !!user && (user.role === "owner" || (user.permissions ?? []).includes(perm)),
+    [user],
+  );
+
   return (
-    <AuthContext.Provider value={{ user, workspace, loading, refresh, signOut }}>
+    <AuthContext.Provider value={{ user, workspace, loading, refresh, signOut, can, isOwner }}>
       {children}
     </AuthContext.Provider>
   );

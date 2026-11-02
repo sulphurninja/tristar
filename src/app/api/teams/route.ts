@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import Team from "@/models/Team";
 import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 export const GET = withAuth(async ({ session }) => {
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
@@ -20,7 +19,6 @@ export const GET = withAuth(async ({ session }) => {
 });
 
 export const POST = withAuth(async ({ req, session }) => {
-  if (!hasRole(session.role as Role, "admin")) return bad("You need admin access to create teams.", 403);
   const body = (await req.json()) as Record<string, unknown>;
   const name = typeof body.name === "string" ? body.name.trim() : "";
   if (!name) return bad("Team name is required.");

@@ -48,9 +48,9 @@ const RED = "#d9453f";
 export function StatusBadges({ lead }: { lead: Pick<LeadRow, "returning" | "delayDays"> }) {
   return (
     <span className="flex flex-wrap gap-1.5">
-      {lead.returning ? <span className="rounded-[2px] px-2 py-[5px] text-[12px] leading-none text-white" style={{ background: RED }}>Returned</span> : null}
+      {lead.returning ? <span className="rounded-lg px-2 py-[5px] text-[12px] leading-none text-white" style={{ background: RED }}>Returned</span> : null}
       {lead.delayDays ? (
-        <span className="whitespace-nowrap rounded-[2px] px-2 py-[5px] text-[12px] leading-none text-white" style={{ background: RED }}>
+        <span className="whitespace-nowrap rounded-lg px-2 py-[5px] text-[12px] leading-none text-white" style={{ background: RED }}>
           Delay - {lead.delayDays} Days
         </span>
       ) : null}
@@ -110,7 +110,7 @@ export function LeadsTable({
           <button
             type="button"
             onClick={() => onOpen(l._id)}
-            className="text-left text-[#3a5dc2] underline underline-offset-2 hover:text-[#2f4ca0]"
+            className="text-left text-primary underline underline-offset-2 hover:text-primary-700"
           >
             {l.contact.name}
           </button>
@@ -131,14 +131,14 @@ export function LeadsTable({
         return (l.tags ?? []).length ? (
           <span className="flex flex-wrap gap-1">
             {l.tags!.slice(0, 3).map((t) => (
-              <span key={t} className="rounded-[2px] bg-[#eceff8] px-1.5 py-[2px] text-[11.5px]">{t}</span>
+              <span key={t} className="rounded-lg bg-muted px-1.5 py-[2px] text-[11.5px]">{t}</span>
             ))}
           </span>
         ) : (
           ""
         );
       case "assignedTo":
-        return l.assignedTo?.name ?? <span className="text-[#8b90a0]">Unassigned</span>;
+        return l.assignedTo?.name ?? <span className="text-muted-foreground">Unassigned</span>;
       case "channelPartner":
         return l.brokerId ? l.brokerId.name : "-";
       case "category":
@@ -164,7 +164,7 @@ export function LeadsTable({
           {cols.map((c) => (
             <BdTh key={c.key}>
               {c.sort ? (
-                <button type="button" onClick={() => onSort(c.sort!)} className="inline-flex items-center gap-1 uppercase hover:text-[#3a5dc2]">
+                <button type="button" onClick={() => onSort(c.sort!)} className="inline-flex items-center gap-1 uppercase hover:text-primary">
                   {c.label}
                   {sort === c.sort ? (dir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />) : null}
                 </button>
@@ -179,7 +179,7 @@ export function LeadsTable({
       <tbody>
         {rows.length === 0 ? <BdEmptyRow colSpan={cols.length + 2} loading={loading} /> : null}
         {rows.map((l, i) => (
-          <tr key={l._id} className={cn(selected.has(l._id) && "!bg-[#eef1fa]", loading && "opacity-60")}>
+          <tr key={l._id} className={cn(selected.has(l._id) && "!bg-primary-50", loading && "opacity-60")}>
             <BdTd>
               <Checkbox checked={selected.has(l._id)} onChange={(on) => onSelect(l._id, on)} label={`Select ${l.contact.name}`} />
             </BdTd>
@@ -192,7 +192,7 @@ export function LeadsTable({
                   <button
                     type="button"
                     aria-label={`Actions for ${l.contact.name}`}
-                    className="inline-flex size-[26px] items-center justify-center rounded-[3px] bg-[#3a5dc2] text-white hover:bg-[#2f4ca0]"
+                    className="inline-flex size-[26px] items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-700"
                   >
                     <ChevronDown className="size-4" />
                   </button>

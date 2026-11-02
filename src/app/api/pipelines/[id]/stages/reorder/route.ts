@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import { z } from "zod";
 import Pipeline from "@/models/Pipeline";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 /* ---------- POST /api/pipelines/[id]/stages/reorder ---------- */
 
@@ -12,9 +11,6 @@ const Schema = z.object({
 });
 
 export const POST = withAuth<{ id: string }>(async ({ req, session, params }) => {
-  if (!hasRole(session.role as Role, "admin")) {
-    return bad("Only admins can reorder stages.", 403);
-  }
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid pipeline id");
 
   const parsed = Schema.safeParse(await req.json());

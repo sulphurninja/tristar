@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentSession, type JwtPayload } from "@/lib/auth";
+import { getCurrentSession } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
+import { can, loadAccess, recordVisible, runWithSession, type AuthSession } from "@/lib/access";
+import { requiredPermission } from "@/lib/route-policy";
 
 export type RouteContext<P extends Record<string, string> = Record<string, never>> = {
   params: Promise<P>;
@@ -8,26 +10,43 @@ export type RouteContext<P extends Record<string, string> = Record<string, never
 
 export type AuthedHandler<P extends Record<string, string> = Record<string, never>> = (args: {
   req: NextRequest;
-  session: JwtPayload;
+  session: AuthSession;
   params: P;
 }) => Promise<Response> | Response;
 
 /**
- * Wraps a route handler with auth + db connection.
- * Returns 401 if no session, otherwise calls handler with session.
+ * Wraps a route handler with auth, authorisation and a db connection.
+ * - 401 when there is no token, or the user was deleted / suspended.
+ * - 403 when the route policy (lib/route-policy) needs a permission they lack.
+ * The handler gets the live session (role and permissions read from the DB),
+ * which is also available to deep helpers through `currentSession()`.
  */
 export function withAuth<P extends Record<string, string> = Record<string, never>>(
   handler: AuthedHandler<P>,
 ) {
   return async (req: NextRequest, ctx: RouteContext<P>) => {
-    const session = await getCurrentSession();
-    if (!session) {
+    const token = await getCurrentSession();
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     try {
       await connectDB();
+      const session = await loadAccess(token);
+      if (!session) {
+        return NextResponse.json({ error: "Your account is no longer active." }, { status: 401 });
+      }
+      const need = requiredPermission(req.method, req.nextUrl.pathname);
+      if (need && !(need === "owner" ? session.role === "owner" : can(session, need))) {
+        return NextResponse.json(
+          { error: "You don't have permission to do this. Ask your administrator for access.", code: "FORBIDDEN" },
+          { status: 403 },
+        );
+      }
+      if (!(await recordVisible(req.nextUrl.pathname, session))) {
+        return NextResponse.json({ error: "Not found, or outside your access." }, { status: 404 });
+      }
       const params = ctx?.params ? await ctx.params : ({} as P);
-      return await handler({ req, session, params });
+      return await runWithSession(session, () => handler({ req, session, params }));
     } catch (err) {
       console.error("[api]", err);
       const message = err instanceof Error ? err.message : "Internal error";

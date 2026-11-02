@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import Broker from "@/models/Broker";
 import { rangeBounds, resolveAgentScope, scopeParams } from "@/lib/scope";
-import { hasRole, type Role } from "@/lib/roles";
+import { clampToVisible, currentSession } from "@/lib/access";
 
 type Oid = mongoose.Types.ObjectId;
 type Filter = Record<string, unknown>;
@@ -21,9 +21,10 @@ export function endOfToday() {
   return d;
 }
 
-/** Roles below "supervisor" only ever see their own work. */
+/** Users whose data scope is "own" only ever see — and assign — their own work. */
 export function mustSeeOwnOnly(role: string) {
-  return !hasRole(role as Role, "supervisor");
+  if (role === "owner") return false;
+  return currentSession()?.dataScope === "own";
 }
 
 /**
@@ -101,7 +102,10 @@ export async function assigneeFilter(
 ): Promise<Filter> {
   if (mustSeeOwnOnly(session.role)) return { assignedTo: new mongoose.Types.ObjectId(session.userId) };
   const assignedTo = oid(url.searchParams.get("assignedTo"));
-  if (assignedTo) return { assignedTo };
+  if (assignedTo) {
+    const ids = await clampToVisible([assignedTo]);
+    return { assignedTo: ids ? { $in: ids } : assignedTo };
+  }
   const { team, agent } = scopeParams(url);
   const scope = await resolveAgentScope(workspaceId, team, agent);
   return scope ? { assignedTo: { $in: scope } } : {};

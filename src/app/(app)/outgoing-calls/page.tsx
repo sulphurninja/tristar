@@ -175,13 +175,13 @@ export default function OutgoingCallsPage() {
                   <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
                   <BdTd>
                     {r.leadId ? (
-                      <Link href={`/leads?open=${r.leadId}`} className="font-medium text-[#3a5dc2] hover:underline">
+                      <Link href={`/leads?open=${r.leadId}`} className="font-medium text-primary hover:underline">
                         {r.leadName || r.title}
                       </Link>
                     ) : (
                       r.title
                     )}
-                    {r.leadNumber ? <p className="text-[11.5px] text-[#8b90a0]">{r.leadNumber}</p> : null}
+                    {r.leadNumber ? <p className="text-[11.5px] text-muted-foreground">{r.leadNumber}</p> : null}
                   </BdTd>
                   <BdTd>{r.phone || "-"}</BdTd>
                   <BdTd>{r.agent}</BdTd>

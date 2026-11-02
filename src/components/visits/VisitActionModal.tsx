@@ -6,6 +6,8 @@ import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdConfirm, BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { api, toLocalInput, type VisitRow } from "@/components/tasks/shared";
+import { DateTimeField } from "@/components/ui/date-field";
+import { CheckboxField } from "@/components/ui/checkbox";
 
 export type VisitActionMode = "complete" | "reschedule" | "cancel" | "noshow" | "reassign" | "remark" | "delete";
 
@@ -134,10 +136,10 @@ export function VisitActionModal({
       }
     >
       <div className="space-y-4">
-        <p className="text-[13px] text-[#5a6072]">{label}</p>
+        <p className="text-[13px] text-foreground/70">{label}</p>
         {mode === "reschedule" ? (
           <BdField label="Schedule Date">
-            <BdInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            <DateTimeField value={when} onChange={(v) => setWhen(v)} />
           </BdField>
         ) : null}
         {mode === "reassign" ? (
@@ -155,10 +157,7 @@ export function VisitActionModal({
             <BdField label="Customer Interest">
               <BdSelect value={interest} onChange={(v) => setInterest(v || "medium")} options={INTEREST} clearable={false} />
             </BdField>
-            <label className="flex items-center gap-2 text-[13px]">
-              <input type="checkbox" checked={followUp} onChange={(e) => setFollowUp(e.target.checked)} className="size-4 accent-[#3a5dc2]" />
-              Follow-up required
-            </label>
+            <CheckboxField checked={followUp} onCheckedChange={setFollowUp} label="Follow-up required" />
           </>
         ) : null}
         {(mode === "complete" && !bulk) || mode === "remark" || (mode === "cancel" && !bulk) ? (

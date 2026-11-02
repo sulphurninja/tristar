@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdModal } from "@/components/crm/BdModal";
 import { slugify } from "@/lib/utils";
+import { DateField } from "@/components/ui/date-field";
 
 export const PROPERTY_TYPES = [
   { value: "residential_apartment", label: "Apartment" },
@@ -188,7 +189,7 @@ export function ProjectModal({
           <BdSelect value={f.saleStage} clearable={false} onChange={(v) => set({ saleStage: v || "under_construction" })} options={SALE_STAGES} />
         </BdField>
         <BdField label="Possession Date">
-          <BdInput type="date" value={f.possessionDate} onChange={(e) => set({ possessionDate: e.target.value })} />
+          <DateField value={f.possessionDate} onChange={(v) => set({ possessionDate: v })} clearable />
         </BdField>
         <BdField label="Configurations (comma separated)" className="sm:col-span-2">
           <BdInput value={f.configurations} onChange={(e) => set({ configurations: e.target.value })} placeholder="2BHK, 3BHK, 4BHK" />

@@ -5,8 +5,9 @@ import User from "@/models/User";
 import Workspace from "@/models/Workspace";
 import { setAuthCookies, verifyPassword, type Role } from "@/lib/auth";
 
+/** `email` may hold an email address or a username. */
 const LoginSchema = z.object({
-  email: z.string().email().toLowerCase(),
+  email: z.string().trim().min(1).toLowerCase(),
   password: z.string().min(1),
 });
 
@@ -14,22 +15,22 @@ export async function POST(req: Request) {
   try {
     const parsed = LoginSchema.safeParse(await req.json());
     if (!parsed.success) {
-      return NextResponse.json({ error: "Please enter a valid email and password." }, { status: 400 });
+      return NextResponse.json({ error: "Please enter your email or username and your password." }, { status: 400 });
     }
 
     await connectDB();
 
-    const { email, password } = parsed.data;
-    const user = await User.findOne({ email }).select("+passwordHash");
+    const { email: login, password } = parsed.data;
+    const user = await User.findOne(login.includes("@") ? { email: login } : { username: login }).select("+passwordHash");
 
     if (!user) {
       return NextResponse.json(
-        { error: "We couldn't find an account with that email. Want to create one?", code: "NO_ACCOUNT" },
+        { error: "We couldn't find an account with that email or username.", code: "NO_ACCOUNT" },
         { status: 404 },
       );
     }
 
-    if (user.status === "suspended") {
+    if (user.status === "suspended" || user.status === "deleted") {
       return NextResponse.json(
         { error: "Your account has been suspended. Please contact your workspace owner.", code: "SUSPENDED" },
         { status: 403 },

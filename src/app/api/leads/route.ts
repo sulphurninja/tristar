@@ -4,6 +4,7 @@ import Task from "@/models/Task";
 import Pipeline, { ensureDefaultPipeline } from "@/models/Pipeline";
 import LeadActivity from "@/models/LeadActivity";
 import { withAuth, ok, bad } from "@/lib/api";
+import { pickAgent } from "@/lib/distribution";
 import { buildLeadFilter } from "@/lib/lead-filters";
 import { loadStageCatalog } from "@/lib/lead-stages";
 
@@ -149,6 +150,10 @@ export const POST = withAuth(async ({ req, session }) => {
 
   const projectId = oidOrUndef(body.primaryProjectId);
   const brokerId = oidOrUndef(body.brokerId);
+  /* No owner chosen → Users → Distribution rules decide (falls back to the creator). */
+  const autoAgent = oidOrUndef(body.assignedTo)
+    ? null
+    : await pickAgent(workspaceId, { source: str(body.source, 60), projectId });
   const lead = await Lead.create({
     workspaceId,
     leadNumber,
@@ -194,7 +199,7 @@ export const POST = withAuth(async ({ req, session }) => {
       : [],
     createdAt: dateOrUndef(body.date),
     isReturning: !!existing,
-    assignedTo: oidOrUndef(body.assignedTo) ?? userId,
+    assignedTo: oidOrUndef(body.assignedTo) ?? autoAgent ?? userId,
     assignedAt: new Date(),
     createdBy: userId,
   });

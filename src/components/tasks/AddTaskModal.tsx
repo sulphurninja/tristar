@@ -7,6 +7,8 @@ import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { useAuth } from "@/contexts/AuthContext";
 import { ACTIVITY_TYPES, LeadPicker, REMINDERS, api, toLocalInput, type PickedLead } from "./shared";
+import { DateTimeField } from "@/components/ui/date-field";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface AddTaskInitial {
   lead?: PickedLead | null;
@@ -102,7 +104,7 @@ export function AddTaskModal({
           <BdSelect value={type} onChange={(v) => setType(v || "call")} options={ACTIVITY_TYPES} clearable={false} />
         </BdField>
         <BdField label="Schedule Date">
-          <BdInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField value={when} onChange={(v) => setWhen(v)} />
         </BdField>
         <BdField label="Assigned To">
           <BdSelect
@@ -116,12 +118,7 @@ export function AddTaskModal({
         </BdField>
         <BdField label="Remind Me">
           <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={remind}
-              onChange={(e) => setRemind(e.target.checked)}
-              className="size-4 accent-[#3a5dc2]"
-            />
+            <Checkbox checked={remind} onCheckedChange={(v) => setRemind(v === true)} aria-label="Remind me" />
             <BdSelect value={reminder} onChange={(v) => setReminder(v || "15")} options={REMINDERS} clearable={false} disabled={!remind} />
           </div>
         </BdField>

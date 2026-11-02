@@ -57,11 +57,11 @@ export function DocumentsTab({ ctx }: { ctx: TabCtx }) {
   };
 
   return (
-    <div className="rounded-[3px] border border-[#e6e9f2] bg-white">
-      <header className="flex items-center justify-between border-b border-[#eef0f6] px-5 py-3.5">
+    <div className="rounded-lg border border-border bg-white">
+      <header className="flex items-center justify-between border-b border-border/70 px-5 py-3.5">
         <div>
-          <h3 className="text-[16px] font-semibold text-[#2b2f3a]">Documents</h3>
-          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-[#6b7186]">KYC, agreements and other files (max {MAX_MB} MB each)</p>
+          <h3 className="text-[16px] font-semibold text-foreground">Documents</h3>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">KYC, agreements and other files (max {MAX_MB} MB each)</p>
         </div>
         <BdButton onClick={() => input.current?.click()} disabled={busy}>
           <Upload className="size-3.5" /> {busy ? "Uploading…" : "Upload Document"}
@@ -72,26 +72,26 @@ export function DocumentsTab({ ctx }: { ctx: TabCtx }) {
         {docs.length === 0 ? (
           <div
             onClick={() => input.current?.click()}
-            className="cursor-pointer rounded-[3px] border-2 border-dashed border-[#dfe3ee] py-10 text-center text-[13px] text-[#8b90a0] hover:bg-[#f6f8fd]"
+            className="cursor-pointer rounded-lg border-2 border-dashed border-input py-10 text-center text-[13px] text-muted-foreground hover:bg-muted/50"
           >
             No documents yet. Click to upload.
           </div>
         ) : (
-          <div className="divide-y divide-[#eef0f6]">
+          <div className="divide-y divide-border/70">
             {docs.map((d) => (
               <div key={d._id} className="flex items-center justify-between gap-3 py-2.5">
-                <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-3 hover:text-[#3a5dc2]">
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded bg-[#eef1fa] text-[#3a5dc2]">
+                <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex min-w-0 items-center gap-3 hover:text-primary">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded bg-primary-50 text-primary">
                     <FileText className="size-4" />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-[14px] font-medium">{d.name}</span>
-                    <span className="block text-[12px] text-[#8b90a0]">
+                    <span className="block text-[12px] text-muted-foreground">
                       {[fmtSize(d.size), d.uploadedAt ? fmtDT(d.uploadedAt) : ""].filter(Boolean).join(" · ")}
                     </span>
                   </span>
                 </a>
-                <button type="button" aria-label={`Delete ${d.name}`} onClick={() => remove(d._id, d.name)} className="rounded p-1.5 text-[#c93c41] hover:bg-[#fdecec]">
+                <button type="button" aria-label={`Delete ${d.name}`} onClick={() => remove(d._id, d.name)} className="rounded p-1.5 text-destructive hover:bg-destructive/10">
                   <Trash2 className="size-4" />
                 </button>
               </div>

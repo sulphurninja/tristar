@@ -6,6 +6,8 @@ import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { MultiSelect } from "@/components/leads/ui/primitives";
 import { BUDGET_STEPS, CATEGORY_OPTIONS, formatBudget, useLeadOptions } from "@/components/leads/types";
+import { DateField } from "@/components/ui/date-field";
+import { CheckboxField } from "@/components/ui/checkbox";
 
 /** Flat string map; multi values are comma separated. Mirrors the /api/leads query string. */
 export type Filters = Record<string, string>;
@@ -39,8 +41,8 @@ function DateRange({
   return (
     <BdField label={label}>
       <div className="grid grid-cols-2 gap-2">
-        <BdInput type="date" value={from ?? ""} onChange={(e) => onFrom(e.target.value)} aria-label={`${label} from`} />
-        <BdInput type="date" value={to ?? ""} onChange={(e) => onTo(e.target.value)} aria-label={`${label} to`} />
+        <DateField value={from ?? ""} onChange={(v) => onFrom(v)} clearable />
+        <DateField value={to ?? ""} onChange={(v) => onTo(v)} clearable />
       </div>
     </BdField>
   );
@@ -73,14 +75,14 @@ export function FilterPanel({
 
   return (
     <>
-      {open ? <div className="fixed inset-0 z-[57] bg-[#1b2440]/25" onClick={onClose} /> : null}
+      {open ? <div className="fixed inset-0 z-[57] bg-foreground/25" onClick={onClose} /> : null}
       <aside
         className={`fixed bottom-0 right-0 top-0 z-[58] flex w-[420px] max-w-full flex-col bg-white shadow-[-8px_0_30px_rgba(30,50,110,0.18)] transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
         aria-hidden={!open}
       >
-        <div className="flex items-center justify-between border-b border-[#eef0f6] px-5 py-4">
-          <h3 className="text-[17px] font-medium text-[#2b2f3a]">Filter Leads</h3>
-          <button type="button" onClick={onClose} aria-label="Close filters" className="rounded p-1 text-[#7c8296] hover:bg-[#f0f2f8]">
+        <div className="flex items-center justify-between border-b border-border/70 px-5 py-4">
+          <h3 className="text-[17px] font-medium text-foreground">Filter Leads</h3>
+          <button type="button" onClick={onClose} aria-label="Close filters" className="rounded p-1 text-muted-foreground hover:bg-muted">
             <X className="size-5" />
           </button>
         </div>
@@ -129,14 +131,16 @@ export function FilterPanel({
             </BdField>
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-[13.5px]">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="accent-[#3a5dc2]" checked={draft.unassigned === "1"} onChange={(e) => set("unassigned", e.target.checked ? "1" : "")} />
-              Unassigned leads
-            </label>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" className="accent-[#3a5dc2]" checked={draft.hasChannelPartner === "1"} onChange={(e) => set("hasChannelPartner", e.target.checked ? "1" : "")} />
-              Has channel partner
-            </label>
+            <CheckboxField
+              checked={draft.unassigned === "1"}
+              onCheckedChange={(v) => set("unassigned", v ? "1" : "")}
+              label="Unassigned leads"
+            />
+            <CheckboxField
+              checked={draft.hasChannelPartner === "1"}
+              onCheckedChange={(v) => set("hasChannelPartner", v ? "1" : "")}
+              label="Has channel partner"
+            />
           </div>
           <DateRange label="Created Date" from={draft.createdFrom} to={draft.createdTo} onFrom={(v) => set("createdFrom", v)} onTo={(v) => set("createdTo", v)} />
           <DateRange label="Assigned Date" from={draft.assignedFrom} to={draft.assignedUntil} onFrom={(v) => set("assignedFrom", v)} onTo={(v) => set("assignedUntil", v)} />
@@ -149,7 +153,7 @@ export function FilterPanel({
             </div>
           </BdField>
         </div>
-        <div className="flex items-center justify-between gap-2 border-t border-[#eef0f6] px-5 py-3">
+        <div className="flex items-center justify-between gap-2 border-t border-border/70 px-5 py-3">
           <BdButton variant="light" onClick={() => setDraft({})}>
             Reset
           </BdButton>

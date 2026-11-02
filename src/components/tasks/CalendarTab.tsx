@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { AddTaskModal } from "./AddTaskModal";
 import { TaskActionModal, type TaskActionMode } from "./TaskActionModal";
 import { leadHref, toLocalInput, typeLabel, type TaskRow, type VisitRow } from "./shared";
+import { CheckboxField } from "@/components/ui/checkbox";
 
 type View = "month" | "week" | "day";
 
@@ -48,7 +49,7 @@ function rangeFor(view: View, cursor: Date): [Date, Date] {
 function taskColor(t: TaskRow) {
   if (t.status === "completed") return "#2fa66a";
   if (t.status === "cancelled") return "#9a9ca6";
-  return t.scheduleAt && new Date(t.scheduleAt) < new Date() ? "#e5484d" : "#3a5dc2";
+  return t.scheduleAt && new Date(t.scheduleAt) < new Date() ? "#e5484d" : "#2563eb";
 }
 function visitColor(v: VisitRow) {
   if (v.status === "done") return "#2fa66a";
@@ -170,7 +171,7 @@ export function CalendarTab() {
         setDetail(e);
       }}
       title={`${timeOf(e.at)} ${e.title}`}
-      className={cn("flex w-full items-center gap-1 truncate rounded-[3px] px-1.5 py-[2px] text-left text-[11.5px] text-white", e.done && "opacity-70 line-through")}
+      className={cn("flex w-full items-center gap-1 truncate rounded-lg px-1.5 py-[2px] text-left text-[11.5px] text-white", e.done && "opacity-70 line-through")}
       style={{ background: e.color }}
     >
       <span className="shrink-0 font-medium">{timeOf(e.at)}</span>
@@ -180,7 +181,7 @@ export function CalendarTab() {
 
   return (
     <div className="space-y-4">
-      <section className="bd-card flex flex-wrap items-center justify-between gap-3 rounded-[3px] p-4">
+      <section className="bd-card flex flex-wrap items-center justify-between gap-3 rounded-lg p-4">
         <div className="flex flex-wrap items-center gap-2">
           <BdButton variant="light" onClick={() => step(-1)} aria-label="Previous">
             <ChevronLeft className="size-4" />
@@ -191,7 +192,7 @@ export function CalendarTab() {
           <BdButton variant="light" onClick={() => step(1)} aria-label="Next">
             <ChevronRight className="size-4" />
           </BdButton>
-          <h3 className="ml-2 text-[17px] font-medium text-[#2b2f3a]">{title}</h3>
+          <h3 className="ml-2 text-[17px] font-medium text-foreground">{title}</h3>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <BdSelect className="w-[180px]" placeholder="Select Team" value={team} onChange={(v) => { setTeam(v); setAgent(""); }} options={teams.map((t) => ({ value: t._id, label: t.name }))} />
@@ -211,8 +212,8 @@ export function CalendarTab() {
                 type="button"
                 onClick={() => setView(v)}
                 className={cn(
-                  "border border-[#3a5dc2] px-3 py-[7px] text-[13px] capitalize first:rounded-l-[3px] last:rounded-r-[3px] -ml-px first:ml-0",
-                  view === v ? "bg-[#3a5dc2] text-white" : "bg-white text-[#3a5dc2] hover:bg-[#eef1fa]",
+                  "border border-primary px-3 py-[7px] text-[13px] capitalize first:rounded-l-[3px] last:rounded-r-[3px] -ml-px first:ml-0",
+                  view === v ? "bg-primary text-white" : "bg-white text-primary hover:bg-primary-50",
                 )}
               >
                 {v}
@@ -220,17 +221,11 @@ export function CalendarTab() {
             ))}
           </div>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-4 text-[12.5px] text-[#5a6072]">
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={showTasks} onChange={(e) => setShowTasks(e.target.checked)} className="accent-[#3a5dc2]" />
-            Tasks
-          </label>
-          <label className="flex items-center gap-1.5">
-            <input type="checkbox" checked={showVisits} onChange={(e) => setShowVisits(e.target.checked)} className="accent-[#7a66e0]" />
-            Site Visits
-          </label>
+        <div className="flex w-full flex-wrap items-center gap-4 text-[12.5px] text-foreground/70">
+          <CheckboxField checked={showTasks} onCheckedChange={setShowTasks} label="Tasks" />
+          <CheckboxField checked={showVisits} onCheckedChange={setShowVisits} label="Site Visits" />
           {[
-            ["#3a5dc2", "Pending task"],
+            ["#2563eb", "Pending task"],
             ["#e5484d", "Overdue / No show"],
             ["#7a66e0", "Site visit"],
             ["#2fa66a", "Completed"],
@@ -241,16 +236,16 @@ export function CalendarTab() {
               {l}
             </span>
           ))}
-          {loading ? <span className="text-[#8b90a0]">Loading…</span> : null}
+          {loading ? <span className="text-muted-foreground">Loading…</span> : null}
         </div>
       </section>
 
-      <section className="bd-card overflow-hidden rounded-[3px]">
+      <section className="bd-card overflow-hidden rounded-lg">
         {view === "month" ? (
           <div>
-            <div className="grid grid-cols-7 border-b border-[#eef0f6] bg-[#f7f8fc]">
+            <div className="grid grid-cols-7 border-b border-border/70 bg-muted/50">
               {DOW.map((d) => (
-                <div key={d} className="px-2 py-2 text-center text-[12px] font-bold uppercase text-[#2b2f3a]">
+                <div key={d} className="px-2 py-2 text-center text-[12px] font-bold uppercase text-foreground">
                   {d}
                 </div>
               ))}
@@ -266,13 +261,13 @@ export function CalendarTab() {
                     tabIndex={0}
                     onClick={() => setPickDay(d)}
                     onKeyDown={(e) => e.key === "Enter" && setPickDay(d)}
-                    className={cn("min-h-[112px] cursor-pointer space-y-1 border-b border-r border-[#eef0f6] p-1.5 hover:bg-[#f6f8fd]", !inMonth && "bg-[#fafbfd]")}
+                    className={cn("min-h-[112px] cursor-pointer space-y-1 border-b border-r border-border/70 p-1.5 hover:bg-muted/50", !inMonth && "bg-muted/30")}
                   >
                     <div className="flex justify-end">
                       <span
                         className={cn(
                           "flex size-6 items-center justify-center rounded-full text-[12px]",
-                          sameDay(d, new Date()) ? "bg-[#3a5dc2] font-medium text-white" : inMonth ? "text-[#2b2f3a]" : "text-[#b0b5c5]",
+                          sameDay(d, new Date()) ? "bg-primary font-medium text-white" : inMonth ? "text-foreground" : "text-muted-foreground/60",
                         )}
                       >
                         {d.getDate()}
@@ -287,7 +282,7 @@ export function CalendarTab() {
                           setCursor(d);
                           setView("day");
                         }}
-                        className="px-1 text-[11.5px] text-[#3a5dc2] hover:underline"
+                        className="px-1 text-[11.5px] text-primary hover:underline"
                       >
                         +{evs.length - 3} more
                       </button>
@@ -302,20 +297,20 @@ export function CalendarTab() {
             {days.map((d) => {
               const evs = forDay(d);
               return (
-                <div key={d.toISOString()} className="min-h-[300px] border-b border-r border-[#eef0f6]">
+                <div key={d.toISOString()} className="min-h-[300px] border-b border-r border-border/70">
                   <button
                     type="button"
                     onClick={() => setPickDay(d)}
                     className={cn(
-                      "flex w-full items-center justify-between border-b border-[#eef0f6] bg-[#f7f8fc] px-3 py-2 text-left text-[13px] font-medium hover:bg-[#eef1fa]",
-                      sameDay(d, new Date()) && "bg-[#e9edf8] text-[#3a5dc2]",
+                      "flex w-full items-center justify-between border-b border-border/70 bg-muted/50 px-3 py-2 text-left text-[13px] font-medium hover:bg-primary-50",
+                      sameDay(d, new Date()) && "bg-muted text-primary",
                     )}
                   >
                     <span>{d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
-                    <span className="text-[11px] font-normal text-[#8b90a0]">+ Add</span>
+                    <span className="text-[11px] font-normal text-muted-foreground">+ Add</span>
                   </button>
                   <div className="space-y-1.5 p-2">
-                    {evs.length === 0 ? <p className="py-6 text-center text-[12px] text-[#b0b5c5]">No events</p> : null}
+                    {evs.length === 0 ? <p className="py-6 text-center text-[12px] text-muted-foreground/60">No events</p> : null}
                     {evs.map((e) => (
                       <div key={e.id}>{chip(e)}</div>
                     ))}
@@ -331,7 +326,7 @@ export function CalendarTab() {
       <BdModal open={!!pickDay} onClose={() => setPickDay(null)} title={pickDay ? pickDay.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : ""} width={420}>
         {pickDay ? (
           <div className="space-y-3">
-            <p className="text-[13px] text-[#5a6072]">{forDay(pickDay).length} event(s) on this day. Add something new?</p>
+            <p className="text-[13px] text-foreground/70">{forDay(pickDay).length} event(s) on this day. Add something new?</p>
             <div className="flex gap-3">
               <BdButton onClick={() => { setAddTask(pickDay); setPickDay(null); }}>Add Task</BdButton>
               <BdButton onClick={() => { setAddVisit(pickDay); setPickDay(null); }}>Add Site Visit</BdButton>

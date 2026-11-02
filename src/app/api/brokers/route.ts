@@ -23,7 +23,7 @@ async function baseFilter(workspaceId: Oid, url: URL) {
 
   const { team, agent } = scopeParams(url);
   const manager = sp.get("sourcingManager");
-  const scope = await resolveAgentScope(workspaceId, team, manager || agent);
+  const scope = await resolveAgentScope(workspaceId, team, manager || agent, { clamp: false });
   if (scope) filter.sourcingManagerId = { $in: scope };
   if (manager === "none") filter.sourcingManagerId = { $exists: false };
 

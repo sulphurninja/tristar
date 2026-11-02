@@ -109,9 +109,9 @@ export function leadHref(id?: string) {
 }
 
 export function LeadLink({ lead }: { lead?: LeadRef | null }) {
-  if (!lead) return <span className="text-[#8b90a0]">-</span>;
+  if (!lead) return <span className="text-muted-foreground">-</span>;
   return (
-    <Link href={leadHref(lead._id)} className="text-[#1a0dab] underline underline-offset-2 hover:text-[#3a5dc2]">
+    <Link href={leadHref(lead._id)} className="text-primary underline underline-offset-2 hover:text-primary">
       {lead.contact?.name || "Unnamed"}
     </Link>
   );
@@ -121,8 +121,8 @@ export function CategoryBadge({ lead }: { lead?: LeadRef | null }) {
   if (!lead) return null;
   return (
     <span
-      className="inline-block rounded-[2px] px-2 py-[4px] text-[11px] font-medium uppercase leading-none text-white"
-      style={{ background: lead.isContact ? "#6b7280" : "#3a5dc2" }}
+      className="inline-block rounded-lg px-2 py-[4px] text-[11px] font-medium uppercase leading-none text-white"
+      style={{ background: lead.isContact ? "#6b7280" : "#2563eb" }}
     >
       {lead.isContact ? "Contact" : "Lead"}
     </span>
@@ -135,7 +135,7 @@ export function mobileOf(lead?: LeadRef | null) {
   return /^\d{10}$/.test(p) ? `+91-${p}` : p;
 }
 
-/** Convert a Date/ISO string to the value format of <input type="datetime-local">. */
+/** Convert a Date/ISO string to a local `yyyy-MM-ddTHH:mm` value (DateTimeField). */
 export function toLocalInput(d?: string | Date | null) {
   const dt = d ? new Date(d) : new Date();
   if (Number.isNaN(dt.getTime())) return "";
@@ -304,10 +304,10 @@ export function LeadPicker({
       <div className="bd-input flex items-center justify-between">
         <span className="truncate">
           {value.name}
-          {value.phone ? <span className="ml-2 text-[#8b90a0]">{value.phone}</span> : null}
+          {value.phone ? <span className="ml-2 text-muted-foreground">{value.phone}</span> : null}
         </span>
         {!disabled ? (
-          <button type="button" aria-label="Change lead" onClick={() => onChange(null)} className="text-[#7c8296] hover:text-[#2b2f3a]">
+          <button type="button" aria-label="Change lead" onClick={() => onChange(null)} className="text-muted-foreground hover:text-foreground">
             <X className="size-3.5" />
           </button>
         ) : null}
@@ -316,7 +316,7 @@ export function LeadPicker({
   }
   return (
     <div className="relative">
-      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#9aa1b5]" />
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground/80" />
       <input
         value={q}
         onChange={(e) => {
@@ -328,9 +328,9 @@ export function LeadPicker({
         className="bd-input !pl-8"
       />
       {open && q.trim().length >= 2 ? (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[4px] bg-white p-1 shadow-lg ring-1 ring-slate-900/10">
-          {busy && !results.length ? <p className="px-3 py-2 text-[13px] text-[#8b90a0]">Searching…</p> : null}
-          {!busy && !results.length ? <p className="px-3 py-2 text-[13px] text-[#8b90a0]">No leads found</p> : null}
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-slate-900/10">
+          {busy && !results.length ? <p className="px-3 py-2 text-[13px] text-muted-foreground">Searching…</p> : null}
+          {!busy && !results.length ? <p className="px-3 py-2 text-[13px] text-muted-foreground">No leads found</p> : null}
           {results.map((r) => (
             <button
               type="button"
@@ -340,10 +340,10 @@ export function LeadPicker({
                 setQ("");
                 setOpen(false);
               }}
-              className={cn("flex w-full items-center justify-between rounded-[3px] px-3 py-2 text-left text-[13px] hover:bg-[#eef1fa]")}
+              className={cn("flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] hover:bg-primary-50")}
             >
               <span className="truncate">{r.name}</span>
-              <span className="ml-3 shrink-0 text-[#8b90a0]">{r.phone}</span>
+              <span className="ml-3 shrink-0 text-muted-foreground">{r.phone}</span>
             </button>
           ))}
         </div>

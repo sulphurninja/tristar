@@ -3,7 +3,6 @@ import Reception, { RECEPTION_PURPOSES, RECEPTION_STATUSES } from "@/models/Rece
 import Project from "@/models/Project";
 import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole } from "@/lib/auth";
 import { createWalkinLead, findLeadByPhone } from "@/lib/reception-lead";
 
 /**
@@ -104,7 +103,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
-  if (!hasRole(session.role, "supervisor")) return bad("Only supervisors and above can delete visitor records.", 403);
   const r = await Reception.findOneAndDelete({ _id: params.id, workspaceId: session.workspaceId });
   if (!r) return bad("Visitor not found", 404);
   return ok({ ok: true });

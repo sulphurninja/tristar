@@ -22,6 +22,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { DateTimeField } from "@/components/ui/date-field";
 
 interface Lead {
   _id: string;
@@ -159,11 +160,7 @@ export function NewVisitSheet({ open, onOpenChange, onCreated, defaultLeadId }: 
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Date & time" required>
-              <Input
-                type="datetime-local"
-                value={form.scheduledAt}
-                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
-              />
+              <DateTimeField value={form.scheduledAt} onChange={(v) => setForm({ ...form, scheduledAt: v })} />
             </Field>
             <Field label="Duration (min)">
               <Input

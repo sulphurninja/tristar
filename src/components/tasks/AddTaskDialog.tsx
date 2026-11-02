@@ -23,6 +23,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
+import { DateTimeField } from "@/components/ui/date-field";
 
 const ACTIVITY_TYPES = [
   { value: "call", label: "Call" },
@@ -253,12 +254,7 @@ export function AddTaskDialog({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-[12px] text-slate-600">Select Due Date</Label>
-              <Input
-                type="datetime-local"
-                className="h-10"
-                value={dueAt}
-                onChange={(e) => setDueAt(e.target.value)}
-              />
+              <DateTimeField value={dueAt} onChange={setDueAt} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-[12px] text-slate-600">Reminder</Label>

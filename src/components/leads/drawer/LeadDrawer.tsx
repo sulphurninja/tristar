@@ -200,19 +200,19 @@ export function LeadDrawer({
   ];
 
   return (
-    <div className="fixed inset-y-0 right-0 left-0 z-[55] flex flex-col bg-[#f4f6fb] lg:left-[88px]" role="complementary" aria-label="Lead Information">
-      <header className="flex shrink-0 items-center justify-between border-b border-[#e3e6ef] bg-[#f8f9fd] px-5 py-2.5">
+    <div className="fixed inset-y-0 right-0 left-0 z-[55] flex flex-col bg-background lg:left-[88px]" role="complementary" aria-label="Lead Information">
+      <header className="flex shrink-0 items-center justify-between border-b border-border bg-muted/40 px-5 py-2.5">
         <div>
-          <h2 className="text-[19px] font-medium leading-tight text-[#2b2f3a]">Lead Information</h2>
-          <p className="text-[13px] text-[#6b7186]">{position}</p>
+          <h2 className="text-[19px] font-medium leading-tight text-foreground">Lead Information</h2>
+          <p className="text-[13px] text-muted-foreground">{position}</p>
         </div>
-        <div className="flex items-center gap-4 text-[#5a6072]">
+        <div className="flex items-center gap-4 text-foreground/70">
           <button
             type="button"
             aria-label="Previous lead"
             disabled={idx <= 0}
             onClick={() => onNavigate(ids[idx - 1])}
-            className="rounded p-1 hover:bg-[#e8ecf6] disabled:opacity-30"
+            className="rounded p-1 hover:bg-muted disabled:opacity-30"
           >
             <ChevronsLeft className="size-5" />
           </button>
@@ -221,18 +221,18 @@ export function LeadDrawer({
             aria-label="Next lead"
             disabled={idx < 0 || idx >= ids.length - 1}
             onClick={() => onNavigate(ids[idx + 1])}
-            className="-ml-3 rounded p-1 hover:bg-[#e8ecf6] disabled:opacity-30"
+            className="-ml-3 rounded p-1 hover:bg-muted disabled:opacity-30"
           >
             <ChevronsRight className="size-5" />
           </button>
-          <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 hover:bg-[#e8ecf6]">
+          <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 hover:bg-muted">
             <X className="size-5" />
           </button>
         </div>
       </header>
 
       {!ctx || !detail ? (
-        <div className="flex flex-1 items-center justify-center text-[14px] text-[#8b90a0]">{loading ? "Loading lead…" : ""}</div>
+        <div className="flex flex-1 items-center justify-center text-[14px] text-muted-foreground">{loading ? "Loading lead…" : ""}</div>
       ) : (
         <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto p-3 xl:grid-cols-[320px_minmax(0,1fr)_370px] xl:overflow-hidden">
           <div className="min-h-0 xl:h-full">
@@ -240,15 +240,15 @@ export function LeadDrawer({
           </div>
 
           <div className="flex min-h-0 min-w-0 flex-col gap-3 xl:h-full">
-            <nav className="flex shrink-0 flex-wrap gap-x-1 gap-y-1 rounded-[3px] bg-white p-2 shadow-[0_1px_4px_rgba(30,50,110,0.06)]" aria-label="Lead sections">
+            <nav className="flex shrink-0 flex-wrap gap-x-1 gap-y-1 rounded-lg bg-white p-2 shadow-[0_1px_4px_rgba(30,50,110,0.06)]" aria-label="Lead sections">
               {TABS.map((t) => (
                 <button
                   key={t.key}
                   type="button"
                   onClick={() => setTab(t.key)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-[4px] px-3.5 py-2 text-[14px] font-medium transition-colors",
-                    tab === t.key ? "bg-[#3a5dc2] text-white" : "text-[#4a4f5f] hover:bg-[#eef1fa]",
+                    "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[14px] font-medium transition-colors",
+                    tab === t.key ? "bg-primary text-white" : "text-foreground/80 hover:bg-primary-50",
                   )}
                 >
                   <t.icon className="size-[15px]" />

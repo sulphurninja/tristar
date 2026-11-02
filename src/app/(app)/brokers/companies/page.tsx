@@ -167,9 +167,9 @@ function CompaniesInner() {
                 setEditing(null);
                 setFormOpen(true);
               }}
-              className="inline-flex items-center overflow-hidden rounded-[3px] bg-[#3a5dc2] text-[13px] font-medium text-white hover:bg-[#2f4ca0]"
+              className="inline-flex items-center overflow-hidden rounded-lg bg-primary text-[13px] font-medium text-white hover:bg-primary-700"
             >
-              <span className="flex size-[34px] items-center justify-center bg-[#2f4ca0]">
+              <span className="flex size-[34px] items-center justify-center bg-primary-700">
                 <Plus className="size-4" />
               </span>
               <span className="px-3">Add Company</span>
@@ -279,11 +279,11 @@ function CompaniesInner() {
           </>
         }
       >
-        <p className="mb-3 text-[13px] text-[#5a6072]">
+        <p className="mb-3 text-[13px] text-foreground/70">
           Header row columns: Company (required), Owner, Mobile, Email, Category, RERA Number, Address. Companies with the same name and mobile are skipped.
         </p>
         <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={(e) => onFile(e.target.files?.[0])} className="text-[13px]" />
-        {importErr ? <p className="mt-3 text-[13px] text-[#e5484d]">{importErr}</p> : null}
+        {importErr ? <p className="mt-3 text-[13px] text-destructive">{importErr}</p> : null}
         {preview.length > 0 ? (
           <div className="mt-4">
             <p className="mb-2 text-[13px] font-medium">
@@ -304,7 +304,7 @@ function CompaniesInner() {
               <tbody>
                 {preview.slice(0, 10).map((r, i) => (
                   <tr key={i}>
-                    <BdTd>{r.name || <span className="text-[#e5484d]">missing</span>}</BdTd>
+                    <BdTd>{r.name || <span className="text-destructive">missing</span>}</BdTd>
                     <BdTd>{r.owner || "-"}</BdTd>
                     <BdTd>{r.mobile || "-"}</BdTd>
                     <BdTd>{r.email || "-"}</BdTd>

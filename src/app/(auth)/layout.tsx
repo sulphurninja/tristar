@@ -37,7 +37,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
 
         <div className="relative hidden overflow-hidden border-l border-slate-200/70 lg:block">
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-sky-50" />
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-sky-50" />
           <div className="absolute inset-0 bg-grid opacity-35" />
 
           <div className="relative flex h-full flex-col justify-between p-10 xl:p-12">

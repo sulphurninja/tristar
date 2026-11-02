@@ -7,7 +7,6 @@ import User from "@/models/User";
 import Broker from "@/models/Broker";
 import Pipeline from "@/models/Pipeline";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole } from "@/lib/auth";
 import { loadLeadDetail, logActivity, oidOf } from "@/lib/lead-detail";
 import { loadStageCatalog } from "@/lib/lead-stages";
 
@@ -338,7 +337,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
-  if (!hasRole(session.role, "manager")) return bad("You need manager access to delete leads.", 403);
   const lead = await Lead.findOneAndDelete({ _id: params.id, workspaceId: session.workspaceId });
   if (!lead) return bad("Lead not found", 404);
   await Promise.all([

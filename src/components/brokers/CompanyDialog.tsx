@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BdButton, BdField, BdInput } from "@/components/bd";
 import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
+import { Combobox } from "@/components/ui/combobox";
 
 export interface CompanyRow {
   _id: string;
@@ -50,6 +51,7 @@ export function CompanyDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async () => {
     if (!f.name.trim()) return toast.error("Company name is required");
@@ -101,15 +103,16 @@ export function CompanyDialog({
           <BdInput type="email" value={f.email} onChange={set("email")} placeholder="Email" />
         </BdField>
         <BdField label="Category">
-          <select value={f.category} onChange={set("category")} className="bd-input">
-            <option value="">Select Category</option>
-            {CP_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-            {f.category && !CP_CATEGORIES.includes(f.category) ? <option value={f.category}>{f.category}</option> : null}
-          </select>
+          <Combobox
+            value={f.category}
+            onChange={setV("category")}
+            placeholder="Select Category"
+            clearable
+            options={[...CP_CATEGORIES, ...(f.category && !CP_CATEGORIES.includes(f.category) ? [f.category] : [])].map((c) => ({
+              value: c,
+              label: c,
+            }))}
+          />
         </BdField>
         <BdField label="RERA Number" className="sm:col-span-2">
           <BdInput value={f.reraNumber} onChange={set("reraNumber")} placeholder="RERA number" />

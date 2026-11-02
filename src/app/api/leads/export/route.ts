@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import Lead from "@/models/Lead";
 import { withAuth, bad } from "@/lib/api";
 import { buildLeadFilter } from "@/lib/lead-filters";
-import { hasRole } from "@/lib/auth";
 
 const esc = (v: unknown) => {
   let s = v == null ? "" : String(v);
@@ -14,7 +13,6 @@ const dt = (d?: Date | string | null) => (d ? new Date(d).toISOString().replace(
 
 /** Export every lead matching the current filters (max 50,000 rows). */
 export const GET = withAuth(async ({ req, session }) => {
-  if (!hasRole(session.role, "supervisor")) return bad("You need supervisor access to export leads.", 403);
   const p = new URL(req.url).searchParams;
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const { filter } = await buildLeadFilter(workspaceId, p, session.userId);

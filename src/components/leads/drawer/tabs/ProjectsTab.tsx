@@ -14,10 +14,10 @@ export function ProjectsTab({ ctx }: { ctx: TabCtx }) {
   const props = lead.interestedProperties ?? [];
 
   return (
-    <div className="rounded-[3px] border border-[#e6e9f2] bg-white">
-      <header className="border-b border-[#eef0f6] px-5 py-3.5">
-        <h3 className="text-[16px] font-semibold text-[#2b2f3a]">Interested Projects</h3>
-        <p className="text-[11.5px] font-semibold uppercase tracking-wide text-[#6b7186]">Projects and properties this lead is interested in</p>
+    <div className="rounded-lg border border-border bg-white">
+      <header className="border-b border-border/70 px-5 py-3.5">
+        <h3 className="text-[16px] font-semibold text-foreground">Interested Projects</h3>
+        <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Projects and properties this lead is interested in</p>
       </header>
       <div className="space-y-4 p-5">
         <div className="flex gap-3">
@@ -39,19 +39,19 @@ export function ProjectsTab({ ctx }: { ctx: TabCtx }) {
         </div>
 
         {(lead.interestedProjects ?? []).length === 0 && props.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-[#8b90a0]">No interested projects yet. Add one above or from the Suggestion tab.</p>
+          <p className="py-6 text-center text-[13px] text-muted-foreground">No interested projects yet. Add one above or from the Suggestion tab.</p>
         ) : null}
 
-        <div className="divide-y divide-[#eef0f6]">
+        <div className="divide-y divide-border/70">
           {(lead.interestedProjects ?? []).map((p) => (
             <div key={p._id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex size-9 items-center justify-center rounded bg-[#eef1fa] text-[#3a5dc2]">
+                <span className="flex size-9 items-center justify-center rounded bg-primary-50 text-primary">
                   <Building2 className="size-4" />
                 </span>
                 <div className="min-w-0">
                   <p className="truncate text-[14px] font-medium">{p.name}</p>
-                  <p className="truncate text-[12.5px] text-[#6b7186]">
+                  <p className="truncate text-[12.5px] text-muted-foreground">
                     {[p.code, p.location?.locality, p.location?.city].filter(Boolean).join(" · ") || "-"}
                     {lead.primaryProjectId?._id === p._id ? " · Primary" : ""}
                   </p>
@@ -61,7 +61,7 @@ export function ProjectsTab({ ctx }: { ctx: TabCtx }) {
                 type="button"
                 aria-label={`Remove ${p.name}`}
                 onClick={() => patch({ removeInterestedProject: p._id }, "Project removed")}
-                className="rounded p-1.5 text-[#c93c41] hover:bg-[#fdecec]"
+                className="rounded p-1.5 text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="size-4" />
               </button>
@@ -71,7 +71,7 @@ export function ProjectsTab({ ctx }: { ctx: TabCtx }) {
             <div key={p._id} className="flex items-center justify-between gap-3 py-2.5">
               <div className="min-w-0">
                 <p className="truncate text-[14px] font-medium">{p.title}</p>
-                <p className="truncate text-[12.5px] text-[#6b7186]">
+                <p className="truncate text-[12.5px] text-muted-foreground">
                   {[p.location, p.city, p.configuration, p.price ? formatBudget(p.price) : ""].filter(Boolean).join(" · ") || "Property"}
                 </p>
               </div>
@@ -79,7 +79,7 @@ export function ProjectsTab({ ctx }: { ctx: TabCtx }) {
                 type="button"
                 aria-label={`Remove ${p.title}`}
                 onClick={() => patch({ removeInterestedProperty: p._id }, "Property removed")}
-                className="rounded p-1.5 text-[#c93c41] hover:bg-[#fdecec]"
+                className="rounded p-1.5 text-destructive hover:bg-destructive/10"
               >
                 <Trash2 className="size-4" />
               </button>

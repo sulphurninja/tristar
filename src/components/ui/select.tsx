@@ -16,7 +16,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-[13.5px] text-slate-900 shadow-xs transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50 [&[data-placeholder]]:text-slate-400",
+      "flex h-10 w-full items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-[13.5px] text-slate-900 shadow-xs transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 disabled:cursor-not-allowed disabled:opacity-50 [&[data-placeholder]]:text-slate-400",
       className,
     )}
     {...props}
@@ -99,7 +99,7 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex cursor-pointer select-none items-center gap-2 rounded-md py-1.5 pl-2 pr-8 text-[13.5px] outline-none data-[highlighted]:bg-emerald-50 data-[highlighted]:text-emerald-900 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "relative flex cursor-pointer select-none items-center gap-2 rounded-md py-1.5 pl-2 pr-8 text-[13.5px] outline-none data-[highlighted]:bg-primary-50 data-[highlighted]:text-primary-700 data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
     )}
     {...props}
@@ -107,7 +107,7 @@ const SelectItem = React.forwardRef<
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
     <span className="absolute right-2 flex size-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <Check className="size-3.5 text-emerald-600" strokeWidth={2.5} />
+        <Check className="size-3.5 text-primary" strokeWidth={2.5} />
       </SelectPrimitive.ItemIndicator>
     </span>
   </SelectPrimitive.Item>

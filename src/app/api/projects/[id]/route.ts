@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 import Project from "@/models/Project";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole } from "@/lib/auth";
 import { sanitizeProject } from "@/lib/project-input";
 
 export const GET = withAuth<{ id: string }>(async ({ session, params }) => {
@@ -39,7 +38,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 /** Archive (soft delete) a project. */
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
-  if (!hasRole(session.role, "manager")) return bad("Only managers and above can archive projects.", 403);
   const project = await Project.findOneAndUpdate(
     { _id: params.id, workspaceId: session.workspaceId },
     { $set: { archived: true } },

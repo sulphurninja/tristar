@@ -27,6 +27,7 @@ import { BookingDetailModal } from "@/components/bookings/BookingDetailModal";
 import { PaymentFormDialog } from "@/components/bookings/PaymentFormDialog";
 import { toCsv, downloadCsv } from "@/lib/bd-csv";
 import { formatCurrency } from "@/lib/utils";
+import { DateField } from "@/components/ui/date-field";
 
 interface BookingRow extends BookingEditable {
   bookingNumber?: string;
@@ -205,10 +206,10 @@ function BookingsInner() {
             <BdSelect placeholder="Select Stage" value={draft.stage} onChange={(v) => setDraft((d) => ({ ...d, stage: v }))} options={BOOKING_STAGES.map((s) => ({ value: s, label: s.charAt(0).toUpperCase() + s.slice(1) }))} />
           </BdField>
           <BdField label="Booked From">
-            <input type="date" className="bd-input" value={draft.from} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} />
+            <DateField value={draft.from} onChange={(v) => setDraft((d) => ({ ...d, from: v }))} clearable />
           </BdField>
           <BdField label="Booked To">
-            <input type="date" className="bd-input" value={draft.to} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} />
+            <DateField value={draft.to} onChange={(v) => setDraft((d) => ({ ...d, to: v }))} clearable />
           </BdField>
           <BdField label="Search">
             <input className="bd-input" placeholder="Customer or booking no." value={draft.q} onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && apply()} />
@@ -275,7 +276,7 @@ function BookingsInner() {
                 <tr key={b._id}>
                   <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
                   <BdTd>
-                    <button type="button" className="text-[#2d5bd6] underline" onClick={() => setDetailId(b._id)}>
+                    <button type="button" className="text-primary underline" onClick={() => setDetailId(b._id)}>
                       {b.bookingNumber ?? "-"}
                     </button>
                   </BdTd>

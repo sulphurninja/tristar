@@ -41,7 +41,7 @@ export function SavedFilterPicker({
           className="bd-input relative flex !w-[200px] items-center pr-12 text-left"
           aria-label="Select Advance Filter"
         >
-          <span className={`truncate ${active ? "text-[#2b2f3a]" : "text-[#9aa1b5]"}`}>{active?.name ?? "Select Advance Filter"}</span>
+          <span className={`truncate ${active ? "text-foreground" : "text-muted-foreground/80"}`}>{active?.name ?? "Select Advance Filter"}</span>
           {active ? (
             <span
               role="button"
@@ -50,25 +50,25 @@ export function SavedFilterPicker({
                 e.stopPropagation();
                 onPick(null);
               }}
-              className="absolute right-7 top-1/2 -translate-y-1/2 text-[#7c8296] hover:text-black"
+              className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black"
             >
               <X className="size-3.5" />
             </span>
           ) : null}
-          <ChevronDown className="absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#7c8296]" />
+          <ChevronDown className="absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         </button>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           align="end"
           sideOffset={3}
-          className="z-[96] max-h-[300px] w-[260px] overflow-y-auto rounded-[4px] border border-[#e3e6ef] bg-white py-1 text-[13.5px] shadow-[0_8px_28px_rgba(30,50,110,0.2)] outline-none"
+          className="z-[96] max-h-[300px] w-[260px] overflow-y-auto rounded-lg border border-border bg-white py-1 text-[13.5px] shadow-[0_8px_28px_rgba(30,50,110,0.2)] outline-none"
         >
           {items.length === 0 ? (
-            <p className="px-3 py-3 text-[#8b90a0]">No saved filters yet. Use the orange filter button, set filters and choose Save Filter.</p>
+            <p className="px-3 py-3 text-muted-foreground">No saved filters yet. Use the orange filter button, set filters and choose Save Filter.</p>
           ) : null}
           {items.map((f) => (
-            <div key={f._id} className="group flex items-center hover:bg-[#eef1fa]">
+            <div key={f._id} className="group flex items-center hover:bg-primary-50">
               <button
                 type="button"
                 className="min-w-0 flex-1 truncate px-3 py-2 text-left"
@@ -82,7 +82,7 @@ export function SavedFilterPicker({
               <button
                 type="button"
                 aria-label={`Delete ${f.name}`}
-                className="mr-2 hidden rounded p-1 text-[#c93c41] hover:bg-white group-hover:block"
+                className="mr-2 hidden rounded p-1 text-destructive hover:bg-white group-hover:block"
                 onClick={async () => {
                   try {
                     await api(`/api/leads/saved-filters/${f._id}`, { method: "DELETE" });

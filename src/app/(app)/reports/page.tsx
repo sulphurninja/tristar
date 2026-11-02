@@ -150,13 +150,13 @@ function ReportCard({ r }: { r: ReportItem }) {
   const Icon = r.icon;
   return (
     <Link href={r.href} className="block">
-      <div className="bd-card flex h-full items-start gap-4 rounded-[3px] p-5 transition-shadow hover:shadow-[0_2px_12px_rgba(30,50,110,0.16)]">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-[12px] bg-[#dbe8fd] text-[#3d7be8]">
+      <div className="bd-card flex h-full items-start gap-4 rounded-lg p-5 transition-shadow hover:shadow-[var(--shadow-md)]">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-[12px] bg-primary-100 text-info">
           <Icon className="size-6" />
         </span>
         <div className="min-w-0">
-          <h3 className="text-[15px] font-medium text-[#2b2f3a]">{r.title}</h3>
-          <p className="mt-1 text-[12.5px] leading-relaxed text-[#8b90a0]">{r.desc}</p>
+          <h3 className="text-[15px] font-medium text-foreground">{r.title}</h3>
+          <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">{r.desc}</p>
         </div>
       </div>
     </Link>
@@ -167,8 +167,8 @@ export default function ReportsLandingPage() {
   return (
     <BdPage className="space-y-6">
       <div>
-        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Reports</h1>
-        <p className="mt-0.5 text-[12.5px] text-[#8b90a0]">
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">Reports</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
           Operational reports across leads, sources, brokers, site visits and team activity - live data.
         </p>
       </div>
@@ -176,8 +176,8 @@ export default function ReportsLandingPage() {
       {GROUPS.map((g) => (
         <section key={g.title} className="space-y-3">
           <div>
-            <h2 className="text-[16px] font-medium text-[#2b2f3a]">{g.title}</h2>
-            <p className="text-[12.5px] text-[#8b90a0]">{g.desc}</p>
+            <h2 className="text-[16px] font-medium text-foreground">{g.title}</h2>
+            <p className="text-[12.5px] text-muted-foreground">{g.desc}</p>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {g.items.map((r) => (

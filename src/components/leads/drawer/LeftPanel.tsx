@@ -43,8 +43,8 @@ const QUICK: Array<{ key: QuickAction; label: string; icon: React.ComponentType<
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mx-3 mb-3 rounded-[3px] border border-[#e6e9f2] bg-white">
-      <h4 className="px-4 pb-1 pt-4 text-[15px] font-semibold uppercase tracking-wide text-[#4a4f5f]">{title}</h4>
+    <div className="mx-3 mb-3 rounded-lg border border-border bg-white">
+      <h4 className="px-4 pb-1 pt-4 text-[15px] font-semibold uppercase tracking-wide text-foreground/80">{title}</h4>
       <div className="px-4 pb-3">{children}</div>
     </div>
   );
@@ -52,9 +52,9 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="border-b border-[#eef0f6] py-3 last:border-0">
-      <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-wide text-[#4a4f5f]">{label}</p>
-      <div className="text-[14px] text-[#2b2f3a]">{children}</div>
+    <div className="border-b border-border/70 py-3 last:border-0">
+      <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-wide text-foreground/80">{label}</p>
+      <div className="text-[14px] text-foreground">{children}</div>
     </div>
   );
 }
@@ -70,7 +70,7 @@ function EmailField({ value, onSave, type = "text" }: { value: string; onSave: (
       onChange={(e) => setV(e.target.value)}
       onBlur={() => v.trim() !== value && onSave(v.trim())}
       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-      className="w-full border-0 border-b border-transparent bg-transparent p-0 text-[14px] outline-none placeholder:text-[#2b2f3a] hover:border-[#dfe3ee] focus:border-[#3a5dc2]"
+      className="w-full border-0 border-b border-transparent bg-transparent p-0 text-[14px] outline-none placeholder:text-foreground hover:border-input focus:border-primary"
     />
   );
 }
@@ -85,9 +85,9 @@ function TagsField({ tags, onSave }: { tags: string[]; onSave: (t: string[]) => 
   return (
     <div className="flex flex-wrap items-center gap-1">
       {tags.map((t) => (
-        <span key={t} className="inline-flex items-center gap-1 rounded-[2px] bg-[#eceff8] px-1.5 py-[2px] text-[12.5px]">
+        <span key={t} className="inline-flex items-center gap-1 rounded-lg bg-muted px-1.5 py-[2px] text-[12.5px]">
           {t}
-          <button type="button" aria-label={`Remove ${t}`} onClick={() => onSave(tags.filter((x) => x !== t))} className="text-[#5a6072] hover:text-black">
+          <button type="button" aria-label={`Remove ${t}`} onClick={() => onSave(tags.filter((x) => x !== t))} className="text-foreground/70 hover:text-black">
             ×
           </button>
         </span>
@@ -103,7 +103,7 @@ function TagsField({ tags, onSave }: { tags: string[]; onSave: (t: string[]) => 
         }}
         onBlur={add}
         placeholder={tags.length ? "Add" : "Add tag"}
-        className="min-w-[60px] flex-1 border-0 bg-transparent p-0 text-[13px] outline-none placeholder:text-[#9aa1b5]"
+        className="min-w-[60px] flex-1 border-0 bg-transparent p-0 text-[13px] outline-none placeholder:text-muted-foreground/80"
       />
     </div>
   );
@@ -124,10 +124,10 @@ export function LeftPanel({
   const userOpts = users.filter((u) => u.status !== "suspended").map((u) => ({ value: u._id, label: u.name }));
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-[3px] bg-white pb-3 shadow-[0_1px_4px_rgba(30,50,110,0.06)]">
-      <div className="bg-[#f1f3f9] px-3 pb-3 pt-3">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-lg bg-white pb-3 shadow-[0_1px_4px_rgba(30,50,110,0.06)]">
+      <div className="bg-muted px-3 pb-3 pt-3">
         <div className="flex items-start justify-between">
-          <span className="rounded-full border border-[#e3e6ef] bg-white px-3 py-[3px] text-[12px] font-semibold">
+          <span className="rounded-full border border-border bg-white px-3 py-[3px] text-[12px] font-semibold">
             #{lead.leadNumber ?? lead._id.slice(-6)}
           </span>
           <DropMenu
@@ -135,7 +135,7 @@ export function LeftPanel({
               <button
                 type="button"
                 aria-label="Lead menu"
-                className="flex size-9 items-center justify-center rounded-[3px] border border-[#e3e6ef] bg-white hover:bg-[#eef1fa]"
+                className="flex size-9 items-center justify-center rounded-lg border border-border bg-white hover:bg-primary-50"
               >
                 <MoreVertical className="size-4" />
               </button>
@@ -156,7 +156,7 @@ export function LeftPanel({
           <div className="flex size-[92px] items-center justify-center rounded-full border-4 border-white bg-[#6c757d] text-[32px] font-medium text-white shadow">
             {initialsOf(lead.contact.name)}
           </div>
-          <h3 className="mt-2 text-center text-[17px] font-semibold text-[#2b2f3a]">{lead.contact.name}</h3>
+          <h3 className="mt-2 text-center text-[17px] font-semibold text-foreground">{lead.contact.name}</h3>
           <div className="mt-1 flex gap-1.5">
             {lead.isContact ? <BdBadge color="#37c47f">Contact</BdBadge> : null}
             {lead.isReturning ? <BdBadge color="#d9453f">Returned</BdBadge> : null}
@@ -170,20 +170,20 @@ export function LeftPanel({
             <span className="flex size-9 items-center justify-center rounded-full transition group-hover:scale-110" style={{ background: a.bg, color: a.fg }}>
               <a.icon className="size-[17px]" />
             </span>
-            <span className="text-[11px] font-medium uppercase text-[#5a6072]">{a.label}</span>
+            <span className="text-[11px] font-medium uppercase text-foreground/70">{a.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="border-t border-[#eef0f6] px-3 py-3">
-        <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-wide text-[#4a4f5f]">Lead Stage</p>
+      <div className="border-t border-border/70 px-3 py-3">
+        <p className="mb-1.5 text-[11.5px] font-bold uppercase tracking-wide text-foreground/80">Lead Stage</p>
         <BdSelect
           value={lead.stage}
           clearable={false}
           onChange={(v) => v && v !== lead.stage && patch({ stage: v }, "Lead stage updated")}
           options={opts.stages.map((s) => ({ value: s.key, label: s.label }))}
         />
-        <p className="mb-1.5 mt-3 text-[11.5px] font-bold uppercase tracking-wide text-[#4a4f5f]">Lead Category</p>
+        <p className="mb-1.5 mt-3 text-[11.5px] font-bold uppercase tracking-wide text-foreground/80">Lead Category</p>
         <BdSelect
           value={lead.category ?? ""}
           placeholder=""
@@ -197,11 +197,11 @@ export function LeftPanel({
           <EmailField type="email" value={lead.contact.email ?? ""} onSave={(v) => patch({ contact: { email: v } }, "E-Mail updated")} />
         </Field>
         <Field label="Phone">
-          <a href={`tel:${lead.contact.primaryPhone}`} className="text-[#3a5dc2] hover:underline">
+          <a href={`tel:${lead.contact.primaryPhone}`} className="text-primary hover:underline">
             {lead.contact.primaryPhone}
           </a>
           {lead.contact.altPhone ? (
-            <a href={`tel:${lead.contact.altPhone}`} className="ml-3 text-[#3a5dc2] hover:underline">
+            <a href={`tel:${lead.contact.altPhone}`} className="ml-3 text-primary hover:underline">
               {lead.contact.altPhone}
             </a>
           ) : null}
@@ -234,7 +234,7 @@ export function LeftPanel({
             options={userOpts}
           />
           {(lead.coOwners ?? []).length ? (
-            <p className="mt-1.5 text-[12.5px] text-[#6b7186]">Also owned by: {(lead.coOwners ?? []).map((c) => c.name).join(", ")}</p>
+            <p className="mt-1.5 text-[12.5px] text-muted-foreground">Also owned by: {(lead.coOwners ?? []).map((c) => c.name).join(", ")}</p>
           ) : null}
         </Field>
         <Field label="Source">

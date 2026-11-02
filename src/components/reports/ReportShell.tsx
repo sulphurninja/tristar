@@ -106,11 +106,11 @@ export function ReportShell({
     <BdPage>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Link href="/reports" className="text-[12px] text-[#3a5dc2] hover:underline">
+          <Link href="/reports" className="text-[12px] text-primary hover:underline">
             Report
           </Link>
-          <h1 className="text-[20px] font-semibold text-[#2b2f3a]">{title}</h1>
-          {description ? <p className="mt-0.5 text-[12.5px] text-[#8b90a0]">{description}</p> : null}
+          <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">{title}</h1>
+          {description ? <p className="mt-0.5 text-[12.5px] text-muted-foreground">{description}</p> : null}
         </div>
         {scope && onScopeChange ? <TeamAgentSelects value={scope} onChange={onScopeChange} /> : null}
       </div>
@@ -209,7 +209,7 @@ export function ReportTable({
               <BdEmptyRow colSpan={columns.length} loading={loading} />
             ) : (
               <tr>
-                <td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-[#8b90a0]">
+                <td colSpan={columns.length} className="px-3 py-10 text-center text-[13px] text-muted-foreground">
                   {emptyLabel}
                 </td>
               </tr>
@@ -226,7 +226,7 @@ export function ReportTable({
             ))
           )}
           {totalRow && rows.length > 0 ? (
-            <tr className="bg-[#f6f8fd]">
+            <tr className="bg-muted/50">
               {totalRow.map((cell, ci) => (
                 <BdTd key={ci} className={`font-bold ${ci === 0 ? "" : "text-right tabular-nums"}`}>
                   {cell}

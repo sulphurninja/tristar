@@ -158,7 +158,7 @@ function LedgerInner() {
                 <tr key={l._id}>
                   <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
                   <BdTd>
-                    <button type="button" className="text-[#2d5bd6] underline" onClick={() => setStmtId(l._id)}>
+                    <button type="button" className="text-primary underline" onClick={() => setStmtId(l._id)}>
                       {l.name}
                     </button>
                   </BdTd>

@@ -149,11 +149,11 @@ export function SuggestionTab({ ctx }: { ctx: TabCtx }) {
 
   return (
     <div className="space-y-4">
-      <section className="rounded-[3px] border border-[#e6e9f2] bg-white">
-        <header className="flex items-start justify-between border-b border-[#eef0f6] px-5 py-3.5">
+      <section className="rounded-lg border border-border bg-white">
+        <header className="flex items-start justify-between border-b border-border/70 px-5 py-3.5">
           <div>
-            <h3 className="text-[16px] font-semibold text-[#2b2f3a]">Requirements</h3>
-            <p className="text-[11.5px] font-semibold uppercase tracking-wide text-[#6b7186]">Budget, inventory and location preferences</p>
+            <h3 className="text-[16px] font-semibold text-foreground">Requirements</h3>
+            <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Budget, inventory and location preferences</p>
           </div>
           <BdButton onClick={save} disabled={saving}>
             <Save className="size-3.5" /> {saving ? "Saving…" : "Save"}
@@ -216,10 +216,10 @@ export function SuggestionTab({ ctx }: { ctx: TabCtx }) {
         </div>
       </section>
 
-      <section className="rounded-[3px] border border-[#e6e9f2] bg-white">
-        <header className="border-b border-[#eef0f6] px-5 py-3.5">
-          <h3 className="text-[16px] font-semibold text-[#2b2f3a]">Suggested Projects &amp; Properties</h3>
-          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-[#6b7186]">Filter results by project, location and sub location</p>
+      <section className="rounded-lg border border-border bg-white">
+        <header className="border-b border-border/70 px-5 py-3.5">
+          <h3 className="text-[16px] font-semibold text-foreground">Suggested Projects &amp; Properties</h3>
+          <p className="text-[11.5px] font-semibold uppercase tracking-wide text-muted-foreground">Filter results by project, location and sub location</p>
         </header>
         <div className="space-y-4 p-5">
           <MultiSelect value={use} onChange={setUse} placeholder="Match on…" options={CRITERIA} />
@@ -297,16 +297,16 @@ function ResultTable({
 }) {
   return (
     <div>
-      <h4 className="mb-1.5 text-[12.5px] font-bold uppercase tracking-wide text-[#4a4f5f]">{title}</h4>
+      <h4 className="mb-1.5 text-[12.5px] font-bold uppercase tracking-wide text-foreground/80">{title}</h4>
       {rows.length === 0 ? (
-        <p className="rounded-[3px] bg-[#f6f8fd] px-4 py-5 text-center text-[13px] text-[#8b90a0]">{empty}</p>
+        <p className="rounded-lg bg-muted/50 px-4 py-5 text-center text-[13px] text-muted-foreground">{empty}</p>
       ) : (
-        <div className="divide-y divide-[#eef0f6] rounded-[3px] border border-[#e6e9f2]">
+        <div className="divide-y divide-border/70 rounded-lg border border-border">
           {rows.map((r) => (
             <div key={r.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <div className="min-w-0">
-                <p className="truncate text-[14px] font-medium text-[#2b2f3a]">{r.name}</p>
-                <p className="truncate text-[12.5px] text-[#6b7186]">{[r.sub, r.meta].filter(Boolean).join("  |  ") || "-"}</p>
+                <p className="truncate text-[14px] font-medium text-foreground">{r.name}</p>
+                <p className="truncate text-[12.5px] text-muted-foreground">{[r.sub, r.meta].filter(Boolean).join("  |  ") || "-"}</p>
               </div>
               <BdButton variant={r.added ? "light" : "primary"} disabled={r.added} onClick={() => onAdd(r.id)}>
                 {r.added ? "Added" : "Add Interest"}

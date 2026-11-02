@@ -187,7 +187,7 @@ function ProjectsInner() {
           onSearch={setSearch}
           pageSize={pageSize}
           onPageSize={setPageSize}
-          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          left={<span className="text-[12.5px] text-muted-foreground">{total} total</span>}
           right={<ColumnPicker columns={COLUMNS} visible={cols} onChange={setCols} />}
         />
         <BdTable minWidth={960}>
@@ -208,10 +208,10 @@ function ProjectsInner() {
                 const addr = [p.location?.locality, p.location?.city].filter(Boolean).join(", ");
                 return (
                   <tr key={p._id}>
-                    <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                    <BdTd className="text-muted-foreground">{(page - 1) * pageSize + i + 1}</BdTd>
                     {show("name") ? (
                       <BdTd>
-                        <button type="button" onClick={() => setModal({ open: true, project: p })} className="text-left font-medium text-[#3a5dc2] hover:underline">
+                        <button type="button" onClick={() => setModal({ open: true, project: p })} className="text-left font-medium text-primary hover:underline">
                           {p.name}
                         </button>
                       </BdTd>

@@ -6,6 +6,7 @@ import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { CompanyDialog, type CompanyRow } from "@/components/brokers/CompanyDialog";
+import { Combobox } from "@/components/ui/combobox";
 
 export const CP_STAGES = ["Open", "Contacted", "Interested", "Empanelled", "Dormant", "Closed"];
 
@@ -93,6 +94,7 @@ export function CpFormDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async () => {
     if (!f.name.trim()) return toast.error("Contact person is required");
@@ -183,14 +185,14 @@ export function CpFormDialog({
             />
           </BdField>
           <BdField label="Stage">
-            <select value={f.stage} onChange={set("stage")} className="bd-input">
-              {CP_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-              {f.stage && !CP_STAGES.includes(f.stage) ? <option value={f.stage}>{f.stage}</option> : null}
-            </select>
+            <Combobox
+              value={f.stage}
+              onChange={setV("stage")}
+              options={[...CP_STAGES, ...(f.stage && !CP_STAGES.includes(f.stage) ? [f.stage] : [])].map((s) => ({
+                value: s,
+                label: s,
+              }))}
+            />
           </BdField>
           <BdField label="RERA Number">
             <BdInput value={f.reraNumber} onChange={set("reraNumber")} placeholder="RERA number" />

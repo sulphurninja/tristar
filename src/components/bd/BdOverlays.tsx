@@ -10,6 +10,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ArrowDownUp, ChevronDown, Filter, MoreVertical, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BdButton } from "@/components/bd";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export function BdModal({
   open,
@@ -38,17 +39,17 @@ export function BdModal({
       <div
         role="dialog"
         aria-modal="true"
-        className="w-full rounded-[4px] bg-white shadow-[0_20px_50px_rgba(20,30,70,0.3)]"
+        className="w-full rounded-lg bg-white shadow-[0_20px_50px_rgba(20,30,70,0.3)]"
         style={{ maxWidth: width }}
       >
-        <div className="flex items-center justify-between border-b border-[#eef0f6] px-5 py-3.5">
-          <h3 className="text-[16px] font-medium text-[#2b2f3a]">{title}</h3>
-          <button type="button" aria-label="Close" onClick={onClose} className="text-[#7c8296] hover:text-[#2b2f3a]">
+        <div className="flex items-center justify-between border-b border-border/70 px-5 py-3.5">
+          <h3 className="text-[16px] font-medium text-foreground">{title}</h3>
+          <button type="button" aria-label="Close" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="size-4" />
           </button>
         </div>
         <div className="max-h-[68vh] overflow-y-auto p-5">{children}</div>
-        {footer ? <div className="flex justify-end gap-2 border-t border-[#eef0f6] px-5 py-3">{footer}</div> : null}
+        {footer ? <div className="flex justify-end gap-2 border-t border-border/70 px-5 py-3">{footer}</div> : null}
       </div>
     </div>
   );
@@ -88,7 +89,7 @@ export function BdConfirm({
         </>
       }
     >
-      <p className="text-[14px] text-[#2b2f3a]">{message}</p>
+      <p className="text-[14px] text-foreground">{message}</p>
     </BdModal>
   );
 }
@@ -112,21 +113,21 @@ export function BdSidePanel({
     <div className="fixed inset-0 z-[70]">
       <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
       <aside className="absolute inset-y-0 right-0 flex w-full max-w-[420px] flex-col bg-white shadow-[-8px_0_30px_rgba(20,30,70,0.18)]">
-        <div className="flex items-center justify-between bg-[#3a5dc2] px-5 py-3.5 text-white">
+        <div className="flex items-center justify-between bg-primary px-5 py-3.5 text-white">
           <h3 className="text-[16px] font-medium">{title}</h3>
           <button type="button" aria-label="Close" onClick={onClose}>
             <X className="size-4" />
           </button>
         </div>
         <div className="flex-1 space-y-4 overflow-y-auto p-5">{children}</div>
-        {footer ? <div className="flex justify-end gap-2 border-t border-[#eef0f6] px-5 py-3">{footer}</div> : null}
+        {footer ? <div className="flex justify-end gap-2 border-t border-border/70 px-5 py-3">{footer}</div> : null}
       </aside>
     </div>
   );
 }
 
 const itemCls =
-  "flex w-full cursor-pointer items-center gap-2 rounded-[3px] px-3 py-2 text-left text-[13px] text-[#2b2f3a] outline-none data-[highlighted]:bg-[#eef1fa]";
+  "flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] text-foreground outline-none data-[highlighted]:bg-primary-50";
 
 export interface BdMenuItem {
   label: string;
@@ -141,7 +142,7 @@ function MenuContent({ items }: { items: BdMenuItem[] }) {
       <DropdownMenu.Content
         align="end"
         sideOffset={4}
-        className="z-[80] min-w-44 rounded-[4px] bg-white p-1 shadow-lg ring-1 ring-slate-900/10"
+        className="z-[80] min-w-44 rounded-lg bg-white p-1 shadow-lg ring-1 ring-slate-900/10"
       >
         {items
           .filter((i) => !i.hidden)
@@ -149,7 +150,7 @@ function MenuContent({ items }: { items: BdMenuItem[] }) {
             <DropdownMenu.Item
               key={i.label}
               onSelect={i.onSelect}
-              className={cn(itemCls, i.danger && "text-[#e5484d]")}
+              className={cn(itemCls, i.danger && "text-destructive")}
             >
               {i.label}
             </DropdownMenu.Item>
@@ -167,7 +168,7 @@ export function BdKebab({ items }: { items: BdMenuItem[] }) {
         <button
           type="button"
           aria-label="More actions"
-          className="flex size-[34px] items-center justify-center rounded-[3px] border border-[#3a5dc2] bg-white text-[#3a5dc2] hover:bg-[#eef1fa]"
+          className="flex size-[34px] items-center justify-center rounded-lg border border-primary bg-white text-primary hover:bg-primary-50"
         >
           <MoreVertical className="size-4" />
         </button>
@@ -185,7 +186,7 @@ export function BdRowActions({ items }: { items: BdMenuItem[] }) {
         <button
           type="button"
           aria-label="Actions"
-          className="flex size-6 items-center justify-center rounded-[3px] bg-[#3a5dc2] text-white hover:bg-[#2f4ca0]"
+          className="flex size-6 items-center justify-center rounded-lg bg-primary text-white hover:bg-primary-700"
         >
           <svg viewBox="0 0 10 6" className="size-2.5" fill="currentColor">
             <path d="M0 0h10L5 6z" />
@@ -205,11 +206,11 @@ export function BdFilterButton({ onClick, active }: { onClick: () => void; activ
       aria-label="Filters"
       onClick={onClick}
       className={cn(
-        "relative flex size-[34px] items-center justify-center rounded-[3px] bg-[#e8602c] text-white hover:bg-[#d3521f]",
+        "bd-btn-light relative !w-[34px] !px-0",
       )}
     >
       <Filter className="size-4" />
-      {active ? <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-[#3a5dc2] ring-2 ring-white" /> : null}
+      {active ? <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-primary ring-2 ring-white" /> : null}
     </button>
   );
 }
@@ -222,7 +223,7 @@ export function BdSortToggle({ dir, onToggle }: { dir: "asc" | "desc"; onToggle:
       aria-label={dir === "asc" ? "Sorted oldest first" : "Sorted newest first"}
       title={dir === "asc" ? "Oldest first" : "Newest first"}
       onClick={onToggle}
-      className="flex size-[38px] items-center justify-center rounded-[3px] border border-[#3a5dc2] bg-white text-[#3a5dc2] hover:bg-[#eef1fa]"
+      className="flex size-[38px] items-center justify-center rounded-lg border border-primary bg-white text-primary hover:bg-primary-50"
     >
       <ArrowDownUp className="size-4" />
     </button>
@@ -254,21 +255,20 @@ export function BdColumnPicker({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="bd-input flex !w-[190px] items-center justify-between text-left text-[#7c8296]"
+        className="bd-input flex !w-[190px] items-center justify-between text-left text-muted-foreground"
       >
         <span>Select Columns</span>
         <ChevronDown className="size-3.5" />
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-[220px] overflow-y-auto rounded-[4px] bg-white p-1 shadow-lg ring-1 ring-slate-900/10">
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-72 w-[220px] overflow-y-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-slate-900/10">
           {columns.map((c) => {
             const on = value.includes(c.key);
             return (
-              <label key={c.key} className="flex cursor-pointer items-center gap-2 rounded-[3px] px-3 py-1.5 text-[13px] hover:bg-[#eef1fa]">
-                <input
-                  type="checkbox"
+              <label key={c.key} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-1.5 text-[13px] hover:bg-primary-50">
+                <Checkbox
                   checked={on}
-                  onChange={() => onChange(on ? value.filter((k) => k !== c.key) : [...value, c.key])}
+                  onCheckedChange={() => onChange(on ? value.filter((k) => k !== c.key) : [...value, c.key])}
                 />
                 {c.label}
               </label>
@@ -291,12 +291,11 @@ export function BdCheck({
   label?: string;
 }) {
   return (
-    <input
-      type="checkbox"
+    <Checkbox
       aria-label={label ?? "Select"}
       checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="size-4 cursor-pointer accent-[#3a5dc2]"
+      onCheckedChange={(v) => onChange(v === true)}
+      className="cursor-pointer"
     />
   );
 }

@@ -191,7 +191,7 @@ function ContactsPageInner() {
             <BdButton onClick={() => setApplied(draft)}>Apply</BdButton>
             <BdButton
               variant="light"
-              className="!bg-[#e8eaf2] !text-[#2b2f3a] !border-transparent"
+              className="!bg-muted !text-foreground !border-transparent"
               onClick={() => {
                 setDraft({ team: "", agent: "" });
                 setApplied({ team: "", agent: "" });
@@ -205,14 +205,14 @@ function ContactsPageInner() {
               type="button"
               aria-label="Filters"
               onClick={() => setShowFilter((s) => !s)}
-              className="inline-flex h-[31px] w-9 items-center justify-center rounded-[3px] bg-[#ee6a37] text-white hover:bg-[#d95a2a]"
+              className="bd-btn-light !h-[34px] !w-9 !px-0"
             >
               <Filter className="size-3.5" />
             </button>
           </div>
         </div>
         {showFilter ? (
-          <div className="mt-4 grid gap-4 border-t border-[#eef0f6] pt-4 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 border-t border-border/70 pt-4 sm:grid-cols-3">
             <BdField label="Status">
               <BdSelect
                 value={status}
@@ -244,16 +244,16 @@ function ContactsPageInner() {
           </div>
           <div className="flex flex-wrap items-stretch gap-6">
             {[
-              { label: "Total", n: summary.total, p: summary.total ? 100 : 0, c: "#3a5dc2" },
+              { label: "Total", n: summary.total, p: summary.total ? 100 : 0, c: "#2563eb" },
               { label: "Lead", n: summary.lead, p: pct(summary.lead), c: "#e6b422" },
               { label: "Unqualified", n: summary.unqualified, p: pct(summary.unqualified), c: "#b84fc2" },
             ].map((s) => (
               <div key={s.label} className="flex items-stretch gap-3">
                 <span className="w-[3px] rounded" style={{ background: s.c }} />
                 <div className="text-center">
-                  <p className="text-[18px] text-[#2b2f3a]">{s.n}</p>
-                  <p className="text-[12px] text-[#8b90a0]">{s.label}</p>
-                  <p className="mt-1 text-[16px] text-[#8b90a0]">{s.p}%</p>
+                  <p className="text-[18px] text-foreground">{s.n}</p>
+                  <p className="text-[12px] text-muted-foreground">{s.label}</p>
+                  <p className="mt-1 text-[16px] text-muted-foreground">{s.p}%</p>
                 </div>
               </div>
             ))}
@@ -264,7 +264,7 @@ function ContactsPageInner() {
       <BdCard>
         <div className="h-[300px]">
           {timeline.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-[13px] text-[#8b90a0]">No data available</div>
+            <div className="flex h-full items-center justify-center text-[13px] text-muted-foreground">No data available</div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeline} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
@@ -301,7 +301,7 @@ function ContactsPageInner() {
           onSearch={setSearch}
           pageSize={pageSize}
           onPageSize={setPageSize}
-          left={<span className="text-[12.5px] text-[#8b90a0]">{total} total</span>}
+          left={<span className="text-[12.5px] text-muted-foreground">{total} total</span>}
           right={<ColumnPicker columns={COLUMNS} visible={cols} onChange={setCols} />}
         />
         <BdTable minWidth={980}>
@@ -320,14 +320,14 @@ function ContactsPageInner() {
             ) : (
               rows.map((c, i) => (
                 <tr key={c._id}>
-                  <BdTd className="text-[#8b90a0]">{(page - 1) * pageSize + i + 1}</BdTd>
+                  <BdTd className="text-muted-foreground">{(page - 1) * pageSize + i + 1}</BdTd>
                   {show("leadNumber") ? <BdTd>{c.leadNumber ?? "-"}</BdTd> : null}
                   {show("name") ? (
                     <BdTd>
                       <button
                         type="button"
                         onClick={() => router.push(`/leads?open=${c._id}`)}
-                        className="text-left font-medium text-[#3a5dc2] hover:underline"
+                        className="text-left font-medium text-primary hover:underline"
                       >
                         {c.contact.name}
                       </button>

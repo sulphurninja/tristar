@@ -53,7 +53,7 @@ export function BdLeadPicker({
           {value.contact?.name ?? "Lead"}
           {value.leadNumber ? ` (${value.leadNumber})` : ""}
         </span>
-        <button type="button" aria-label="Clear lead" onClick={() => onChange(null)} className="text-[#7c8296] hover:text-[#2b2f3a]">
+        <button type="button" aria-label="Clear lead" onClick={() => onChange(null)} className="text-muted-foreground hover:text-foreground">
           <X className="size-3.5" />
         </button>
       </div>
@@ -72,12 +72,12 @@ export function BdLeadPicker({
         }}
       />
       {open && hits.length > 0 ? (
-        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-[4px] bg-white p-1 shadow-lg ring-1 ring-slate-900/10">
+        <ul className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg bg-white p-1 shadow-lg ring-1 ring-slate-900/10">
           {hits.map((l) => (
             <li key={l._id}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-[3px] px-3 py-2 text-left text-[13px] hover:bg-[#eef1fa]"
+                className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[13px] hover:bg-primary-50"
                 onClick={() => {
                   onChange(l);
                   setQ("");
@@ -85,7 +85,7 @@ export function BdLeadPicker({
                 }}
               >
                 <span>{l.contact?.name}</span>
-                <span className="text-[12px] text-[#8b90a0]">{l.contact?.primaryPhone ?? l.leadNumber}</span>
+                <span className="text-[12px] text-muted-foreground">{l.contact?.primaryPhone ?? l.leadNumber}</span>
               </button>
             </li>
           ))}

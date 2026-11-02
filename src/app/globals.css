@@ -4,7 +4,7 @@
 /*
  * Tristar Realtors design tokens
  * — White-bg, modern but approachable
- * — Emerald (primary, growth) + Blue (secondary, trust)
+ * — Blue and white: Tristar blue primary on clean white surfaces
  * — Slightly larger comfortable typography for non-tech real-estate users
  */
 
@@ -17,14 +17,14 @@
   --popover: 0 0% 100%;
   --popover-foreground: 222 47% 11%;
 
-  /* Primary — Emerald (growth) */
-  --primary: 158 64% 35%;
+  /* Primary — Tristar blue */
+  --primary: 221 83% 53%;
   --primary-foreground: 0 0% 100%;
-  --primary-50: 152 81% 96%;
-  --primary-100: 149 80% 90%;
-  --primary-500: 158 64% 42%;
-  --primary-600: 158 64% 35%;
-  --primary-700: 158 64% 28%;
+  --primary-50: 214 100% 97%;
+  --primary-100: 214 95% 93%;
+  --primary-500: 217 91% 60%;
+  --primary-600: 221 83% 53%;
+  --primary-700: 224 76% 45%;
 
   /* Secondary — Blue (trust) */
   --secondary: 217 91% 60%;
@@ -38,15 +38,15 @@
   /* Neutrals */
   --muted: 220 14% 96%;
   --muted-foreground: 220 9% 46%;
-  --accent: 158 64% 95%;
-  --accent-foreground: 158 64% 25%;
+  --accent: 214 100% 97%;
+  --accent-foreground: 224 76% 45%;
 
   /* Status */
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --warning: 38 92% 50%;
   --warning-foreground: 0 0% 100%;
-  --success: 158 64% 42%;
+  --success: 156 58% 36%;
   --success-foreground: 0 0% 100%;
   --info: 217 91% 60%;
   --info-foreground: 0 0% 100%;
@@ -54,10 +54,10 @@
   /* Borders / inputs / rings */
   --border: 220 13% 91%;
   --input: 220 13% 91%;
-  --ring: 158 64% 42%;
+  --ring: 221 83% 53%;
 
   /* Charts (emerald → blue spectrum) */
-  --chart-1: 158 64% 42%;
+  --chart-1: 221 83% 53%;
   --chart-2: 217 91% 60%;
   --chart-3: 188 78% 41%;
   --chart-4: 262 80% 60%;
@@ -66,16 +66,16 @@
   /* Sidebar */
   --sidebar: 220 20% 98%;
   --sidebar-foreground: 222 47% 11%;
-  --sidebar-primary: 158 64% 35%;
+  --sidebar-primary: 221 83% 53%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 158 64% 96%;
-  --sidebar-accent-foreground: 158 64% 25%;
+  --sidebar-accent: 214 100% 97%;
+  --sidebar-accent-foreground: 224 76% 45%;
   --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 158 64% 42%;
+  --sidebar-ring: 221 83% 53%;
 
   /* Typography */
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sans-inter), "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-sans-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "JetBrains Mono", monospace;
 
   --radius: 0.625rem;
@@ -229,7 +229,7 @@ body {
 
 /* Utility: brand gradient text */
 .text-brand-gradient {
-  background: linear-gradient(135deg, hsl(158 64% 35%) 0%, hsl(217 91% 55%) 100%);
+  background: linear-gradient(135deg, hsl(224 76% 45%) 0%, hsl(199 89% 48%) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -481,55 +481,190 @@ body {
   opacity: 0.85;
   z-index: -1;
 }
-
 /* ──────────────────────────────────────────────────────────
- * Buildesk-style CRM theme — applied via body.bd-app (set by AppShell).
- * Remaps the emerald palette + primary tokens to the Buildesk blue so every
- * existing page/dialog (portals included) picks it up.
+ * Tristar workspace theme — applied via body.bd-app (set by AppShell).
+ *
+ * Blue and white: a crisp brand blue on white surfaces, a faint blue-grey
+ * canvas, hairline borders and a white navigation rail.
+ * Every page, dialog and portal picks these up through the tokens below.
  * ────────────────────────────────────────────────────────── */
 body.bd-app {
-  --background: 220 33% 97%;
-  --primary: 224 54% 50%;
-  --primary-50: 223 70% 96%;
-  --primary-100: 223 70% 92%;
-  --primary-500: 224 54% 54%;
-  --primary-600: 224 54% 50%;
-  --primary-700: 224 52% 41%;
-  --ring: 224 54% 50%;
-  --accent: 223 70% 96%;
-  --accent-foreground: 224 52% 35%;
-  --font-sans: var(--font-roboto), "Roboto", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --color-emerald-50: #eef2fc;
-  --color-emerald-100: #dce5f9;
-  --color-emerald-200: #bccbf3;
-  --color-emerald-300: #93aae9;
-  --color-emerald-400: #6683d8;
-  --color-emerald-500: #4a6ccb;
-  --color-emerald-600: #3a5dc2;
-  --color-emerald-700: #2f4ca0;
-  --color-emerald-800: #283f82;
-  --color-emerald-900: #1f3166;
-  --bd-blue: #3a5dc2;
-  --bd-orange: #e8602c;
-  font-family: var(--font-sans);
-  font-feature-settings: normal;
-  background: #f4f6fb;
-}
-body.bd-app html, body.bd-app { font-size: 15px; }
+  --background: 220 33% 98%;
+  --foreground: 222 39% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 39% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 39% 12%;
 
-/* Buildesk KPI card: white, 4px blue left rule, tinted icon square */
-.bd-kpi {
-  display: flex; align-items: center; justify-content: space-between;
-  background: #fff; border-left: 4px solid var(--bd-blue);
-  padding: 16px 18px; box-shadow: 0 1px 6px rgba(30, 50, 110, 0.07);
+  --primary: 221 83% 53%;
+  --primary-foreground: 0 0% 100%;
+  --primary-50: 214 100% 97%;
+  --primary-100: 214 95% 93%;
+  --primary-500: 217 91% 60%;
+  --primary-600: 221 83% 53%;
+  --primary-700: 224 76% 45%;
+
+  --secondary: 215 16% 47%;
+  --secondary-foreground: 0 0% 100%;
+
+  --muted: 220 27% 96%;
+  --muted-foreground: 220 11% 46%;
+  --accent: 214 100% 97%;
+  --accent-foreground: 224 76% 45%;
+
+  --destructive: 358 66% 50%;
+  --warning: 32 92% 44%;
+  --success: 156 58% 33%;
+  --info: 212 78% 48%;
+
+  --border: 220 20% 91%;
+  --input: 220 17% 86%;
+  --ring: 221 83% 53%;
+
+  --chart-1: 221 83% 53%;
+  --chart-2: 199 89% 48%;
+  --chart-3: 226 70% 72%;
+  --chart-4: 32 88% 52%;
+  --chart-5: 262 42% 56%;
+
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222 20% 30%;
+  --sidebar-accent: 214 100% 97%;
+  --sidebar-accent-foreground: 224 76% 45%;
+  --sidebar-border: 220 20% 91%;
+  --sidebar-primary: 221 83% 53%;
+
+  --radius: 0.5rem;
+  --font-sans: var(--font-sans-inter), "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-xs: 0 1px 1px 0 hsl(220 40% 12% / 0.04);
+  --shadow-sm: 0 1px 2px 0 hsl(220 40% 12% / 0.05), 0 0 0 1px hsl(220 40% 12% / 0.02);
+  --shadow-md: 0 4px 12px -4px hsl(220 40% 12% / 0.10), 0 1px 3px hsl(220 40% 12% / 0.05);
+  --shadow-lg: 0 18px 40px -16px hsl(220 40% 12% / 0.22), 0 2px 6px hsl(220 40% 12% / 0.05);
+
+  /* Legacy "emerald" utility classes resolve to the brand ramp. */
+  --color-emerald-50: #eff6ff;
+  --color-emerald-100: #dbeafe;
+  --color-emerald-200: #bfdbfe;
+  --color-emerald-300: #93c5fd;
+  --color-emerald-400: #60a5fa;
+  --color-emerald-500: #3b82f6;
+  --color-emerald-600: #2563eb;
+  --color-emerald-700: #1d4ed8;
+  --color-emerald-800: #1e40af;
+  --color-emerald-900: #1e3a8a;
+
+  /* Back-compat names used by a few inline styles. */
+  --bd-blue: hsl(var(--primary));
+  --bd-orange: hsl(var(--warning));
+
+  font-family: var(--font-sans);
+  font-feature-settings: "cv11", "ss01", "ss03", "cv05";
+  letter-spacing: -0.003em;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
 }
-.bd-card { background: #fff; border: 1px solid #e6e9f2; box-shadow: 0 1px 4px rgba(30, 50, 110, 0.05); }
-.bd-table th { background: #fff; color: #2b2f3a; font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 2px solid #e6e9f2; white-space: nowrap; }
-.bd-table td { font-size: 13px; color: #2b2f3a; border-bottom: 1px solid #eef0f6; }
-.bd-table tbody tr:hover { background: #f6f8fd; }
-.bd-btn { background: var(--bd-blue); color: #fff; font-size: 12.5px; font-weight: 500; padding: 7px 12px; border-radius: 3px; }
-.bd-btn:hover { background: #2f4ca0; }
-.bd-btn-light { background: #fff; color: var(--bd-blue); border: 1px solid #cfd8f1; font-size: 12.5px; padding: 7px 12px; border-radius: 3px; }
-.bd-label { font-size: 13px; font-weight: 700; color: #2b2f3a; margin-bottom: 6px; display: block; }
-.bd-input { height: 38px; border: 1px solid #dfe3ee; background: #fff; border-radius: 3px; padding: 0 10px; font-size: 13px; width: 100%; color: #2b2f3a; }
-.bd-input::placeholder { color: #9aa1b5; }
+html:has(body.bd-app) { font-size: 14.5px; }
+
+body.bd-app ::selection { background: hsl(var(--primary) / 0.16); }
+
+/* Numbers line up in every table, KPI and badge. */
+body.bd-app .tabular,
+body.bd-app table,
+body.bd-app .bd-kpi { font-variant-numeric: tabular-nums; }
+
+/* Thin, quiet scrollbars across the workspace. */
+body.bd-app * { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
+body.bd-app *::-webkit-scrollbar { width: 10px; height: 10px; }
+body.bd-app *::-webkit-scrollbar-thumb {
+  background: hsl(var(--border)); border-radius: 999px; border: 3px solid transparent; background-clip: content-box;
+}
+body.bd-app *::-webkit-scrollbar-thumb:hover { background-color: hsl(var(--input)); }
+
+/* ── Surfaces ── */
+.bd-card {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  box-shadow: var(--shadow-xs);
+}
+.bd-kpi {
+  position: relative;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-xs);
+}
+
+/* ── Tables ── */
+.bd-table { border-collapse: separate; border-spacing: 0; }
+.bd-table thead th {
+  position: sticky; top: 0; z-index: 1;
+  background: hsl(var(--muted) / 0.6);
+  color: hsl(var(--muted-foreground));
+  font-weight: 500; font-size: 12px; letter-spacing: 0.01em;
+  border-bottom: 1px solid hsl(var(--border));
+  white-space: nowrap;
+}
+.bd-table thead th:first-child { border-top-left-radius: 8px; }
+.bd-table thead th:last-child { border-top-right-radius: 8px; }
+.bd-table td {
+  font-size: 13px; color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+}
+.bd-table tbody tr { transition: background-color 120ms ease; }
+.bd-table tbody tr:hover { background: hsl(var(--primary-50) / 0.7); }
+.bd-table tbody tr:last-child td { border-bottom: 0; }
+
+/* ── Controls ── */
+.bd-btn, .bd-btn-light {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 34px; padding: 0 13px; border-radius: 8px;
+  font-size: 13px; font-weight: 500; white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, color 120ms ease;
+}
+.bd-btn {
+  background: hsl(var(--primary)); color: hsl(var(--primary-foreground));
+  box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.14), 0 1px 2px hsl(224 76% 30% / 0.28);
+}
+.bd-btn:hover { background: hsl(var(--primary-700)); }
+.bd-btn-light {
+  background: hsl(var(--card)); color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--input));
+  box-shadow: var(--shadow-xs);
+}
+.bd-btn-light:hover { background: hsl(var(--muted)); border-color: hsl(var(--input)); }
+.bd-btn:focus-visible, .bd-btn-light:focus-visible { outline: none; box-shadow: 0 0 0 3px hsl(var(--ring) / 0.25); }
+
+.bd-label {
+  display: block; margin-bottom: 6px;
+  font-size: 12.5px; font-weight: 500; color: hsl(var(--foreground) / 0.8);
+}
+.bd-input {
+  height: 36px; width: 100%;
+  border: 1px solid hsl(var(--input)); border-radius: 8px;
+  background: hsl(var(--card));
+  padding: 0 11px; font-size: 13px; color: hsl(var(--foreground));
+  box-shadow: var(--shadow-xs);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+textarea.bd-input { height: auto; padding: 8px 11px; }
+.bd-input::placeholder { color: hsl(var(--muted-foreground) / 0.75); }
+.bd-input:hover:not(:disabled) { border-color: hsl(218 14% 78%); }
+.bd-input:focus { outline: none; border-color: hsl(var(--ring)); box-shadow: 0 0 0 3px hsl(var(--ring) / 0.15); }
+.bd-input:disabled { background: hsl(var(--muted)); cursor: not-allowed; }
+select.bd-input { cursor: pointer; }
+
+/* Architectural hairline motif (from the Tristar mark) used on empty states and the rail. */
+.ts-blueprint {
+  background-image:
+    linear-gradient(to right, hsl(var(--primary) / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--primary) / 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes ts-rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.ts-rise { animation: ts-rise 260ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) { .ts-rise { animation: none; } }

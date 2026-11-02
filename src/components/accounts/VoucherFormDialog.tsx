@@ -6,6 +6,8 @@ import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { PAYMENT_MODES } from "@/components/bookings/PaymentFormDialog";
 import { formatCurrency } from "@/lib/utils";
+import { Combobox } from "@/components/ui/combobox";
+import { DateField, DateTimeField } from "@/components/ui/date-field";
 
 export const VOUCHER_TYPES = [
   { value: "receipt", label: "Receipt" },
@@ -76,6 +78,7 @@ export function VoucherFormDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const calc = useMemo(() => {
     const a = Number(f.amount || 0);
@@ -129,25 +132,13 @@ export function VoucherFormDialog({
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <BdField label="Voucher Details *">
-          <select value={f.type} onChange={set("type")} className="bd-input">
-            {VOUCHER_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.type} onChange={setV("type")} options={VOUCHER_TYPES} />
         </BdField>
         <BdField label="Date *">
-          <BdInput type="date" value={f.date} onChange={set("date")} />
+          <DateField value={f.date} onChange={setV("date")} />
         </BdField>
         <BdField label="Payment Mode *">
-          <select value={f.paymentMode} onChange={set("paymentMode")} className="bd-input">
-            {PAYMENT_MODES.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.paymentMode} onChange={setV("paymentMode")} options={PAYMENT_MODES} />
         </BdField>
         <BdField label="Account Name (From) - Credit" className="sm:col-span-1">
           <BdSelect placeholder="Select Account" value={f.fromLedgerId} onChange={(v) => setF((p) => ({ ...p, fromLedgerId: v }))} options={opts} />
@@ -165,18 +156,12 @@ export function VoucherFormDialog({
           <BdInput value={calc.tds.toFixed(2)} readOnly />
         </BdField>
         <BdField label="Tax Type">
-          <select value={f.taxType} onChange={set("taxType")} className="bd-input">
-            {TAX_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.taxType} onChange={setV("taxType")} options={TAX_TYPES} />
         </BdField>
         <BdField label="Narration *" className="sm:col-span-3">
           <BdTextarea value={f.narration} onChange={set("narration")} placeholder="Narration" />
         </BdField>
-        <div className="rounded-[3px] bg-[#f4f6fc] p-3 text-[13px] sm:col-span-3">
+        <div className="rounded-lg bg-muted/50 p-3 text-[13px] sm:col-span-3">
           <div className="grid gap-1 sm:grid-cols-4">
             <span>Net Amount: {formatCurrency(Number(f.amount || 0) - calc.tds)}</span>
             <span>Tax Amount: {formatCurrency(calc.tax)}</span>

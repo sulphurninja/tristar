@@ -233,7 +233,7 @@ export default function PipelineDetailPage() {
       <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-[20px] font-semibold text-[#2b2f3a]">
+            <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">
               {pipeline.name}
             </h1>
             {pipeline.isDefault ? (

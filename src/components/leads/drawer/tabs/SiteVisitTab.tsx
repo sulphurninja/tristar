@@ -19,7 +19,7 @@ interface Visit {
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  planned: "#3a5dc2",
+  planned: "#2563eb",
   confirmed: "#3ec1d3",
   in_progress: "#e9b72a",
   done: "#37c47f",
@@ -54,27 +54,27 @@ export function SiteVisitTab({ ctx }: { ctx: TabCtx }) {
   };
 
   return (
-    <div className="rounded-[3px] border border-[#e6e9f2] bg-white">
-      <header className="flex items-center justify-between border-b border-[#eef0f6] px-5 py-3.5">
-        <h3 className="text-[16px] font-semibold text-[#2b2f3a]">Site Visits</h3>
+    <div className="rounded-lg border border-border bg-white">
+      <header className="flex items-center justify-between border-b border-border/70 px-5 py-3.5">
+        <h3 className="text-[16px] font-semibold text-foreground">Site Visits</h3>
         <BdButton onClick={() => setOpen(true)}>
           <Plus className="size-3.5" /> Schedule Site Visit
         </BdButton>
       </header>
       <div className="p-5">
         {visits === null ? (
-          <p className="py-6 text-center text-[13px] text-[#8b90a0]">Loading…</p>
+          <p className="py-6 text-center text-[13px] text-muted-foreground">Loading…</p>
         ) : visits.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-[#8b90a0]">No site visits scheduled for this lead.</p>
+          <p className="py-6 text-center text-[13px] text-muted-foreground">No site visits scheduled for this lead.</p>
         ) : (
-          <div className="divide-y divide-[#eef0f6]">
+          <div className="divide-y divide-border/70">
             {visits.map((v) => {
               const live = ["planned", "confirmed", "rescheduled", "in_progress"].includes(v.status);
               return (
                 <div key={v._id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div className="min-w-0">
-                    <p className="text-[14px] font-medium text-[#2b2f3a]">{v.projectId?.name ?? "Project"}</p>
-                    <p className="mt-0.5 text-[12.5px] text-[#6b7186]">
+                    <p className="text-[14px] font-medium text-foreground">{v.projectId?.name ?? "Project"}</p>
+                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
                       {fmtDT(v.scheduledAt)}
                       {v.assignedTo?.name ? ` · ${v.assignedTo.name}` : ""}
                       {v.mode ? ` · ${v.mode.replace(/_/g, " ")}` : ""}

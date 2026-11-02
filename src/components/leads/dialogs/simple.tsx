@@ -52,7 +52,7 @@ export function ConfirmDialog({
         />
       }
     >
-      <div className="text-[14px] text-[#2b2f3a]">{message}</div>
+      <div className="text-[14px] text-foreground">{message}</div>
     </Modal>
   );
 }
@@ -124,7 +124,7 @@ export function UserPickDialog({
           options={list.map((u) => ({ value: u._id, label: u.name }))}
         />
       </BdField>
-      {list.length === 0 ? <p className="mt-3 text-[13px] text-[#8b90a0]">No users available.</p> : null}
+      {list.length === 0 ? <p className="mt-3 text-[13px] text-muted-foreground">No users available.</p> : null}
     </Modal>
   );
 }
@@ -179,22 +179,30 @@ export function ChannelPartnerDialog({
       <BdField label="Search Channel Partner">
         <BdInput value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, company or mobile" />
       </BdField>
-      <div className="mt-3 max-h-[260px] overflow-y-auto rounded-[3px] border border-[#e3e6ef]">
+      <div className="mt-3 max-h-[260px] overflow-y-auto rounded-lg border border-border">
         {list.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[13px] text-[#8b90a0]">No channel partners found</p>
+          <p className="px-3 py-6 text-center text-[13px] text-muted-foreground">No channel partners found</p>
         ) : (
           list.slice(0, 200).map((b) => (
-            <label
+            <button
+              type="button"
               key={b._id}
-              className="flex cursor-pointer items-center gap-3 border-b border-[#f0f2f8] px-3 py-2 last:border-0 hover:bg-[#f6f8fd]"
+              role="radio"
+              aria-checked={id === b._id}
+              onClick={() => setId(b._id)}
+              className={`flex w-full items-center gap-3 border-b border-border/60 px-3 py-2 text-left last:border-0 hover:bg-muted/50 ${id === b._id ? "bg-primary-50/60" : ""}`}
             >
-              <input type="radio" name="cp" checked={id === b._id} onChange={() => setId(b._id)} className="accent-[#3a5dc2]" />
+              <span
+                className={`flex size-4 shrink-0 items-center justify-center rounded-full border ${id === b._id ? "border-primary bg-primary" : "border-input bg-white"}`}
+              >
+                {id === b._id ? <span className="size-1.5 rounded-full bg-white" /> : null}
+              </span>
               <span className="text-[13.5px]">
                 {b.name}
-                {b.firmName ? <span className="text-[#8b90a0]"> - {b.firmName}</span> : null}
-                {b.phone ? <span className="block text-[12px] text-[#8b90a0]">{b.phone}</span> : null}
+                {b.firmName ? <span className="text-muted-foreground"> - {b.firmName}</span> : null}
+                {b.phone ? <span className="block text-[12px] text-muted-foreground">{b.phone}</span> : null}
               </span>
-            </label>
+            </button>
           ))
         )}
       </div>

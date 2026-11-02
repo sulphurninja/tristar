@@ -30,7 +30,7 @@ interface CampaignRow extends CampaignEditable {
   bookings?: number;
 }
 
-const STATUS_COLOR: Record<string, string> = { draft: "#8b90a0", active: "#37a46b", paused: "#e9a13a", completed: "#3a5dc2" };
+const STATUS_COLOR: Record<string, string> = { draft: "#8b90a0", active: "#37a46b", paused: "#e9a13a", completed: "#2563eb" };
 const fmt = (d?: string) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "-");
 const label = (list: Array<{ value: string; label: string }>, v?: string) => list.find((x) => x.value === v)?.label ?? v ?? "-";
 

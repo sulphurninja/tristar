@@ -13,10 +13,14 @@ import {
   Phone,
   Handshake,
   CircleEllipsis,
+  ChevronRight,
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useAuth } from "@/contexts/AuthContext";
+import { canAccessPage } from "@/lib/permissions";
 import {
   BdPage,
+  BdPageHeader,
   BdCard,
   BdKpi,
   BdTabs,
@@ -35,6 +39,10 @@ import {
 } from "@/components/bd/TeamAgentSelects";
 
 const NONE: TeamAgentValue = { team: "", agent: "" };
+
+/** Local calendar date as YYYY-MM-DD (what the list filters expect). */
+const ymd = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 const RANGES = [
   { value: "today", label: "Today" },
@@ -93,123 +101,248 @@ export default function DashboardPage() {
   const [s2, setS2] = useState<TeamAgentValue>(NONE);
   const [s3, setS3] = useState<TeamAgentValue>(NONE);
   const [s4, setS4] = useState<TeamAgentValue>(NONE);
+  const { user, can } = useAuth();
 
   const all = useSection<AllLeads>("leads", s1);
   const today = useSection<TodayLeads>("today", s2);
   const act = useSection<Activity>("activity", s3);
   const n = (v?: number) => (v ?? 0).toLocaleString("en-IN");
 
+  /* Team / agent pickers only make sense for people who can see beyond their own records. */
+  const wide = user?.role === "owner" || user?.dataScope !== "own";
+  const filter = (v: TeamAgentValue, set: (v: TeamAgentValue) => void) =>
+    wide ? <TeamAgentSelects value={v} onChange={set} /> : null;
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const dateLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+
+  /*
+   * Every number drills into the list it counts, carrying that card's Team / Sales
+   * Agent selection. Returns undefined (plain, non-clickable card) when the user
+   * can't open the destination.
+   */
+  const today0 = ymd(new Date());
+  const to = (path: string, scope: TeamAgentValue, params: Record<string, string> = {}) => {
+    if (!canAccessPage(path, user?.role, user?.permissions)) return undefined;
+    const u = new URLSearchParams(params);
+    if (scope.team) u.set("team", scope.team);
+    if (scope.agent) u.set("agent", scope.agent);
+    const qs = u.toString();
+    return qs ? `${path}?${qs}` : path;
+  };
+  const leads = (scope: TeamAgentValue, p: Record<string, string> = {}) => to("/leads", scope, { view: "all", ...p });
+  const createdToday = { createdFrom: today0, createdTo: today0 };
+  const tasks = (scope: TeamAgentValue, p: Record<string, string> = {}) => to("/tasks", scope, { range: "today", ...p });
+  const visits = (scope: TeamAgentValue, p: Record<string, string> = {}) =>
+    to("/tasks", scope, { tab: "site-visit", range: "today", ...p });
+  const calls = to("/crm/logs", s3, { range: "today" });
+  const ivr = to("/communication-analysis", s3);
+
   return (
     <BdPage>
-      <BdCard
-        title="All Leads"
-        actions={<TeamAgentSelects value={s1} onChange={setS1} />}
-        bodyClassName="p-5"
-      >
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-          <BdKpi label="Total Leads" value={n(all?.total)} icon={Users} tone="violet" />
-          <BdKpi label="Fresh Leads" value={n(all?.fresh)} icon={User} tone="blue" />
-          <BdKpi label="Returning" value={n(all?.returning)} icon={RefreshCw} tone="red" />
-          <BdKpi label="Untouched" value={n(all?.untouched)} icon={Pointer} tone="yellow" />
-          <BdKpi label="Unassigned" value={n(all?.unassigned)} icon={UserPlus} tone="green" />
+      <BdPageHeader
+        eyebrow={dateLabel}
+        title={`${greeting}, ${user?.name?.split(" ")[0] ?? "there"}`}
+        description={
+          wide ? "Here’s how your pipeline is moving today." : "Here’s how your leads, tasks and visits are moving today."
+        }
+        actions={
+          can("leads.create") ? (
+            <Link href="/leads?new=1" className="bd-btn">
+              <UserPlus className="size-4" /> New lead
+            </Link>
+          ) : null
+        }
+      />
+
+      <BdCard title="Pipeline overview" description="All leads in your view" actions={filter(s1, setS1)}>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <BdKpi label="Total leads" value={n(all?.total)} icon={Users} tone="blue" href={leads(s1)} />
+          <BdKpi label="Fresh" value={n(all?.fresh)} icon={User} tone="cyan" href={leads(s1, { returning: "0" })} />
+          <BdKpi
+            label="Returning"
+            value={n(all?.returning)}
+            icon={RefreshCw}
+            tone="violet"
+            href={leads(s1, { returning: "1" })}
+          />
+          <BdKpi
+            label="Untouched"
+            value={n(all?.untouched)}
+            icon={Pointer}
+            tone="yellow"
+            hint="Never contacted"
+            href={leads(s1, { card: "untouched" })}
+          />
+          <BdKpi
+            label="Unassigned"
+            value={n(all?.unassigned)}
+            icon={UserPlus}
+            tone="red"
+            hint="Need an owner"
+            href={wide ? leads(NONE, { unassigned: "1" }) : undefined}
+          />
         </div>
       </BdCard>
 
-      <BdCard
-        title="Today's Leads"
-        actions={<TeamAgentSelects value={s2} onChange={setS2} agentPlaceholder="Select Sales Agent." />}
-      >
-        <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-5">
-          <BdKpi label="Leads" value={n(today?.leads)} icon={Users} tone="violet" />
-          <BdKpi label="Fresh Leads" value={n(today?.fresh)} icon={User} tone="blue" />
-          <BdKpi label="Returning" value={n(today?.returning)} icon={RefreshCw} tone="red" />
-          <BdKpi label="Tasks" value={n(today?.tasks)} icon={FileText} tone="yellow" />
-          <BdKpi label="Site Visits" value={n(today?.siteVisits)} icon={Home} tone="green" />
+      <BdCard title="Today" description="New enquiries and scheduled work" actions={filter(s2, setS2)}>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <BdKpi label="New leads" value={n(today?.leads)} icon={Users} tone="blue" href={leads(s2, createdToday)} />
+          <BdKpi
+            label="Fresh"
+            value={n(today?.fresh)}
+            icon={User}
+            tone="cyan"
+            href={leads(s2, { ...createdToday, returning: "0" })}
+          />
+          <BdKpi
+            label="Returning"
+            value={n(today?.returning)}
+            icon={RefreshCw}
+            tone="violet"
+            href={leads(s2, { ...createdToday, returning: "1" })}
+          />
+          <BdKpi label="Tasks due" value={n(today?.tasks)} icon={FileText} tone="yellow" href={tasks(s2)} />
+          <BdKpi label="Site visits" value={n(today?.siteVisits)} icon={Home} tone="green" href={visits(s2)} />
         </div>
       </BdCard>
 
-      <BdCard title="Today's Activities Report">
-        <TeamAgentSelects
-          value={s3}
-          onChange={setS3}
-          className="mb-6"
-          selectClassName="!w-[425px] max-w-full"
-        />
-        <div className="grid gap-x-12 gap-y-5 lg:grid-cols-3">
-          <div className="space-y-5">
-            <ActivityRow icon={FileText} tone="yellow" label="Tasks" value={n(act?.tasks)} />
-            <ActivityRow icon={Handshake} tone="cyan" label="Meetings" value={n(act?.meetings)} />
-            <ActivityRow icon={Home} tone="green" label="Site Visit Scheduled" value={n(act?.siteVisitScheduled)} />
-            <ActivityRow icon={Home} tone="green" label="Site Visit Completed" value={n(act?.siteVisitCompleted)} faint />
-          </div>
-          <div className="space-y-5">
-            <ActivityRow icon={Phone} tone="blue" label="Total Offline Calls" value={n(act?.offlineCalls)} />
-            <ActivityRow icon={Users} tone="violet" label="Calls To Lead" value={n(act?.callsToLead)} />
-            <ActivityRow icon={User} tone="blue" label="Calls To Contact" value={n(act?.callsToContact)} />
-            <ActivityRow icon={CircleEllipsis} tone="grey" label="Calls To Channel Partner" value={n(act?.callsToChannelPartner)} />
-          </div>
-          <div className="space-y-5">
-            <ActivityRow icon={Phone} tone="blue" label="Total IVR Calls" value={n(act?.ivrCalls)} />
-            <ActivityRow icon={Users} tone="violet" label="Calls To Lead" value="0" />
-            <ActivityRow icon={User} tone="blue" label="Calls To Contact" value="0" />
-            <ActivityRow icon={CircleEllipsis} tone="grey" label="Calls To Channel Partner" value="0" />
-          </div>
+      <BdCard title="Today’s activity" description="Calls, meetings and visits logged today" actions={filter(s3, setS3)}>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <ActivityGroup title="Work">
+            <ActivityRow icon={FileText} tone="yellow" label="Tasks" value={n(act?.tasks)} href={tasks(s3)} />
+            <ActivityRow
+              icon={Handshake}
+              tone="cyan"
+              label="Meetings"
+              value={n(act?.meetings)}
+              href={tasks(s3, { activityType: "meeting" })}
+            />
+            <ActivityRow
+              icon={Home}
+              tone="green"
+              label="Site visits scheduled"
+              value={n(act?.siteVisitScheduled)}
+              href={visits(s3, { status: "pending" })}
+            />
+            <ActivityRow
+              icon={Home}
+              tone="green"
+              label="Site visits completed"
+              value={n(act?.siteVisitCompleted)}
+              href={visits(s3, { status: "completed" })}
+            />
+          </ActivityGroup>
+          <ActivityGroup title="Offline calls" total={n(act?.offlineCalls)} href={calls}>
+            <ActivityRow icon={Users} tone="violet" label="To leads" value={n(act?.callsToLead)} href={calls} />
+            <ActivityRow icon={User} tone="blue" label="To contacts" value={n(act?.callsToContact)} href={calls} />
+            <ActivityRow
+              icon={CircleEllipsis}
+              tone="grey"
+              label="To channel partners"
+              value={n(act?.callsToChannelPartner)}
+              href={calls}
+            />
+          </ActivityGroup>
+          <ActivityGroup title="IVR calls" total={n(act?.ivrCalls)} href={ivr}>
+            <ActivityRow icon={Users} tone="violet" label="To leads" value="0" href={ivr} />
+            <ActivityRow icon={User} tone="blue" label="To contacts" value="0" href={ivr} />
+            <ActivityRow icon={CircleEllipsis} tone="grey" label="To channel partners" value="0" href={ivr} />
+          </ActivityGroup>
         </div>
       </BdCard>
 
-      <TaskVisitPanel />
+      {can("tasks.view") ? <TaskVisitPanel /> : null}
 
-      <BdCard
-        title="Executive Lead Analysis"
-        actions={<TeamAgentSelects value={s4} onChange={setS4} />}
-      >
-        <ExecutiveTable scope={s4} />
-      </BdCard>
+      {can("reports.team") ? (
+        <BdCard title="Team performance" description="Lead load and follow-through by sales agent" actions={filter(s4, setS4)}>
+          <ExecutiveTable scope={s4} />
+        </BdCard>
+      ) : null}
     </BdPage>
   );
 }
 
-const TONE_BG: Record<string, string> = {
-  yellow: "#fbefc8",
-  cyan: "#d5f3f6",
-  green: "#d6f5e3",
-  blue: "#dbe8fd",
-  violet: "#e4e0fb",
-  grey: "#ececef",
+const TONE: Record<string, { bg: string; fg: string }> = {
+  yellow: { bg: "hsl(38 90% 95%)", fg: "hsl(32 85% 38%)" },
+  cyan: { bg: "hsl(188 50% 95%)", fg: "hsl(188 64% 32%)" },
+  green: { bg: "hsl(156 45% 95%)", fg: "hsl(156 58% 30%)" },
+  blue: { bg: "hsl(var(--primary-50))", fg: "hsl(var(--primary))" },
+  violet: { bg: "hsl(258 40% 96%)", fg: "hsl(258 38% 50%)" },
+  grey: { bg: "hsl(var(--muted))", fg: "hsl(var(--muted-foreground))" },
 };
-const TONE_FG: Record<string, string> = {
-  yellow: "#e9b72a",
-  cyan: "#3ec1d3",
-  green: "#37c47f",
-  blue: "#3d7be8",
-  violet: "#7a66e0",
-  grey: "#9a9ca6",
-};
+
+function ActivityGroup({
+  title,
+  total,
+  href,
+  children,
+}: {
+  title: string;
+  total?: string;
+  href?: string;
+  children: React.ReactNode;
+}) {
+  const head = (
+    <>
+      <p className="text-[12px] font-medium uppercase tracking-[0.06em] text-muted-foreground group-hover:text-foreground">
+        {title}
+      </p>
+      {total !== undefined ? <p className="text-[18px] font-semibold tabular-nums tracking-[-0.02em]">{total}</p> : null}
+    </>
+  );
+  return (
+    <div className="rounded-xl border border-border/80 bg-muted/30 p-1.5">
+      {href ? (
+        <Link
+          href={href}
+          className="group flex items-baseline justify-between rounded-[8px] px-2.5 pb-1.5 pt-1 transition-colors hover:bg-white/70"
+        >
+          {head}
+        </Link>
+      ) : (
+        <div className="flex items-baseline justify-between px-2.5 pb-1.5 pt-1">{head}</div>
+      )}
+      <div className="divide-y divide-border/70 overflow-hidden rounded-[9px] bg-white ring-1 ring-border/70">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function ActivityRow({
   icon: Icon,
   tone,
   label,
   value,
-  faint,
+  href,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   tone: string;
   label: string;
   value: string;
-  faint?: boolean;
+  href?: string;
 }) {
-  return (
-    <div className="flex items-center gap-4">
-      <span
-        className="flex size-[50px] shrink-0 items-center justify-center rounded-[10px]"
-        style={{ background: TONE_BG[tone], color: TONE_FG[tone], opacity: faint ? 0.7 : 1 }}
-      >
-        <Icon className="size-5" />
+  const t = TONE[tone] ?? TONE.grey;
+  const body = (
+    <>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-[7px]" style={{ background: t.bg, color: t.fg }}>
+        <Icon className="size-3.5" />
       </span>
-      <span className="flex-1 text-[19px] text-[#2b2f3a]">{label}</span>
-      <span className="text-[24px] text-[#2b2f3a]">{value}</span>
-    </div>
+      <span className="flex-1 text-[13px] text-foreground/85 group-hover:text-foreground">{label}</span>
+      <span className="text-[15px] font-semibold tabular-nums">{value}</span>
+      {href ? (
+        <ChevronRight className="-mr-1 size-3.5 text-muted-foreground/40 transition-colors group-hover:text-primary" />
+      ) : null}
+    </>
+  );
+  return href ? (
+    <Link href={href} className="group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-primary-50/60">
+      {body}
+    </Link>
+  ) : (
+    <div className="flex items-center gap-3 px-3 py-2.5">{body}</div>
   );
 }
 
@@ -246,13 +379,13 @@ const ACTIVITY_LABEL: Record<string, string> = {
 };
 
 const STATUS_STYLE: Record<string, { label: string; color: string }> = {
-  pending: { label: "To Do", color: "#e8602c" },
-  upcoming: { label: "To Do", color: "#e8602c" },
+  pending: { label: "To do", color: "#d97706" },
+  upcoming: { label: "To do", color: "#d97706" },
   completed: { label: "Completed", color: "#2fa56b" },
   cancelled: { label: "Cancelled", color: "#8b90a0" },
-  planned: { label: "Scheduled", color: "#e8602c" },
-  confirmed: { label: "Confirmed", color: "#3a5dc2" },
-  in_progress: { label: "In Progress", color: "#3a5dc2" },
+  planned: { label: "Scheduled", color: "#d97706" },
+  confirmed: { label: "Confirmed", color: "#2563eb" },
+  in_progress: { label: "In Progress", color: "#2563eb" },
   done: { label: "Completed", color: "#2fa56b" },
   no_show: { label: "No Show", color: "#8b90a0" },
   rescheduled: { label: "Rescheduled", color: "#e9b72a" },
@@ -298,22 +431,20 @@ function TaskVisitPanel() {
   }
 
   return (
-    <div className="bd-card rounded-[3px]">
-      <div className="border-b border-[#eef0f6] px-5 pt-4">
+    <div className="bd-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-3">
         <BdTabs
           tabs={[
             { key: "tasks", label: "Tasks" },
-            { key: "visits", label: "Site Visit" },
+            { key: "visits", label: "Site visits" },
           ]}
           value={tab}
           onChange={setTab}
         />
-      </div>
-      <div className="p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h4 className="text-[16px] text-[#2b2f3a]">
-            {tab === "tasks" ? "Task" : "Site Visit"} ({total})
-          </h4>
+        <div className="flex items-center gap-3">
+          <span className="text-[12.5px] tabular-nums text-muted-foreground">
+            {total} {tab === "tasks" ? "tasks" : "visits"}
+          </span>
           <BdSelect
             className="w-[200px]"
             value={range}
@@ -323,7 +454,8 @@ function TaskVisitPanel() {
             options={RANGES}
           />
         </div>
-
+      </div>
+      <div className="p-5">
         <div className="max-h-[420px] overflow-y-auto">
           {tab === "tasks" ? (
             <BdTable>
@@ -349,7 +481,7 @@ function TaskVisitPanel() {
                       <BdTd>{i + 1}</BdTd>
                       <BdTd>
                         {t.leadId?._id ? (
-                          <Link href={`/leads?open=${t.leadId._id}`} className="hover:text-[#3a5dc2] hover:underline">
+                          <Link href={`/leads?open=${t.leadId._id}`} className="hover:text-primary hover:underline">
                             {t.leadId.contact?.name ?? t.title}
                           </Link>
                         ) : (
@@ -402,7 +534,7 @@ function TaskVisitPanel() {
                       <BdTd>{i + 1}</BdTd>
                       <BdTd>
                         {v.leadId?._id ? (
-                          <Link href={`/leads?open=${v.leadId._id}`} className="hover:text-[#3a5dc2] hover:underline">
+                          <Link href={`/leads?open=${v.leadId._id}`} className="hover:text-primary hover:underline">
                             {v.leadId.contact?.name ?? "-"}
                           </Link>
                         ) : (
@@ -448,35 +580,33 @@ function RowActions({
   onCancel: () => void;
 }) {
   const item =
-    "flex cursor-pointer items-center rounded px-3 py-2 text-[13px] outline-none hover:bg-[#eef1fa]";
+    "flex cursor-pointer items-center rounded-[8px] px-2.5 py-2 text-[13px] outline-none data-[highlighted]:bg-muted";
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
           aria-label="Actions"
-          className="flex size-6 items-center justify-center rounded-[3px] bg-[#3a5dc2] text-white hover:bg-[#2f4ca0]"
+          className="flex size-7 items-center justify-center rounded-[7px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <svg viewBox="0 0 10 6" className="size-2.5" fill="currentColor">
-            <path d="M0 0h10L5 6z" />
-          </svg>
+          <CircleEllipsis className="size-4" />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
           sideOffset={4}
-          className="z-50 min-w-44 rounded-md bg-white p-1 shadow-lg ring-1 ring-slate-900/10"
+          className="z-50 min-w-44 rounded-xl border border-border bg-white p-1.5 shadow-[var(--shadow-lg)]"
         >
           {leadId ? (
             <DropdownMenu.Item asChild>
               <Link href={`/leads?open=${leadId}`} className={item}>
-                View Lead
+                View lead
               </Link>
             </DropdownMenu.Item>
           ) : null}
           {!done ? (
             <DropdownMenu.Item onSelect={onComplete} className={item}>
-              Mark As Completed
+              Mark as completed
             </DropdownMenu.Item>
           ) : null}
           {!done ? (

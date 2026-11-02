@@ -136,7 +136,7 @@ export default function ApiKeysPage() {
     <div className="space-y-4 p-4 lg:p-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[20px] font-semibold text-[#2b2f3a]">API Keys</h1>
+          <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">API Keys</h1>
           <p className="mt-1 text-[12.5px] text-slate-500">
             Project-scoped keys for kiosks, partner lead-feed integrations and webhooks.
           </p>

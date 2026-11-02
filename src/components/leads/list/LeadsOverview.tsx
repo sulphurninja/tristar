@@ -77,7 +77,7 @@ export function LeadsOverview({
   return (
     <>
       <BdCard bodyClassName="p-0">
-        <div className="flex flex-wrap items-center gap-4 border-b border-[#eef0f6] px-5 py-4">
+        <div className="flex flex-wrap items-center gap-4 border-b border-border/70 px-5 py-4">
           <BdSelect
             className="w-[320px] max-w-full"
             value={view}
@@ -115,14 +115,14 @@ export function LeadsOverview({
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex size-full items-center justify-center rounded-full border-[20px] border-[#eef0f6] text-[12px] text-[#8b90a0]">
+              <div className="flex size-full items-center justify-center rounded-full border-[20px] border-border/70 text-[12px] text-muted-foreground">
                 {loading ? "Loading…" : "No leads"}
               </div>
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[30px] leading-none text-[#2b2f3a]">{loading && !data ? "…" : fmt(total)}</p>
-            <p className="mt-2 text-[18px] text-[#2b2f3a]">Total</p>
+            <p className="text-[30px] leading-none text-foreground">{loading && !data ? "…" : fmt(total)}</p>
+            <p className="mt-2 text-[18px] text-foreground">Total</p>
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-4">
               {(data?.stages ?? []).map((s) => (
                 <button
@@ -131,15 +131,15 @@ export function LeadsOverview({
                   onClick={() => onStage(s.key)}
                   title={`Show ${s.label} leads`}
                   className={cn(
-                    "flex items-stretch gap-2 rounded-[2px] text-left transition hover:bg-[#f4f6fb]",
-                    stageFilter === s.key && "bg-[#eef1fa]",
+                    "flex items-stretch gap-2 rounded-lg text-left transition hover:bg-background",
+                    stageFilter === s.key && "bg-primary-50",
                   )}
                 >
                   <span className="w-[3px] shrink-0 rounded-full" style={{ background: s.color }} />
                   <span className="block text-center">
-                    <span className="block text-[16px] leading-tight text-[#2b2f3a]">{fmt(s.count)}</span>
-                    <span className="block text-[11.5px] uppercase leading-tight text-[#5a6072]">{s.label}</span>
-                    <span className="block text-[14px] leading-tight text-[#6b7186]">{pct(s.pct)}</span>
+                    <span className="block text-[16px] leading-tight text-foreground">{fmt(s.count)}</span>
+                    <span className="block text-[11.5px] uppercase leading-tight text-foreground/70">{s.label}</span>
+                    <span className="block text-[14px] leading-tight text-muted-foreground">{pct(s.pct)}</span>
                   </span>
                 </button>
               ))}

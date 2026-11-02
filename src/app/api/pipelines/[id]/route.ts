@@ -3,7 +3,6 @@ import { z } from "zod";
 import Pipeline from "@/models/Pipeline";
 import Lead from "@/models/Lead";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 /* ---------- GET /api/pipelines/[id] ---------- */
 
@@ -41,9 +40,6 @@ const PatchSchema = z.object({
 });
 
 export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) => {
-  if (!hasRole(session.role as Role, "admin")) {
-    return bad("Only admins can update pipelines.", 403);
-  }
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid pipeline id");
 
   const parsed = PatchSchema.safeParse(await req.json());
@@ -84,9 +80,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 /* ---------- DELETE /api/pipelines/[id] ---------- */
 
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
-  if (!hasRole(session.role as Role, "admin")) {
-    return bad("Only admins can delete pipelines.", 403);
-  }
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid pipeline id");
 
   const wsId = new mongoose.Types.ObjectId(session.workspaceId);

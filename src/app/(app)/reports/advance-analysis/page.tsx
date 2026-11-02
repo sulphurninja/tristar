@@ -90,8 +90,8 @@ export default function AdvanceAnalysisPage() {
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {CARDS.map((c) => (
-          <div key={c.key} className="bd-card rounded-[3px] px-5 py-4">
-            <p className="text-[12.5px] uppercase text-[#2b2f3a]">{c.label}</p>
+          <div key={c.key} className="bd-card rounded-lg px-5 py-4">
+            <p className="text-[12.5px] uppercase text-foreground">{c.label}</p>
             <p className="mt-2 text-[24px] font-medium leading-none">{loading || !data ? "-" : formatNumber(data.kpis[c.key])}</p>
             <div className="mt-2 h-[64px]">
               <ResponsiveContainer>
@@ -110,25 +110,25 @@ export default function AdvanceAnalysisPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <BdCard title="Activity Completed Time">
-          <p className="text-[18px] font-medium text-[#2b2f3a]">
+          <p className="text-[18px] font-medium text-foreground">
             {data?.activity.pctOntime ?? 0} % Activity Completed in time
           </p>
-          <div className="mt-6 grid grid-cols-3 gap-4 rounded-[3px] border border-[#eef0f6] p-4">
+          <div className="mt-6 grid grid-cols-3 gap-4 rounded-lg border border-border/70 p-4">
             <div>
               <p className="text-[13px] font-bold">Total Activity</p>
               <p className="mt-2 text-[20px]">{formatNumber(data?.activity.total ?? 0)}</p>
             </div>
-            <div className="border-l border-[#eef0f6] pl-4">
+            <div className="border-l border-border/70 pl-4">
               <p className="text-[13px] font-bold">Ontime</p>
-              <p className="mt-2 text-[20px] text-[#37b24d]">{formatNumber(data?.activity.ontime ?? 0)}</p>
+              <p className="mt-2 text-[20px] text-success">{formatNumber(data?.activity.ontime ?? 0)}</p>
             </div>
-            <div className="border-l border-[#eef0f6] pl-4">
+            <div className="border-l border-border/70 pl-4">
               <p className="text-[13px] font-bold">Delayed</p>
-              <p className="mt-2 text-[20px] text-[#e5484d]">{formatNumber(data?.activity.delayed ?? 0)}</p>
+              <p className="mt-2 text-[20px] text-destructive">{formatNumber(data?.activity.delayed ?? 0)}</p>
             </div>
           </div>
-          <p className="mt-4 text-[12.5px] text-[#8b90a0]">
-            Most delay by <span className="font-semibold text-[#2b2f3a]">{data?.activity.mostDelayBy ?? "-"}</span>
+          <p className="mt-4 text-[12.5px] text-muted-foreground">
+            Most delay by <span className="font-semibold text-foreground">{data?.activity.mostDelayBy ?? "-"}</span>
           </p>
         </BdCard>
 
@@ -152,13 +152,13 @@ export default function AdvanceAnalysisPage() {
                   <li key={a.name} className="flex items-center gap-2">
                     <span className="h-[7px] w-6 shrink-0 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
                     <span className="truncate">{a.name}</span>
-                    <span className="ml-auto tabular-nums text-[#8b90a0]">{a.value}</span>
+                    <span className="ml-auto tabular-nums text-muted-foreground">{a.value}</span>
                   </li>
                 ))}
               </ul>
             </div>
           ) : (
-            <p className="py-16 text-center text-[13px] text-[#8b90a0]">
+            <p className="py-16 text-center text-[13px] text-muted-foreground">
               {loading ? "Loading…" : "No delayed activity in this window."}
             </p>
           )}

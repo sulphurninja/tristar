@@ -81,8 +81,8 @@ export function BookingDetailModal({
 
   const cell = (k: string, v: React.ReactNode) => (
     <div>
-      <p className="text-[12px] font-bold text-[#2b2f3a]">{k}</p>
-      <p className="text-[13.5px] text-[#2b2f3a]">{v || "-"}</p>
+      <p className="text-[12px] font-bold text-foreground">{k}</p>
+      <p className="text-[13.5px] text-foreground">{v || "-"}</p>
     </div>
   );
 
@@ -96,7 +96,7 @@ export function BookingDetailModal({
         footer={<BdButton variant="light" onClick={onClose}>Close</BdButton>}
       >
         {!d ? (
-          <p className="py-8 text-center text-[13px] text-[#8b90a0]">Loading…</p>
+          <p className="py-8 text-center text-[13px] text-muted-foreground">Loading…</p>
         ) : (
           <>
             <div className="grid gap-4 sm:grid-cols-3">
@@ -116,9 +116,9 @@ export function BookingDetailModal({
                 ["Received", d.paidAmount ?? 0],
                 ["Balance", d.balanceAmount ?? 0],
               ].map(([k, v]) => (
-                <div key={String(k)} className="bd-card rounded-[3px] px-4 py-3">
-                  <p className="text-[13px] text-[#5a6072]">{k}</p>
-                  <p className="mt-1 text-[20px] font-medium text-[#2b2f3a]">{formatCurrency(Number(v))}</p>
+                <div key={String(k)} className="bd-card rounded-lg px-4 py-3">
+                  <p className="text-[13px] text-foreground/70">{k}</p>
+                  <p className="mt-1 text-[20px] font-medium text-foreground">{formatCurrency(Number(v))}</p>
                 </div>
               ))}
             </div>

@@ -3,7 +3,6 @@ import { z } from "zod";
 import Pipeline, { STAGE_TYPES } from "@/models/Pipeline";
 import Lead from "@/models/Lead";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 /* ---------- PATCH /api/pipelines/[id]/stages/[stageId] ---------- */
 
@@ -17,9 +16,6 @@ const UpdateStage = z.object({
 
 export const PATCH = withAuth<{ id: string; stageId: string }>(
   async ({ req, session, params }) => {
-    if (!hasRole(session.role as Role, "admin")) {
-      return bad("Only admins can edit pipelines.", 403);
-    }
     if (!mongoose.isValidObjectId(params.id)) return bad("Invalid pipeline id");
     if (!mongoose.isValidObjectId(params.stageId)) return bad("Invalid stage id");
 
@@ -53,9 +49,6 @@ export const PATCH = withAuth<{ id: string; stageId: string }>(
 
 export const DELETE = withAuth<{ id: string; stageId: string }>(
   async ({ session, params }) => {
-    if (!hasRole(session.role as Role, "admin")) {
-      return bad("Only admins can edit pipelines.", 403);
-    }
     if (!mongoose.isValidObjectId(params.id)) return bad("Invalid pipeline id");
     if (!mongoose.isValidObjectId(params.stageId)) return bad("Invalid stage id");
 

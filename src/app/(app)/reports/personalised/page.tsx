@@ -47,11 +47,11 @@ export default function PersonalisedReportPage() {
   return (
     <BdPage>
       <div>
-        <Link href="/reports" className="text-[12px] text-[#3a5dc2] hover:underline">
+        <Link href="/reports" className="text-[12px] text-primary hover:underline">
           Report
         </Link>
-        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Personalised Report</h1>
-        <p className="mt-0.5 text-[12.5px] text-[#8b90a0]">Numbers for the leads assigned to {user?.name ?? "you"}.</p>
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">Personalised Report</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">Numbers for the leads assigned to {user?.name ?? "you"}.</p>
       </div>
       <BdCard>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

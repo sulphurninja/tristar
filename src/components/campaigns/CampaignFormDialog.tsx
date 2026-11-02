@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BdButton, BdField, BdInput } from "@/components/bd";
 import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
+import { Combobox } from "@/components/ui/combobox";
+import { DateField } from "@/components/ui/date-field";
 
 export const CHANNELS = [
   { value: "facebook", label: "Facebook" },
@@ -69,6 +71,7 @@ export function CampaignFormDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async () => {
     if (!f.name.trim()) return toast.error("Campaign name is required");
@@ -112,22 +115,10 @@ export function CampaignFormDialog({
           <BdInput value={f.name} onChange={set("name")} placeholder="Campaign name" autoFocus />
         </BdField>
         <BdField label="Channel">
-          <select value={f.channel} onChange={set("channel")} className="bd-input">
-            {CHANNELS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.channel} onChange={setV("channel")} options={CHANNELS} />
         </BdField>
         <BdField label="Status">
-          <select value={f.status} onChange={set("status")} className="bd-input">
-            {CAMPAIGN_STATUSES.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.status} onChange={setV("status")} options={CAMPAIGN_STATUSES} />
         </BdField>
         <BdField label="UTM Source">
           <BdInput value={f.utmSource} onChange={set("utmSource")} placeholder="facebook" />
@@ -143,10 +134,10 @@ export function CampaignFormDialog({
         </BdField>
         <div />
         <BdField label="Start Date">
-          <BdInput type="date" value={f.startDate} onChange={set("startDate")} />
+          <DateField value={f.startDate} onChange={setV("startDate")} clearable />
         </BdField>
         <BdField label="End Date">
-          <BdInput type="date" value={f.endDate} onChange={set("endDate")} />
+          <DateField value={f.endDate} onChange={setV("endDate")} min={f.startDate || undefined} clearable />
         </BdField>
         <BdField label="Notes" className="sm:col-span-2">
           <BdTextarea value={f.notes} onChange={set("notes")} placeholder="Notes" />

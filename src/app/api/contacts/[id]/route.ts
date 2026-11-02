@@ -4,7 +4,6 @@ import LeadActivity from "@/models/LeadActivity";
 import Task from "@/models/Task";
 import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole } from "@/lib/auth";
 
 /**
  * PATCH body: { action: "set_status", status: "lead" | "unqualified" }
@@ -87,7 +86,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 /** Permanently removes a contact together with its activity log and tasks. */
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid id");
-  if (!hasRole(session.role, "manager")) return bad("Only managers and above can delete contacts.", 403);
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const lead = await Lead.findOneAndDelete({ _id: params.id, workspaceId, isContact: true });
   if (!lead) return bad("Contact not found", 404);

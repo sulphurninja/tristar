@@ -5,20 +5,20 @@ import { BdKpi, BdTable, BdTd, BdTh } from "@/components/bd";
 import { BdModal } from "@/components/bd/BdOverlays";
 import { typeLabel } from "./shared";
 
-function Bars({ rows, color = "#3a5dc2" }: { rows: Array<{ label: string; value: number }>; color?: string }) {
+function Bars({ rows, color = "#2563eb" }: { rows: Array<{ label: string; value: number }>; color?: string }) {
   const max = Math.max(1, ...rows.map((r) => r.value));
-  if (!rows.length) return <p className="py-2 text-[13px] text-[#8b90a0]">No data for the current filters.</p>;
+  if (!rows.length) return <p className="py-2 text-[13px] text-muted-foreground">No data for the current filters.</p>;
   return (
     <ul className="space-y-2">
       {rows.map((r) => (
         <li key={r.label} className="grid grid-cols-[150px_1fr_44px] items-center gap-3 text-[13px]">
-          <span className="truncate text-[#2b2f3a]" title={r.label}>
+          <span className="truncate text-foreground" title={r.label}>
             {r.label}
           </span>
-          <span className="h-2.5 rounded-full bg-[#eef0f6]">
+          <span className="h-2.5 rounded-full bg-muted">
             <span className="block h-full rounded-full" style={{ width: `${(r.value / max) * 100}%`, background: color }} />
           </span>
-          <span className="text-right tabular-nums text-[#5a6072]">{r.value}</span>
+          <span className="text-right tabular-nums text-foreground/70">{r.value}</span>
         </li>
       ))}
     </ul>
@@ -28,7 +28,7 @@ function Bars({ rows, color = "#3a5dc2" }: { rows: Array<{ label: string; value:
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-5">
-      <h4 className="mb-2 text-[14px] font-semibold text-[#2b2f3a]">{title}</h4>
+      <h4 className="mb-2 text-[14px] font-semibold text-foreground">{title}</h4>
       {children}
     </div>
   );
@@ -77,8 +77,8 @@ export function TaskAnalysisModal({ open, onClose, params }: { open: boolean; on
   const { data, err } = useAnalysis<TaskAnalysis>(open, `/api/tasks/analysis?${params}`);
   return (
     <BdModal open={open} onClose={onClose} title="Task Analysis" width={820}>
-      {err ? <p className="text-[13px] text-[#e5484d]">{err}</p> : null}
-      {!data && !err ? <p className="py-6 text-center text-[13px] text-[#8b90a0]">Loading…</p> : null}
+      {err ? <p className="text-[13px] text-destructive">{err}</p> : null}
+      {!data && !err ? <p className="py-6 text-center text-[13px] text-muted-foreground">Loading…</p> : null}
       {data ? (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -115,7 +115,7 @@ export function TaskAnalysisModal({ open, onClose, params }: { open: boolean; on
                 ))}
                 {!data.byAgent.length ? (
                   <tr>
-                    <BdTd colSpan={5} className="text-center text-[#8b90a0]">
+                    <BdTd colSpan={5} className="text-center text-muted-foreground">
                       No data available
                     </BdTd>
                   </tr>
@@ -150,8 +150,8 @@ export function VisitAnalysisModal({ open, onClose, params }: { open: boolean; o
   const { data, err } = useAnalysis<VisitAnalysis>(open, `/api/visits/analysis?${params}`);
   return (
     <BdModal open={open} onClose={onClose} title="Site Visit Analysis" width={820}>
-      {err ? <p className="text-[13px] text-[#e5484d]">{err}</p> : null}
-      {!data && !err ? <p className="py-6 text-center text-[13px] text-[#8b90a0]">Loading…</p> : null}
+      {err ? <p className="text-[13px] text-destructive">{err}</p> : null}
+      {!data && !err ? <p className="py-6 text-center text-[13px] text-muted-foreground">Loading…</p> : null}
       {data ? (
         <>
           <div className="grid gap-3 sm:grid-cols-3">
@@ -191,7 +191,7 @@ export function VisitAnalysisModal({ open, onClose, params }: { open: boolean; o
                 ))}
                 {!data.byAgent.length ? (
                   <tr>
-                    <BdTd colSpan={5} className="text-center text-[#8b90a0]">
+                    <BdTd colSpan={5} className="text-center text-muted-foreground">
                       No data available
                     </BdTd>
                   </tr>

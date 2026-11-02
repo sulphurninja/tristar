@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { BdButton, BdField, BdInput } from "@/components/bd";
 import { BdModal } from "@/components/bd/BdOverlays";
+import { Combobox } from "@/components/ui/combobox";
 
 export const LEDGER_GROUP_OPTIONS = [
   { value: "customer", label: "Customer" },
@@ -56,6 +57,7 @@ export function LedgerFormDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF((p) => ({ ...p, [k]: e.target.value }));
 
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
   const submit = async () => {
     if (!f.name.trim()) return toast.error("Ledger name is required");
     if (f.email.trim() && !/^\S+@\S+\.\S+$/.test(f.email.trim())) return toast.error("Enter a valid email");
@@ -105,13 +107,7 @@ export function LedgerFormDialog({
           <BdInput type="email" value={f.email} onChange={set("email")} placeholder="Email" />
         </BdField>
         <BdField label="Group">
-          <select value={f.type} onChange={set("type")} className="bd-input">
-            {LEDGER_GROUP_OPTIONS.map((g) => (
-              <option key={g.value} value={g.value}>
-                {g.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.type} onChange={setV("type")} options={LEDGER_GROUP_OPTIONS} />
         </BdField>
         <BdField label="Opening Balance (Dr + / Cr -)">
           <BdInput type="number" value={f.openingBalance} onChange={set("openingBalance")} />

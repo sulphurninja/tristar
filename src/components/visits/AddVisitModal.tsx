@@ -7,6 +7,8 @@ import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { useAuth } from "@/contexts/AuthContext";
 import { LeadPicker, api, toLocalInput, useLookups, type PickedLead } from "@/components/tasks/shared";
+import { DateTimeField } from "@/components/ui/date-field";
+import { CheckboxField } from "@/components/ui/checkbox";
 
 export const VISIT_TYPES = [
   { value: "site_visit", label: "Site Visit" },
@@ -115,7 +117,7 @@ export function AddVisitModal({
           <BdSelect placeholder="Search & Select Project" value={projectId} onChange={setProjectId} options={projects} />
         </BdField>
         <BdField label="Schedule Date">
-          <BdInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <DateTimeField value={when} onChange={(v) => setWhen(v)} />
         </BdField>
         <BdField label="Select Site Visit Type">
           <BdSelect value={visitType} onChange={(v) => setVisitType(v || "site_visit")} options={VISIT_TYPES} clearable={false} />
@@ -131,15 +133,12 @@ export function AddVisitModal({
           />
         </BdField>
         <BdField label="CP Present">
-          <label className="flex h-[38px] items-center gap-2 text-[13px]">
-            <input
-              type="checkbox"
-              checked={cpPresent}
-              onChange={(e) => setCpPresent(e.target.checked)}
-              className="size-4 accent-[#3a5dc2]"
-            />
-            Channel partner will accompany the lead
-          </label>
+          <CheckboxField
+            className="h-9 items-center"
+            checked={cpPresent}
+            onCheckedChange={setCpPresent}
+            label="Channel partner will accompany the lead"
+          />
         </BdField>
         <BdField label="Channel Partner">
           <BdSelect

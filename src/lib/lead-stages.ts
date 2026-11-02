@@ -23,7 +23,7 @@ const EXTRA_STAGES: Array<Omit<StageEntry, "color">> = [
 export const LOST_STAGE_KEYS = ["lost", "not_interested", "junk", "duplicate"];
 
 const STAGE_HEX: Record<string, string> = {
-  new: "#3a5dc2",
+  new: "#2563eb",
   attempted_1: "#6d8be0",
   attempted_2: "#8aa2e8",
   warm: "#2fb67c",
@@ -41,7 +41,7 @@ const STAGE_HEX: Record<string, string> = {
   junk: "#c5c8d2",
   duplicate: "#c5c8d2",
 };
-const FALLBACKS = ["#3a5dc2", "#2fb67c", "#3ec1d3", "#ef5a2a", "#e0436e", "#f2b82e", "#a24bd1", "#e8a21a"];
+const FALLBACKS = ["#2563eb", "#2fb67c", "#3ec1d3", "#ef5a2a", "#e0436e", "#f2b82e", "#a24bd1", "#e8a21a"];
 
 export function stageHex(key: string, index = 0) {
   return STAGE_HEX[key] ?? FALLBACKS[index % FALLBACKS.length];

@@ -33,6 +33,8 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { canAccessPage } from "@/lib/permissions";
 
 interface Props {
   open: boolean;
@@ -89,7 +91,7 @@ const COMMANDS = [
       { label: "Pipeline", hint: "Kanban board", href: "/leads/pipeline", icon: KanbanSquare },
       { label: "Contacts", hint: "People directory", href: "/crm/contacts", icon: Contact },
       { label: "Activities", hint: "Lead activity log", href: "/crm/activities", icon: Activity },
-      { label: "Bulk update", hint: "Mass edit leads", href: "/leads/bulk-update", icon: Upload },
+      { label: "Import leads", hint: "Upload a CSV, assign by username", href: "/leads/bulk-update", icon: Upload },
       { label: "Channel partners", hint: "Brokers", href: "/brokers", icon: Handshake },
     ],
   },
@@ -130,6 +132,11 @@ const COMMANDS = [
     items: [
       { label: "Settings", hint: "Workspace", href: "/settings", icon: Settings },
       { label: "Users", hint: "Team access", href: "/settings/users", icon: Users },
+      { label: "Roles & permissions", hint: "Access control", href: "/settings/roles", icon: KeyRound },
+      { label: "Masters", hint: "Pick-lists & dropdown values", href: "/settings/masters", icon: Tags },
+      { label: "Lead form fields", hint: "Show / hide / require fields", href: "/settings/lead-form", icon: FileText },
+      { label: "Reception app settings", hint: "Kiosk form & project desks", href: "/settings/reception", icon: Settings },
+      { label: "Open reception desk", hint: "Visitor check-in screen", href: "/reception", icon: Users },
       { label: "Pipelines & stages", hint: "Workflow", href: "/settings/pipelines", icon: KanbanSquare },
       { label: "Sources", hint: "Lead origin", href: "/settings/sources", icon: Tags },
       { label: "API keys", hint: "Integrations", href: "/settings/api-keys", icon: KeyRound },
@@ -149,6 +156,12 @@ const TONE: Record<string, string> = {
 export function CommandPalette({ open, onOpenChange }: Props) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const { user } = useAuth();
+  /* Hide destinations this user can't open. */
+  const groups = COMMANDS.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => canAccessPage(i.href.split("?")[0], user?.role, user?.permissions)),
+  })).filter((g) => g.items.length > 0);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -215,7 +228,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
               </p>
             </Command.Empty>
 
-            {COMMANDS.map((group) => (
+            {groups.map((group) => (
               <Command.Group
                 key={group.group}
                 heading={group.group}

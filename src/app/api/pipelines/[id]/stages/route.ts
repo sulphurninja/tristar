@@ -2,7 +2,6 @@ import mongoose from "mongoose";
 import { z } from "zod";
 import Pipeline, { STAGE_TYPES } from "@/models/Pipeline";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 /* ---------- POST /api/pipelines/[id]/stages — add stage ---------- */
 
@@ -22,9 +21,6 @@ const AddStageSchema = z.object({
 });
 
 export const POST = withAuth<{ id: string }>(async ({ req, session, params }) => {
-  if (!hasRole(session.role as Role, "admin")) {
-    return bad("Only admins can edit pipelines.", 403);
-  }
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid pipeline id");
 
   const parsed = AddStageSchema.safeParse(await req.json());

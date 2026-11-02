@@ -76,10 +76,10 @@ function MetricCard({ title, card }: { title: string; card?: Card }) {
   const top = max <= 1 ? 1 : max;
   const ticks = top === 1 ? [0, 0.5, 1] : top <= 2 ? [0, top] : [0, Math.ceil(top / 2), top];
   return (
-    <div className="bd-card flex items-center justify-between gap-2 rounded-[3px] px-6 py-5">
+    <div className="bd-card flex items-center justify-between gap-2 rounded-lg px-6 py-5">
       <div className="min-w-[120px]">
-        <p className="text-[12.5px] uppercase text-[#2b2f3a]">{title}</p>
-        <p className="mt-3 text-[22px] font-medium leading-none text-[#2b2f3a]">{card ? formatNumber(card.value) : "-"}</p>
+        <p className="text-[12.5px] uppercase text-foreground">{title}</p>
+        <p className="mt-3 text-[22px] font-medium leading-none text-foreground">{card ? formatNumber(card.value) : "-"}</p>
       </div>
       <div className="h-[80px] w-full max-w-[290px]">
         <ResponsiveContainer>
@@ -165,16 +165,16 @@ export default function LeadAnalysisPage() {
 
   return (
     <BdPage className="space-y-5">
-      <div className="flex justify-end border-b border-[#e6e9f2] pb-5">
+      <div className="flex justify-end border-b border-border pb-5">
         <TeamAgentSelects value={scope} onChange={setScope} />
       </div>
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-[18px] font-semibold text-[#2b2f3a]">Lead Analysis</h2>
+          <h2 className="text-[18px] font-semibold text-foreground">Lead Analysis</h2>
           <BdDateInput value={day} onChange={setDay} />
         </div>
-        {error ? <p className="mb-3 text-[13px] text-[#e5484d]">{error}</p> : null}
+        {error ? <p className="mb-3 text-[13px] text-destructive">{error}</p> : null}
         <div className="grid gap-5 xl:grid-cols-3 md:grid-cols-2">
           {CARDS.map((c) => (
             <MetricCard key={c.key} title={c.title} card={data?.cards[c.key]} />
@@ -182,8 +182,8 @@ export default function LeadAnalysisPage() {
         </div>
       </section>
 
-      <div className="flex items-center justify-end gap-3 border-t border-[#e6e9f2] pt-5">
-        <span className="text-[13px] font-bold text-[#3a5dc2]" title="Applies to the lead breakdown below and seeds Details From">
+      <div className="flex items-center justify-end gap-3 border-t border-border pt-5">
+        <span className="text-[13px] font-bold text-primary" title="Applies to the lead breakdown below and seeds Details From">
           Date Range ⓘ
         </span>
         <BdDateRange
@@ -205,34 +205,34 @@ export default function LeadAnalysisPage() {
           </BdButton>
         }
       >
-        <div className="flex flex-wrap items-center gap-4 border-b border-[#eef0f6] px-5 py-3">
-          <span className="text-[15px] font-bold text-[#3a5dc2]">Details From</span>
+        <div className="flex flex-wrap items-center gap-4 border-b border-border/70 px-5 py-3">
+          <span className="text-[15px] font-bold text-primary">Details From</span>
           <BdDateRange from={details.from} to={details.to} onChange={setDetails} />
         </div>
         <div className="grid gap-6 p-5 lg:grid-cols-2">
           <div className="flex flex-col justify-between gap-8">
-            <h3 className="text-[18px] font-medium text-[#2b2f3a]">
+            <h3 className="text-[18px] font-medium text-foreground">
               {act ? act.pctOntime : 0} % Activity Completed in time
             </h3>
-            <div className="grid grid-cols-3 gap-4 rounded-[3px] border border-[#eef0f6] p-4">
+            <div className="grid grid-cols-3 gap-4 rounded-lg border border-border/70 p-4">
               <div>
-                <p className="text-[13px] font-bold text-[#2b2f3a]">Total Activity</p>
-                <p className="mt-2 text-[20px] text-[#2b2f3a]">{act ? formatNumber(act.total) : "-"}</p>
+                <p className="text-[13px] font-bold text-foreground">Total Activity</p>
+                <p className="mt-2 text-[20px] text-foreground">{act ? formatNumber(act.total) : "-"}</p>
               </div>
-              <div className="border-l border-[#eef0f6] pl-4">
-                <p className="text-[13px] font-bold text-[#2b2f3a]">Ontime</p>
-                <p className="mt-2 text-[20px] text-[#37b24d]">{act ? formatNumber(act.ontime) : "-"}</p>
+              <div className="border-l border-border/70 pl-4">
+                <p className="text-[13px] font-bold text-foreground">Ontime</p>
+                <p className="mt-2 text-[20px] text-success">{act ? formatNumber(act.ontime) : "-"}</p>
               </div>
-              <div className="border-l border-[#eef0f6] pl-4">
-                <p className="text-[13px] font-bold text-[#2b2f3a]">Delayed</p>
-                <p className="mt-2 text-[20px] text-[#e5484d]">{act ? formatNumber(act.delayed) : "-"}</p>
+              <div className="border-l border-border/70 pl-4">
+                <p className="text-[13px] font-bold text-foreground">Delayed</p>
+                <p className="mt-2 text-[20px] text-destructive">{act ? formatNumber(act.delayed) : "-"}</p>
               </div>
             </div>
           </div>
           <div>
-            <h3 className="text-[18px] font-medium text-[#2b2f3a]">Delay Activity</h3>
+            <h3 className="text-[18px] font-medium text-foreground">Delay Activity</h3>
             {agents.length === 0 ? (
-              <p className="py-16 text-center text-[13px] text-[#8b90a0]">
+              <p className="py-16 text-center text-[13px] text-muted-foreground">
                 {loading ? "Loading…" : "No delayed activity in this range."}
               </p>
             ) : (
@@ -251,10 +251,10 @@ export default function LeadAnalysisPage() {
                 </div>
                 <ul className="max-h-[260px] space-y-2.5 overflow-y-auto text-[13px]">
                   {agents.map((a, i) => (
-                    <li key={a.userId} className="flex items-center gap-2.5 text-[#2b2f3a]">
+                    <li key={a.userId} className="flex items-center gap-2.5 text-foreground">
                       <span className="h-[7px] w-6 shrink-0 rounded-full" style={{ background: DONUT[i % DONUT.length] }} />
                       <span className="truncate">{a.name}</span>
-                      <span className="ml-auto tabular-nums text-[#8b90a0]">{a.delayed}</span>
+                      <span className="ml-auto tabular-nums text-muted-foreground">{a.delayed}</span>
                     </li>
                   ))}
                 </ul>
@@ -267,7 +267,7 @@ export default function LeadAnalysisPage() {
       <BdCard
         title="Delay by Sales Agent"
         bodyClassName="p-0"
-        actions={<span className="text-[12.5px] text-[#8b90a0]">{details.from} to {details.to}</span>}
+        actions={<span className="text-[12.5px] text-muted-foreground">{details.from} to {details.to}</span>}
       >
         <BdTable minWidth={700}>
           <thead>
@@ -287,8 +287,8 @@ export default function LeadAnalysisPage() {
                 <tr key={a.userId}>
                   <BdTd className="font-medium">{a.name}</BdTd>
                   <BdTd className="text-right tabular-nums">{a.total}</BdTd>
-                  <BdTd className="text-right tabular-nums text-[#37b24d]">{a.ontime}</BdTd>
-                  <BdTd className="text-right tabular-nums text-[#e5484d]">{a.delayed}</BdTd>
+                  <BdTd className="text-right tabular-nums text-success">{a.ontime}</BdTd>
+                  <BdTd className="text-right tabular-nums text-destructive">{a.delayed}</BdTd>
                   <BdTd className="text-right tabular-nums">
                     <Pct a={a.ontime} b={a.total} />
                   </BdTd>
@@ -341,7 +341,7 @@ export default function LeadAnalysisPage() {
                 ))
               )}
               {data && data.leads.sources.length > 0 ? (
-                <tr className="bg-[#f6f8fd]">
+                <tr className="bg-muted/50">
                   <BdTd className="font-bold">Total</BdTd>
                   <BdTd className="text-right font-bold tabular-nums">{formatNumber(data.leads.total)}</BdTd>
                   <BdTd />

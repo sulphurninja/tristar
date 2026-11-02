@@ -4,6 +4,7 @@ import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Combobox } from "@/components/ui/combobox";
 
 interface DataTableShellProps {
   title: string;
@@ -79,17 +80,14 @@ function PaginationControls({
         <ChevronRight className="size-3.5" />
       </Button>
       {onPageSizeChange ? (
-        <select
-          value={pageSize}
-          onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className="ml-1 h-8 rounded-md border border-slate-200 bg-white px-2 text-[12.5px] text-slate-700"
-        >
-          {[10, 20, 50, 100].map((n) => (
-            <option key={n} value={n}>
-              {n} / page
-            </option>
-          ))}
-        </select>
+        <Combobox
+          size="sm"
+          align="end"
+          value={String(pageSize)}
+          onChange={(v) => onPageSizeChange(Number(v))}
+          options={[10, 20, 50, 100].map((n) => ({ value: String(n), label: `${n} / page` }))}
+          className="ml-1 w-[110px]"
+        />
       ) : null}
     </div>
   );

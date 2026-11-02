@@ -281,7 +281,7 @@ export function BrokerDetailSheet({
           <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[280px_1fr]">
             <aside className="scrollbar-hide overflow-y-auto border-r border-slate-200 bg-white p-5">
               <div className="flex flex-col items-center text-center">
-                <div className="flex size-16 items-center justify-center rounded-full bg-[#3a5dc2] text-[18px] font-bold text-white">
+                <div className="flex size-16 items-center justify-center rounded-full bg-primary text-[18px] font-bold text-white">
                   {initials(broker?.name)}
                 </div>
                 <h3 className="mt-3 text-[15px] font-bold uppercase tracking-wide text-slate-900">
@@ -381,7 +381,7 @@ export function BrokerDetailSheet({
                       <TabsTrigger
                         key={value}
                         value={value}
-                        className="rounded-t-md rounded-b-none px-3 py-2 text-[12.5px] data-[state=active]:bg-[#3a5dc2] data-[state=active]:text-white data-[state=active]:shadow-none"
+                        className="rounded-t-md rounded-b-none px-3 py-2 text-[12.5px] data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-none"
                       >
                         {label}
                       </TabsTrigger>
@@ -471,7 +471,7 @@ export function BrokerDetailSheet({
                                     ? new Date(l.createdAt).toLocaleDateString("en-IN")
                                     : "—"}
                                 </Td>
-                                <Td className="font-medium text-[#2d5bd6]">
+                                <Td className="font-medium text-primary">
                                   {l.contact?.name ?? "—"}
                                 </Td>
                                 <Td className="max-w-[200px] truncate">{l.description || "—"}</Td>
@@ -550,7 +550,7 @@ export function BrokerDetailSheet({
                           Math.max((broker?.totalCommissionEarned ?? 0) - (broker?.totalCommissionPaid ?? 0), 0),
                         ],
                       ].map(([label, v]) => (
-                        <div key={String(label)} className="rounded-[3px] border border-slate-200 bg-white p-4">
+                        <div key={String(label)} className="rounded-lg border border-slate-200 bg-white p-4">
                           <p className="text-[12px] text-slate-500">{label}</p>
                           <p className="mt-1 text-[20px] font-medium text-slate-900">
                             {"₹"}

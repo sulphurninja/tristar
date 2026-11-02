@@ -25,6 +25,7 @@ import { printReceipt } from "@/components/bookings/receipt";
 import { useAuth } from "@/contexts/AuthContext";
 import { toCsv, downloadCsv } from "@/lib/bd-csv";
 import { formatCurrency } from "@/lib/utils";
+import { DateField } from "@/components/ui/date-field";
 
 interface PaymentRow extends PaymentEditable {
   receiptNumber?: string;
@@ -144,10 +145,10 @@ export default function PaymentsPage() {
             <BdSelect placeholder="Select Payment Type" value={draft.paymentType} onChange={(v) => setDraft((d) => ({ ...d, paymentType: v }))} options={PAYMENT_MODES} />
           </BdField>
           <BdField label="From">
-            <input type="date" className="bd-input" value={draft.from} onChange={(e) => setDraft((d) => ({ ...d, from: e.target.value }))} />
+            <DateField value={draft.from} onChange={(v) => setDraft((d) => ({ ...d, from: v }))} clearable />
           </BdField>
           <BdField label="To">
-            <input type="date" className="bd-input" value={draft.to} onChange={(e) => setDraft((d) => ({ ...d, to: e.target.value }))} />
+            <DateField value={draft.to} onChange={(v) => setDraft((d) => ({ ...d, to: v }))} clearable />
           </BdField>
           <BdField label="Search">
             <input className="bd-input" placeholder="Customer, receipt no." value={draft.q} onChange={(e) => setDraft((d) => ({ ...d, q: e.target.value }))} onKeyDown={(e) => e.key === "Enter" && setApplied(draft)} />

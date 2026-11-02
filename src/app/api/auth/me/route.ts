@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import Workspace from "@/models/Workspace";
 import { getCurrentSession } from "@/lib/auth";
+import { loadAccess } from "@/lib/access";
 
 export async function GET() {
   const session = await getCurrentSession();
@@ -11,12 +12,13 @@ export async function GET() {
   }
 
   await connectDB();
-  const [user, workspace] = await Promise.all([
+  const [user, workspace, access] = await Promise.all([
     User.findById(session.userId),
     Workspace.findById(session.workspaceId),
+    loadAccess(session),
   ]);
 
-  if (!user || !workspace) {
+  if (!user || !workspace || !access) {
     return NextResponse.json({ user: null }, { status: 200 });
   }
 
@@ -25,10 +27,14 @@ export async function GET() {
       id: user._id,
       name: user.name,
       email: user.email,
+      username: user.username,
       role: user.role,
       avatarUrl: user.avatarUrl,
       title: user.title,
       preferences: user.preferences,
+      teamId: access.teamId ?? null,
+      permissions: access.permissions,
+      dataScope: access.dataScope,
     },
     workspace: {
       id: workspace._id,

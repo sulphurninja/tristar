@@ -1,10 +1,8 @@
 import mongoose from "mongoose";
 import Source from "@/models/Source";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
 
 export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) => {
-  if (!hasRole(session.role as Role, "admin")) return bad("You need admin access to edit sources.", 403);
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid source id.");
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const id = new mongoose.Types.ObjectId(params.id);
@@ -30,7 +28,6 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 });
 
 export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
-  if (!hasRole(session.role as Role, "admin")) return bad("You need admin access to delete sources.", 403);
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid source id.");
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const id = new mongoose.Types.ObjectId(params.id);

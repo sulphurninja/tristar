@@ -5,7 +5,7 @@ import Task from "@/models/Task";
 import SiteVisit from "@/models/SiteVisit";
 import User from "@/models/User";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole } from "@/lib/auth";
+import { can } from "@/lib/access";
 import { loadStageCatalog } from "@/lib/lead-stages";
 
 /**
@@ -79,7 +79,7 @@ export const POST = withAuth(async ({ req, session }) => {
       return ok({ modified: r.modifiedCount });
     }
     case "delete": {
-      if (!hasRole(session.role, "manager")) return bad("You need manager access to delete leads.", 403);
+      if (!can(session, "leads.delete")) return bad("You don't have permission to delete leads.", 403);
       const found = await Lead.find(scope).select("_id").lean();
       const real = found.map((l) => l._id);
       await Promise.all([

@@ -5,6 +5,7 @@ import { BdButton, BdField, BdTable, BdTh, BdTd, BdEmptyRow } from "@/components
 import { BdModal } from "@/components/bd/BdOverlays";
 import { toCsv, downloadCsv } from "@/lib/bd-csv";
 import { formatCurrency } from "@/lib/utils";
+import { DateField } from "@/components/ui/date-field";
 
 interface Stmt {
   ledger: { name: string; type: string; openingBalance: number };
@@ -73,10 +74,10 @@ export function LedgerStatementModal({ ledgerId, onClose }: { ledgerId: string |
     <BdModal open={!!ledgerId} title={`Ledger Statement${data ? ` - ${data.ledger.name}` : ""}`} onClose={onClose} width={1000} footer={<BdButton variant="light" onClick={onClose}>Close</BdButton>}>
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <BdField label="From">
-          <input type="date" className="bd-input" value={from} onChange={(e) => setFrom(e.target.value)} />
+          <DateField value={from} onChange={(v) => setFrom(v)} clearable />
         </BdField>
         <BdField label="To">
-          <input type="date" className="bd-input" value={to} onChange={(e) => setTo(e.target.value)} />
+          <DateField value={to} onChange={(v) => setTo(v)} clearable />
         </BdField>
         <BdButton onClick={() => setApplied({ from, to })}>Search</BdButton>
         <BdButton
@@ -110,7 +111,7 @@ export function LedgerStatementModal({ ledgerId, onClose }: { ledgerId: string |
             <BdEmptyRow colSpan={7} loading />
           ) : (
             <>
-              <tr className="bg-[#f6f8fd]">
+              <tr className="bg-muted/50">
                 <BdTd colSpan={6} className="font-medium">Opening Balance</BdTd>
                 <BdTd className="text-right font-medium">{drcr(data.opening)}</BdTd>
               </tr>
@@ -126,7 +127,7 @@ export function LedgerStatementModal({ ledgerId, onClose }: { ledgerId: string |
                   <BdTd className="whitespace-nowrap text-right">{drcr(e.balance)}</BdTd>
                 </tr>
               ))}
-              <tr className="bg-[#f6f8fd]">
+              <tr className="bg-muted/50">
                 <BdTd colSpan={4} className="font-medium">Closing Balance</BdTd>
                 <BdTd className="text-right font-medium">{formatCurrency(data.totalDebit)}</BdTd>
                 <BdTd className="text-right font-medium">{formatCurrency(data.totalCredit)}</BdTd>

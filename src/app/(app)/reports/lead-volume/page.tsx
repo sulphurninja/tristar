@@ -80,9 +80,9 @@ export default function LeadVolumeReportPage() {
 
       <BdCard title="Lead Volume">
         {loading ? (
-          <div className="h-72 animate-pulse rounded bg-[#f0f2f8]" />
+          <div className="h-72 animate-pulse rounded bg-muted" />
         ) : days.length === 0 ? (
-          <div className="flex h-72 items-center justify-center text-[13px] text-[#8b90a0]">No data for this window.</div>
+          <div className="flex h-72 items-center justify-center text-[13px] text-muted-foreground">No data for this window.</div>
         ) : (
           <div className="h-72 w-full">
             <ResponsiveContainer>

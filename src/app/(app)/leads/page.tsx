@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownUp, ChevronDown, Filter, MoreVertical, Search, X } from "lucide-react";
 import { toast } from "sonner";
@@ -31,23 +32,43 @@ type BulkDialog = "transfer" | "stage" | "addTag" | "delete" | null;
 
 function LeadsPageInner() {
   const router = useRouter();
+  const { can } = useAuth();
   const sp = useSearchParams();
   const opts = useLeadOptions();
 
-  /* Links from other pages: ?stage=hot&q=..&open=<id>&leadId=<id>&new=1 */
-  const initial = useRef({
-    q: sp.get("q") ?? "",
-    stage: sp.get("stage") ?? "",
-    open: sp.get("open") ?? sp.get("leadId") ?? "",
-    isNew: sp.get("new") === "1",
-  }).current;
+  /*
+   * Deep links (dashboard cards, reports, other pages) can preset the list:
+   * ?view=&card=&team=&agent=&q=&open=<id>&new=1 plus any advanced filter key
+   * (stage, returning, unassigned, createdFrom, createdTo, …).
+   */
+  const initial = useRef(
+    (() => {
+      const preset: Filters = {};
+      for (const k of FILTER_KEYS) {
+        const v = sp.get(k);
+        if (v) preset[k] = v;
+      }
+      const q = sp.get("q") ?? "";
+      const card = sp.get("card") ?? "";
+      const deepLinked = !!q || !!card || Object.keys(preset).length > 0;
+      return {
+        q,
+        card,
+        preset,
+        view: sp.get("view") ?? (deepLinked ? "all" : "active"),
+        scope: { team: sp.get("team") ?? "", agent: sp.get("agent") ?? "" },
+        open: sp.get("open") ?? sp.get("leadId") ?? "",
+        isNew: sp.get("new") === "1",
+      };
+    })(),
+  ).current;
 
-  const [view, setView] = useState(initial.q || initial.stage ? "all" : "active");
-  const [scope, setScope] = useState<TeamAgentValue>({ team: "", agent: "" });
-  const [card, setCard] = useState("");
+  const [view, setView] = useState(initial.view);
+  const [scope, setScope] = useState<TeamAgentValue>(initial.scope);
+  const [card, setCard] = useState(initial.card);
   const [q, setQ] = useState(initial.q);
   const [qApplied, setQApplied] = useState(initial.q);
-  const [filters, setFilters] = useState<Filters>(initial.stage ? { stage: initial.stage } : {});
+  const [filters, setFilters] = useState<Filters>(initial.preset);
   const [savedId, setSavedId] = useState("");
   const [savedReload, setSavedReload] = useState(0);
   const [page, setPage] = useState(1);
@@ -185,14 +206,25 @@ function LeadsPageInner() {
     setPage(1);
   };
 
-  const rowActions = (l: LeadRow): MenuItem[] => [
-    { key: "view", label: "View", onSelect: () => setOpenId(l._id) },
-    { key: "edit", label: "Edit", onSelect: () => setRowDlg({ kind: "edit", lead: l }) },
-    { key: "task", label: "Add Task", onSelect: () => setRowDlg({ kind: "task", lead: l }) },
-    { key: "visit", label: "Schedule Site Visit", onSelect: () => setRowDlg({ kind: "visit", lead: l }) },
-    { key: "transfer", label: "Transfer", onSelect: () => setRowDlg({ kind: "transfer", lead: l }) },
-    { key: "delete", label: "Delete", danger: true, onSelect: () => setRowDlg({ kind: "delete", lead: l }) },
-  ];
+  /* Only offer actions the user's permissions allow; the API enforces the same rules. */
+  const rowActions = (l: LeadRow): MenuItem[] =>
+    [
+      { key: "view", label: "View", onSelect: () => setOpenId(l._id) },
+      can("leads.edit") && { key: "edit", label: "Edit", onSelect: () => setRowDlg({ kind: "edit", lead: l }) },
+      can("tasks.manage") && { key: "task", label: "Add task", onSelect: () => setRowDlg({ kind: "task", lead: l }) },
+      can("visits.manage") && {
+        key: "visit",
+        label: "Schedule site visit",
+        onSelect: () => setRowDlg({ kind: "visit", lead: l }),
+      },
+      can("leads.edit") && { key: "transfer", label: "Transfer", onSelect: () => setRowDlg({ kind: "transfer", lead: l }) },
+      can("leads.delete") && {
+        key: "delete",
+        label: "Delete",
+        danger: true,
+        onSelect: () => setRowDlg({ kind: "delete", lead: l }),
+      },
+    ].filter(Boolean) as MenuItem[];
 
   const exportCsv = () => {
     const u = new URLSearchParams(listQs);
@@ -236,7 +268,7 @@ function LeadsPageInner() {
       />
 
       <BdCard bodyClassName="p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-[#eef0f6] pb-4">
+        <div className="mb-4 flex flex-wrap items-center justify-end gap-3 border-b border-border/70 pb-4">
           {activeFilters > 0 ? (
             <button
               type="button"
@@ -246,7 +278,7 @@ function LeadsPageInner() {
                 setSavedId("");
                 resetPaging();
               }}
-              className="mr-auto inline-flex items-center gap-1 rounded-full bg-[#eef1fa] px-3 py-1 text-[12.5px] text-[#3a5dc2] hover:bg-[#e0e6f6]"
+              className="mr-auto inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-[12.5px] text-primary hover:bg-primary-100"
             >
               <X className="size-3" /> Clear {activeFilters} active filter{activeFilters > 1 ? "s" : ""}
             </button>
@@ -273,11 +305,13 @@ function LeadsPageInner() {
                 Add <ChevronDown className="size-3.5" />
               </button>
             }
-            items={[
-              { key: "add", label: "Add Lead", onSelect: () => router.push("/leads/new") },
-              { key: "import", label: "Import Leads", onSelect: () => router.push("/leads/bulk-update") },
-              { key: "pipeline", label: "Pipeline View", onSelect: () => router.push("/leads/pipeline") },
-            ]}
+            items={
+              [
+                can("leads.create") && { key: "add", label: "Add lead", onSelect: () => router.push("/leads/new") },
+                can("leads.bulk") && { key: "import", label: "Import leads", onSelect: () => router.push("/leads/bulk-update") },
+                { key: "pipeline", label: "Pipeline view", onSelect: () => router.push("/leads/pipeline") },
+              ].filter(Boolean) as MenuItem[]
+            }
           />
           <DropMenu
             trigger={
@@ -285,17 +319,19 @@ function LeadsPageInner() {
                 <MoreVertical className="size-4" />
               </button>
             }
-            items={[
-              { key: "export", label: "Export CSV", onSelect: exportCsv },
-              { key: "refresh", label: "Refresh", onSelect: refreshAll },
-              { key: "bulk", label: "Bulk Update", onSelect: () => router.push("/leads/bulk-update") },
-            ]}
+            items={
+              [
+                can("leads.export") && { key: "export", label: "Export CSV", onSelect: exportCsv },
+                { key: "refresh", label: "Refresh", onSelect: refreshAll },
+                can("leads.bulk") && { key: "bulk", label: "Bulk update from file", onSelect: () => router.push("/leads/bulk-update") },
+              ].filter(Boolean) as MenuItem[]
+            }
           />
           <button
             type="button"
             aria-label="Filter"
             onClick={() => setFilterOpen(true)}
-            className="relative inline-flex size-[34px] items-center justify-center rounded-[3px] bg-[#e8602c] text-white hover:bg-[#d1531f]"
+            className="bd-btn-light relative !w-[34px] !px-0"
           >
             <Filter className="size-4" />
             {activeFilters > 0 ? (
@@ -307,14 +343,20 @@ function LeadsPageInner() {
         </div>
 
         {selected.size > 0 ? (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[3px] bg-[#eef1fa] px-4 py-2.5 text-[13.5px]">
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg bg-primary-50 px-4 py-2.5 text-[13.5px]">
             <b>{selected.size}</b> selected
-            <span className="mx-1 text-[#c3c9dc]">|</span>
-            <BdButton onClick={() => setBulkDlg("transfer")}>Transfer</BdButton>
-            <BdButton variant="light" onClick={() => setBulkDlg("stage")}>Change Lead Stage</BdButton>
-            <BdButton variant="light" onClick={() => setBulkDlg("addTag")}>Add Tag</BdButton>
-            <BdButton variant="danger" onClick={() => setBulkDlg("delete")}>Delete</BdButton>
-            <button type="button" className="ml-auto text-[#3a5dc2] hover:underline" onClick={() => setSelected(new Set())}>
+            <span className="mx-1 text-muted-foreground/50">|</span>
+            {can("leads.bulk") ? (
+              <>
+                <BdButton onClick={() => setBulkDlg("transfer")}>Transfer</BdButton>
+                <BdButton variant="light" onClick={() => setBulkDlg("stage")}>Change stage</BdButton>
+                <BdButton variant="light" onClick={() => setBulkDlg("addTag")}>Add tag</BdButton>
+              </>
+            ) : null}
+            {can("leads.delete") ? (
+              <BdButton variant="danger" onClick={() => setBulkDlg("delete")}>Delete</BdButton>
+            ) : null}
+            <button type="button" className="ml-auto text-primary hover:underline" onClick={() => setSelected(new Set())}>
               Clear selection
             </button>
           </div>
@@ -323,7 +365,7 @@ function LeadsPageInner() {
         <div className="flex flex-wrap items-center justify-between gap-3 pb-3">
           <BdPagination page={page} totalPages={totalPages} onPage={(p) => { setPage(p); setSelected(new Set()); }} />
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[12.5px] text-[#8b90a0]">{total.toLocaleString("en-IN")} leads</span>
+            <span className="text-[12.5px] text-muted-foreground">{total.toLocaleString("en-IN")} leads</span>
             <ColumnPicker value={visible} onChange={changeCols} />
             <button
               type="button"
@@ -354,7 +396,7 @@ function LeadsPageInner() {
                   setQApplied(q.trim());
                   setPage(1);
                 }}
-                className="flex w-10 items-center justify-center bg-[#8da3dc] text-white hover:bg-[#6f89cf]"
+                className="flex w-10 items-center justify-center bg-primary/60 text-white hover:bg-[#6f89cf]"
               >
                 <Search className="size-4" />
               </button>
@@ -366,7 +408,7 @@ function LeadsPageInner() {
                   setQApplied("");
                   setPage(1);
                 }}
-                className="ml-1.5 flex w-9 items-center justify-center rounded-[3px] bg-[#e8eaf2] text-[#5a6072] hover:bg-[#dcdfea]"
+                className="ml-1.5 flex w-9 items-center justify-center rounded-lg bg-muted text-foreground/70 hover:bg-border"
               >
                 <X className="size-3.5" />
               </button>
@@ -409,7 +451,7 @@ function LeadsPageInner() {
           actions={rowActions}
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 text-[12.5px] text-[#8b90a0]">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 text-[12.5px] text-muted-foreground">
           <span>
             {total === 0
               ? "No entries"

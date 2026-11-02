@@ -1,6 +1,7 @@
 "use client";
 
 import { BdField, BdInput, BdSelect } from "@/components/bd";
+import { DateField } from "@/components/ui/date-field";
 
 export interface DateRangeValue {
   range: string;
@@ -45,10 +46,10 @@ export function DateRangeFields({
       {value.range === "custom" ? (
         <>
           <BdField label="From">
-            <BdInput type="date" value={value.from} onChange={(e) => onChange({ ...value, from: e.target.value })} />
+            <DateField value={value.from} onChange={(v) => onChange({ ...value, from: v })} clearable />
           </BdField>
           <BdField label="To">
-            <BdInput type="date" value={value.to} onChange={(e) => onChange({ ...value, to: e.target.value })} />
+            <DateField value={value.to} onChange={(v) => onChange({ ...value, to: v })} clearable />
           </BdField>
         </>
       ) : null}

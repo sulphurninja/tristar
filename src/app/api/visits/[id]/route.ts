@@ -4,6 +4,7 @@ import LeadActivity from "@/models/LeadActivity";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import Broker from "@/models/Broker";
+import { canSeeAssignee } from "@/lib/access";
 import { withAuth, ok, bad } from "@/lib/api";
 import { mustSeeOwnOnly } from "@/lib/task-filters";
 
@@ -33,8 +34,8 @@ export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) =
 
   const visit = await SiteVisit.findOne({ _id: params.id, workspaceId });
   if (!visit) return bad("Visit not found", 404);
-  if (mustSeeOwnOnly(session.role) && String(visit.assignedTo) !== session.userId) {
-    return bad("You can only change your own visits.", 403);
+  if (!(await canSeeAssignee(visit.assignedTo))) {
+    return bad("You can only change visits assigned to you or your team.", 403);
   }
 
   const fromStatus = visit.status;

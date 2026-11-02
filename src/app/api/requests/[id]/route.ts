@@ -1,14 +1,14 @@
 import mongoose from "mongoose";
 import RequestModel from "@/models/Request";
 import { withAuth, ok, bad } from "@/lib/api";
-import { hasRole, type Role } from "@/lib/auth";
+import { can } from "@/lib/access";
 
 export const PATCH = withAuth<{ id: string }>(async ({ req, session, params }) => {
   if (!mongoose.isValidObjectId(params.id)) return bad("Invalid request id.");
   const workspaceId = new mongoose.Types.ObjectId(session.workspaceId);
   const id = new mongoose.Types.ObjectId(params.id);
   const body = (await req.json()) as Record<string, unknown>;
-  const isManager = hasRole(session.role as Role, "manager");
+  const isManager = can(session, "requests.approve");
 
   const existing = await RequestModel.findOne({ _id: id, workspaceId }).select("raisedBy status");
   if (!existing) return bad("Request not found.", 404);
@@ -43,7 +43,7 @@ export const DELETE = withAuth<{ id: string }>(async ({ session, params }) => {
   const id = new mongoose.Types.ObjectId(params.id);
   const existing = await RequestModel.findOne({ _id: id, workspaceId }).select("raisedBy");
   if (!existing) return bad("Request not found.", 404);
-  if (!hasRole(session.role as Role, "manager") && String(existing.raisedBy) !== session.userId) {
+  if (!can(session, "requests.approve") && String(existing.raisedBy) !== session.userId) {
     return bad("You can only delete your own requests.", 403);
   }
   await RequestModel.deleteOne({ _id: id, workspaceId });

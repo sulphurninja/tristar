@@ -36,7 +36,7 @@ function TasksScreen() {
 
   return (
     <div>
-      <div className="border-b border-[#e6e9f2] bg-white pt-2">
+      <div className="border-b border-border bg-white pt-2">
         <BdTabs tabs={TABS} value={tab} onChange={setTab} />
       </div>
       <BdPage>

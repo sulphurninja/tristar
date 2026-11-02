@@ -1,13 +1,27 @@
 import mongoose from "mongoose";
 import User from "@/models/User";
+import { clampToVisible } from "@/lib/access";
 
 /**
  * Resolve the Buildesk "Select Team" / "Select Sales Agent" pair into the list
  * of user ids to filter by. Returns `null` when neither is set (no filtering).
  * An explicit agent wins over a team. A team with no members yields `[]`, which
  * callers must treat as "match nothing".
+ *
+ * The result is clamped (unless `clamp: false`, for shared master data) to the signed-in user's data scope, so a user
+ * limited to "own" / "team" records can never widen it through query params.
  */
 export async function resolveAgentScope(
+  workspaceId: mongoose.Types.ObjectId,
+  teamId?: string | null,
+  agentId?: string | null,
+  opts: { clamp?: boolean } = {},
+): Promise<mongoose.Types.ObjectId[] | null> {
+  const requested = await requestedAgents(workspaceId, teamId, agentId);
+  return opts.clamp === false ? requested : clampToVisible(requested);
+}
+
+async function requestedAgents(
   workspaceId: mongoose.Types.ObjectId,
   teamId?: string | null,
   agentId?: string | null,

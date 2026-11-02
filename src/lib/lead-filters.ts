@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Task from "@/models/Task";
-import { resolveAgentScope, rangeBounds, RETURNING_FILTER } from "@/lib/scope";
+import { resolveAgentScope, rangeBounds, RETURNING_FILTER, NOT_RETURNING_FILTER } from "@/lib/scope";
 import { loadStageCatalog, lostKeys } from "@/lib/lead-stages";
 
 type Filter = Record<string, unknown>;
@@ -181,7 +181,7 @@ export async function buildLeadFilter(
   if (tags.length) and.push({ tags: { $in: tags } });
   const ret = p.get("returning");
   if (ret === "1") and.push(RETURNING_FILTER);
-  if (ret === "0") and.push({ isReturning: { $ne: true }, tags: { $ne: "returning" } });
+  if (ret === "0") and.push(NOT_RETURNING_FILTER);
   if (p.get("isHot") === "1" || p.get("isHot") === "true") and.push({ isHot: true });
   if (p.get("brokerFilter") === "1") and.push({ brokerId: { $ne: null } });
 

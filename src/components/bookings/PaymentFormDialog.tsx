@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdModal } from "@/components/bd/BdOverlays";
 import { formatCurrency } from "@/lib/utils";
+import { Combobox } from "@/components/ui/combobox";
+import { DateField } from "@/components/ui/date-field";
 
 export const PAYMENT_MODES = [
   { value: "cash", label: "Cash" },
@@ -100,6 +102,7 @@ export function PaymentFormDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const booking = bookings.find((b) => b._id === f.bookingId);
   const { total, final } = useMemo(() => {
@@ -162,10 +165,15 @@ export function PaymentFormDialog({
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <BdField label="Type">
-          <select value={f.type} onChange={set("type")} disabled={!!payment} className="bd-input">
-            <option value="receipt">Receipt</option>
-            <option value="refund">Refund</option>
-          </select>
+          <Combobox
+            value={f.type}
+            onChange={setV("type")}
+            disabled={!!payment}
+            options={[
+              { value: "receipt", label: "Receipt" },
+              { value: "refund", label: "Refund" },
+            ]}
+          />
         </BdField>
         <BdField label="Booking">
           <BdSelect
@@ -179,7 +187,7 @@ export function PaymentFormDialog({
             options={bookings.map((b) => ({ value: b._id, label: `${b.bookingNumber ?? "Booking"} - ${b.customerName ?? ""}` }))}
           />
           {booking?.amount ? (
-            <p className="mt-1 text-[12px] text-[#8b90a0]">
+            <p className="mt-1 text-[12px] text-muted-foreground">
               Booking amount {formatCurrency(booking.amount)} | Balance {formatCurrency(booking.balanceAmount ?? 0)}
             </p>
           ) : null}
@@ -188,19 +196,13 @@ export function PaymentFormDialog({
           <BdInput value={f.customerName} onChange={set("customerName")} placeholder="Customer name" />
         </BdField>
         <BdField label="Date *">
-          <BdInput type="date" value={f.date} onChange={set("date")} />
+          <DateField value={f.date} onChange={setV("date")} />
         </BdField>
         <BdField label="Payment For">
           <BdInput value={f.paymentFor} onChange={set("paymentFor")} placeholder="e.g. Booking amount" />
         </BdField>
         <BdField label="Payment Type">
-          <select value={f.paymentType} onChange={set("paymentType")} className="bd-input">
-            {PAYMENT_MODES.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          <Combobox value={f.paymentType} onChange={setV("paymentType")} options={PAYMENT_MODES} />
         </BdField>
         <BdField label="Ledger Account">
           <BdSelect placeholder="Select Ledger" value={f.ledgerAccount} onChange={(v) => setF((p) => ({ ...p, ledgerAccount: v }))} options={ledgers.map((l) => ({ value: l.name, label: l.name }))} />
@@ -217,7 +219,7 @@ export function PaymentFormDialog({
         <BdField label="TDS">
           <BdInput type="number" min={0} value={f.tds} onChange={set("tds")} />
         </BdField>
-        <div className="rounded-[3px] bg-[#f4f6fc] p-3 text-[13px]">
+        <div className="rounded-lg bg-muted/50 p-3 text-[13px]">
           <div className="flex justify-between">
             <span>Total Amount</span>
             <span>{formatCurrency(total)}</span>

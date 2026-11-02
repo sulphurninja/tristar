@@ -6,6 +6,7 @@ import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdConfirm, BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { api, toLocalInput, type TaskRow } from "./shared";
+import { DateTimeField } from "@/components/ui/date-field";
 
 export type TaskActionMode = "complete" | "reschedule" | "reassign" | "remark" | "delete";
 
@@ -127,10 +128,10 @@ export function TaskActionModal({
       }
     >
       <div className="space-y-4">
-        <p className="text-[13px] text-[#5a6072]">{bulk ? `${tasks.length} tasks selected` : tasks[0].title}</p>
+        <p className="text-[13px] text-foreground/70">{bulk ? `${tasks.length} tasks selected` : tasks[0].title}</p>
         {mode === "reschedule" ? (
           <BdField label="Schedule Date">
-            <BdInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            <DateTimeField value={when} onChange={(v) => setWhen(v)} />
           </BdField>
         ) : null}
         {mode === "reassign" ? (

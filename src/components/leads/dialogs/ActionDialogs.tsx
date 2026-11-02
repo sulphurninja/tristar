@@ -6,6 +6,7 @@ import { BdField, BdInput, BdSelect } from "@/components/bd";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
 import { Modal, ModalActions, api, toLocalInput } from "@/components/leads/ui/primitives";
 import { useLeadOptions } from "@/components/leads/types";
+import { DateTimeField } from "@/components/ui/date-field";
 
 interface Common {
   open: boolean;
@@ -106,7 +107,7 @@ export function TaskDialog({
             <BdSelect value={form.type} onChange={set("type")} clearable={false} options={TASK_TYPES} />
           </BdField>
           <BdField label="Date & Time">
-            <BdInput type="datetime-local" value={form.when} onChange={(e) => set("when")(e.target.value)} />
+            <DateTimeField value={form.when} onChange={(v) => set("when")(v)} />
           </BdField>
         </div>
         <BdField label="Assign To">
@@ -196,7 +197,7 @@ export function SiteVisitDialog({
         </BdField>
         <div className="grid grid-cols-2 gap-4">
           <BdField label="Date & Time">
-            <BdInput type="datetime-local" value={form.when} onChange={(e) => set("when")(e.target.value)} />
+            <DateTimeField value={form.when} onChange={(v) => set("when")(v)} />
           </BdField>
           <BdField label="Mode">
             <BdSelect value={form.mode} onChange={set("mode")} clearable={false} options={VISIT_MODES} />

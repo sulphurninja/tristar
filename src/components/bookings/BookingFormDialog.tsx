@@ -6,6 +6,8 @@ import { BdButton, BdField, BdInput, BdSelect } from "@/components/bd";
 import { BdModal, BdTextarea } from "@/components/bd/BdOverlays";
 import { BdLeadPicker, type LeadHit } from "@/components/bd/BdLeadPicker";
 import { useDirectory } from "@/components/bd/TeamAgentSelects";
+import { Combobox } from "@/components/ui/combobox";
+import { DateTimeField } from "@/components/ui/date-field";
 
 export const BOOKING_STAGES = ["booked", "agreement", "registered", "possession", "cancelled"];
 
@@ -78,6 +80,7 @@ export function BookingFormDialog({
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF((p) => ({ ...p, [k]: e.target.value }));
+  const setV = (k: keyof typeof f) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
   const submit = async () => {
     const name = f.customerName.trim() || lead?.contact?.name || "";
@@ -155,20 +158,20 @@ export function BookingFormDialog({
           <BdSelect placeholder="Select Channel Partner" value={f.brokerId} onChange={(v) => setF((p) => ({ ...p, brokerId: v }))} options={brokers.map((b) => ({ value: b._id, label: b.firmName ? `${b.name} (${b.firmName})` : b.name }))} />
         </BdField>
         <BdField label="Stage">
-          <select value={f.stage} onChange={set("stage")} className="bd-input capitalize">
-            {BOOKING_STAGES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-            {f.stage && !BOOKING_STAGES.includes(f.stage) ? <option value={f.stage}>{f.stage}</option> : null}
-          </select>
+          <Combobox
+            value={f.stage}
+            onChange={setV("stage")}
+            options={[...BOOKING_STAGES, ...(f.stage && !BOOKING_STAGES.includes(f.stage) ? [f.stage] : [])].map((s) => ({
+              value: s,
+              label: s.charAt(0).toUpperCase() + s.slice(1),
+            }))}
+          />
         </BdField>
         <BdField label="Source">
           <BdInput value={f.source} onChange={set("source")} placeholder="Lead source" />
         </BdField>
         <BdField label="Booked At">
-          <BdInput type="datetime-local" value={f.bookedAt} onChange={set("bookedAt")} />
+          <DateTimeField value={f.bookedAt} onChange={setV("bookedAt")} />
         </BdField>
         <BdField label="Notes" className="sm:col-span-2">
           <BdTextarea value={f.notes} onChange={set("notes")} placeholder="Notes" />

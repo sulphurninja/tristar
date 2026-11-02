@@ -57,6 +57,12 @@ const WorkspaceSchema = new Schema(
     onboardingCompleted: { type: Boolean, default: false },
     onboardingStep: { type: String, default: "workspace" },
     seats: { type: Number, default: 25 },
+    /** Customised role templates: { [role]: { permissions: string[], scope } }. Unset roles use ROLE_DEFAULTS. */
+    rolePermissions: { type: Schema.Types.Mixed },
+    /** Which "New lead" fields are hidden / optional / required (lib/lead-form). */
+    leadFormConfig: { type: Schema.Types.Mixed },
+    /** Reception kiosk form, project desks and options (lib/reception-config). */
+    receptionConfig: { type: Schema.Types.Mixed },
     leadCap: { type: Number, default: 100000 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User" },
   },

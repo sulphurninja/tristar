@@ -24,6 +24,7 @@ import {
   BdTh,
 } from "@/components/bd";
 import { downloadCsv } from "@/lib/csv";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface UserItem {
   _id: string;
@@ -98,7 +99,7 @@ export default function TeamsPage() {
   return (
     <BdPage>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-[20px] font-semibold text-[#2b2f3a]">Teams</h1>
+        <h1 className="text-[22px] font-semibold tracking-[-0.015em] text-foreground">Teams</h1>
         <div className="flex gap-2">
           <BdButton
             variant="light"
@@ -154,11 +155,11 @@ export default function TeamsPage() {
                     <BdTd>{(page - 1) * pageSize + i + 1}</BdTd>
                     <BdTd>
                       <p className="font-medium">{t.name}</p>
-                      {t.description ? <p className="text-[11.5px] text-[#8b90a0]">{t.description}</p> : null}
+                      {t.description ? <p className="text-[11.5px] text-muted-foreground">{t.description}</p> : null}
                     </BdTd>
                     <BdTd>{userName.get(String(t.leaderId ?? "")) ?? "-"}</BdTd>
                     <BdTd className="text-right tabular-nums">{t.memberCount}</BdTd>
-                    <BdTd className="max-w-[320px] truncate text-[#5a6072]" >
+                    <BdTd className="max-w-[320px] truncate text-foreground/70" >
                       <span title={names.join(", ")}>{names.length ? names.join(", ") : "-"}</span>
                     </BdTd>
                     <BdTd className="text-right">
@@ -167,7 +168,7 @@ export default function TeamsPage() {
                           type="button"
                           title="Edit"
                           onClick={() => setDialog({ open: true, team: t })}
-                          className="rounded p-1.5 text-[#3a5dc2] hover:bg-[#eef1fa]"
+                          className="rounded p-1.5 text-primary hover:bg-primary-50"
                         >
                           <Pencil className="size-4" />
                         </button>
@@ -175,7 +176,7 @@ export default function TeamsPage() {
                           type="button"
                           title="Delete"
                           onClick={() => remove(t)}
-                          className="rounded p-1.5 text-[#e5484d] hover:bg-[#fdecec]"
+                          className="rounded p-1.5 text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 className="size-4" />
                         </button>
@@ -293,31 +294,26 @@ function TeamDialog({
           </BdField>
           <BdField label={`Members (${members.size} selected)`}>
             <BdInput value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search users" className="mb-2" />
-            <div className="max-h-[220px] overflow-y-auto rounded-[3px] border border-[#dfe3ee]">
+            <div className="max-h-[220px] overflow-y-auto rounded-lg border border-input">
               {candidates.length === 0 ? (
-                <p className="p-3 text-[13px] text-[#8b90a0]">No users</p>
+                <p className="p-3 text-[13px] text-muted-foreground">No users</p>
               ) : (
                 candidates.map((u) => {
                   const other = u.teamId && String(u.teamId) !== team?._id ? teamName.get(String(u.teamId)) : null;
                   return (
                     <label
                       key={u._id}
-                      className="flex cursor-pointer items-center gap-3 border-b border-[#eef0f6] px-3 py-2 text-[13px] last:border-0 hover:bg-[#f6f8fd]"
+                      className="flex cursor-pointer items-center gap-3 border-b border-border/70 px-3 py-2 text-[13px] last:border-0 hover:bg-muted/50"
                     >
-                      <input
-                        type="checkbox"
-                        checked={members.has(u._id)}
-                        onChange={() => toggle(u._id)}
-                        className="size-4 accent-[#3a5dc2]"
-                      />
+                      <Checkbox checked={members.has(u._id)} onCheckedChange={() => toggle(u._id)} />
                       <span className="flex-1">{u.name}</span>
-                      {other ? <span className="text-[11.5px] text-[#8b90a0]">currently in {other}</span> : null}
+                      {other ? <span className="text-[11.5px] text-muted-foreground">currently in {other}</span> : null}
                     </label>
                   );
                 })
               )}
             </div>
-            <p className="mt-1 text-[11.5px] text-[#8b90a0]">A user belongs to one team; selecting someone moves them here.</p>
+            <p className="mt-1 text-[11.5px] text-muted-foreground">A user belongs to one team; selecting someone moves them here.</p>
           </BdField>
         </div>
         <DialogFooter>

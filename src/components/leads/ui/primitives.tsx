@@ -7,6 +7,7 @@ import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { Check, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BdButton } from "@/components/bd";
+import { Checkbox as UiCheckbox } from "@/components/ui/checkbox";
 
 /* ───────────── Modal (Buildesk look) ───────────── */
 
@@ -30,23 +31,23 @@ export function Modal({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[90] bg-[#1b2440]/45" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[90] bg-foreground/45" />
         <DialogPrimitive.Content
           style={{ maxWidth: width }}
-          className="fixed left-1/2 top-1/2 z-[91] flex max-h-[90vh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-[4px] bg-white shadow-[0_20px_60px_rgba(20,30,70,0.35)] outline-none"
+          className="fixed left-1/2 top-1/2 z-[91] flex max-h-[90vh] w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-lg bg-white shadow-[0_20px_60px_rgba(20,30,70,0.35)] outline-none"
           aria-describedby={undefined}
         >
-          <div className="flex items-start justify-between border-b border-[#eef0f6] px-5 py-4">
+          <div className="flex items-start justify-between border-b border-border/70 px-5 py-4">
             <div>
-              <DialogPrimitive.Title className="text-[17px] font-medium text-[#2b2f3a]">{title}</DialogPrimitive.Title>
-              {subtitle ? <p className="mt-0.5 text-[12px] uppercase tracking-wide text-[#8b90a0]">{subtitle}</p> : null}
+              <DialogPrimitive.Title className="text-[17px] font-medium text-foreground">{title}</DialogPrimitive.Title>
+              {subtitle ? <p className="mt-0.5 text-[12px] uppercase tracking-wide text-muted-foreground">{subtitle}</p> : null}
             </div>
-            <DialogPrimitive.Close className="rounded p-1 text-[#7c8296] hover:bg-[#f0f2f8]" aria-label="Close">
+            <DialogPrimitive.Close className="rounded p-1 text-muted-foreground hover:bg-muted" aria-label="Close">
               <X className="size-4" />
             </DialogPrimitive.Close>
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
-          {footer ? <div className="flex items-center justify-end gap-2 border-t border-[#eef0f6] px-5 py-3">{footer}</div> : null}
+          {footer ? <div className="flex items-center justify-end gap-2 border-t border-border/70 px-5 py-3">{footer}</div> : null}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
@@ -110,7 +111,7 @@ export function DropMenu({
           align={align}
           sideOffset={4}
           className={cn(
-            "z-[95] min-w-[190px] rounded-[4px] border border-[#e3e6ef] bg-white py-1.5 text-[14px] shadow-[0_8px_28px_rgba(30,50,110,0.2)] outline-none",
+            "z-[95] min-w-[190px] rounded-lg border border-border bg-white py-1.5 text-[14px] shadow-[0_8px_28px_rgba(30,50,110,0.2)] outline-none",
             className,
           )}
         >
@@ -121,8 +122,8 @@ export function DropMenu({
                 key={i.key}
                 onSelect={() => i.onSelect()}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 px-4 py-2 outline-none data-[highlighted]:bg-[#eef1fa]",
-                  i.danger ? "text-[#c93c41]" : "text-[#2b2f3a]",
+                  "flex cursor-pointer items-center gap-3 px-4 py-2 outline-none data-[highlighted]:bg-primary-50",
+                  i.danger ? "text-destructive" : "text-foreground",
                 )}
               >
                 {i.icon ? <i.icon className="size-4 shrink-0" /> : null}
@@ -167,9 +168,9 @@ export function MultiSelect({
             className,
           )}
         >
-          {value.length === 0 ? <span className="text-[#9aa1b5]">{placeholder}</span> : null}
+          {value.length === 0 ? <span className="text-muted-foreground/80">{placeholder}</span> : null}
           {value.map((v) => (
-            <span key={v} className="inline-flex items-center gap-1 rounded-[2px] bg-[#eceff8] px-1.5 py-[2px] text-[12.5px]">
+            <span key={v} className="inline-flex items-center gap-1 rounded-lg bg-muted px-1.5 py-[2px] text-[12.5px]">
               {labelOf(v)}
               <button
                 type="button"
@@ -178,7 +179,7 @@ export function MultiSelect({
                   e.stopPropagation();
                   toggle(v);
                 }}
-                className="text-[#5a6072] hover:text-black"
+                className="text-foreground/70 hover:text-black"
               >
                 <X className="size-3" />
               </button>
@@ -192,19 +193,19 @@ export function MultiSelect({
                 e.stopPropagation();
                 onChange([]);
               }}
-              className="absolute right-7 top-1/2 -translate-y-1/2 text-[#7c8296] hover:text-black"
+              className="absolute right-7 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-black"
             >
               <X className="size-3.5" />
             </button>
           ) : null}
-          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-[#7c8296]" />
+          <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
         </div>
       </PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal>
         <PopoverPrimitive.Content
           align="start"
           sideOffset={3}
-          className="z-[96] max-h-[280px] w-[var(--radix-popover-trigger-width)] min-w-[200px] overflow-y-auto rounded-[4px] border border-[#e3e6ef] bg-white py-1 text-[13.5px] shadow-[0_8px_28px_rgba(30,50,110,0.2)] outline-none"
+          className="z-[96] max-h-[280px] w-[var(--radix-popover-trigger-width)] min-w-[200px] overflow-y-auto rounded-lg border border-border bg-white py-1 text-[13.5px] shadow-[0_8px_28px_rgba(30,50,110,0.2)] outline-none"
         >
           {searchable ? (
             <div className="p-2">
@@ -217,7 +218,7 @@ export function MultiSelect({
               />
             </div>
           ) : null}
-          {shown.length === 0 ? <p className="px-3 py-2 text-[#8b90a0]">No options</p> : null}
+          {shown.length === 0 ? <p className="px-3 py-2 text-muted-foreground">No options</p> : null}
           {shown.map((o) => {
             const on = value.includes(o.value);
             return (
@@ -225,12 +226,12 @@ export function MultiSelect({
                 key={o.value}
                 type="button"
                 onClick={() => toggle(o.value)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-[#eef1fa]"
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left hover:bg-primary-50"
               >
                 <span
                   className={cn(
-                    "flex size-4 items-center justify-center rounded-[2px] border",
-                    on ? "border-[#3a5dc2] bg-[#3a5dc2] text-white" : "border-[#c9cfe0]",
+                    "flex size-4 items-center justify-center rounded-lg border",
+                    on ? "border-primary bg-primary text-white" : "border-input",
                   )}
                 >
                   {on ? <Check className="size-3" /> : null}
@@ -258,23 +259,17 @@ export function Checkbox({
   indeterminate?: boolean;
   label?: string;
 }) {
-  const ref = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => {
-    if (ref.current) ref.current.indeterminate = !!indeterminate && !checked;
-  }, [indeterminate, checked]);
   return (
-    <input
-      ref={ref}
-      type="checkbox"
+    <UiCheckbox
       aria-label={label ?? "Select"}
-      checked={checked}
-      onChange={(e) => onChange(e.target.checked)}
-      className="size-4 cursor-pointer rounded-[3px] border-[#c9cfe0] accent-[#3a5dc2]"
+      checked={indeterminate && !checked ? "indeterminate" : checked}
+      onCheckedChange={(v) => onChange(v === true)}
+      className="cursor-pointer"
     />
   );
 }
 
-/** ISO string -> value for <input type="datetime-local">. */
+/** ISO string -> local `yyyy-MM-ddTHH:mm` (DateTimeField value). */
 export function toLocalInput(d?: Date | string | null) {
   const dt = d ? new Date(d) : new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
